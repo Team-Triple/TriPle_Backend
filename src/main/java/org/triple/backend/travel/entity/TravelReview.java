@@ -19,4 +19,6 @@ public class TravelReview extends BaseEntity {
     private String content;
 
     private boolean isDeleted;
+
+    private int view;
 }
