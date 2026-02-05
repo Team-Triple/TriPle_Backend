@@ -1,14 +1,13 @@
 package org.triple.backend.group.entity.userGroup;
 
 import jakarta.persistence.*;
-import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.user.entity.User;
 
 import java.time.LocalDateTime;
 
 @Entity
-public class UserGroup extends BaseEntity{
+public class UserGroup {
 
     @Id
     @Column(name = "user_group_id")
