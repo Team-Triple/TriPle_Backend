@@ -31,6 +31,7 @@ public class Payment extends BaseEntity {
 
     private BigDecimal approvedAmount;
 
+    @Enumerated(EnumType.STRING)
     private PaymentStatus paymentStatus;
 
     private LocalDateTime approvedAt;
