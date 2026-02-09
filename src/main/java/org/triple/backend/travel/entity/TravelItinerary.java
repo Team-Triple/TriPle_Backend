@@ -32,6 +32,8 @@ public class TravelItinerary extends BaseEntity {
 
     private int memberLimit;
 
+    private int memberCount;
+
     private boolean isDeleted;
 
     @OneToMany(mappedBy = "travelItinerary")
