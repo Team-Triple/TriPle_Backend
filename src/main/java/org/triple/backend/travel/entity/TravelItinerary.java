@@ -32,7 +32,7 @@ public class TravelItinerary extends BaseEntity {
 
     private int memberLimit;
 
-    private int memberCount;
+    private int memberCount = 1;
 
     private boolean isDeleted;
 
