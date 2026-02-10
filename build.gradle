@@ -20,6 +20,21 @@ jacoco {
     toolVersion = "0.8.10"
 }
 
+def jacocoExclude = [
+        "**/*Application*",
+        "**/config/**",
+        "**/global/**",
+        "**/*ArgumentResolver*",
+        "**/*Interceptor*",
+        "**/*Filter*",
+        "**/dto/**",
+        "**/entity/**",
+        "**/exception/**",
+        "**/error/**",
+        "**/*ErrorCode*",
+        "**/*Exception*"
+]
+
 jacocoTestReport {
     reports {
         xml.required.set(true)
@@ -34,8 +49,7 @@ jacocoTestReport {
     afterEvaluate {
         classDirectories.setFrom(
                 files(classDirectories.files.collect {
-                    fileTree(dir: it, excludes: [
-                    ])
+                    fileTree(dir: it, exclude: jacocoExclude)
                 })
         )
     }
@@ -44,6 +58,15 @@ jacocoTestReport {
 }
 
 jacocoTestCoverageVerification {
+
+    dependsOn jacocoTestReport
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExclude)
+        }))
+    }
+
     violationRules {
         rule {
             enabled = true
@@ -52,14 +75,8 @@ jacocoTestCoverageVerification {
             limit {
                 counter = 'LINE'
                 value = 'COVEREDRATIO'
-                minimum = 0.00
+                minimum = 0.80
             }
-        }
-
-        rule {
-            excludes = [
-
-            ]
         }
     }
 }
