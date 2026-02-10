@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '4.0.2'
     id 'io.spring.dependency-management' version '1.1.7'
     id "org.asciidoctor.jvm.convert" version '4.0.2'
+    id 'jacoco'
 }
 
 group = 'org.triple'
@@ -12,6 +13,54 @@ description = 'Backend'
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+jacoco {
+    toolVersion = "0.8.10"
+}
+
+jacocoTestReport {
+    reports {
+        xml.required.set(true)
+        csv.required.set(true)
+        html.required.set(true)
+
+        xml.outputLocation.set(layout.buildDirectory.file("jacoco/index.xml"))
+        csv.outputLocation.set(layout.buildDirectory.file("jacoco/index.csv"))
+        html.outputLocation.set(layout.buildDirectory.dir("jacoco/index.html"))
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(
+                files(classDirectories.files.collect {
+                    fileTree(dir: it, excludes: [
+                    ])
+                })
+        )
+    }
+
+    finalizedBy 'jacocoTestCoverageVerification'
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            enabled = true
+            element = 'CLASS'
+
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.00
+            }
+        }
+
+        rule {
+            excludes = [
+
+            ]
+        }
     }
 }
 
@@ -47,8 +96,11 @@ ext {
     docsDir = file('build/docs/asciidoc')
 }
 
+
 test {
+    useJUnitPlatform()
     outputs.dir snippetsDir
+    finalizedBy 'jacocoTestReport'
 }
 
 asciidoctor {
@@ -63,8 +115,4 @@ bootJar {
     from(docsDir) {
         into 'static/docs'
     }
-}
-
-tasks.named('test') {
-    useJUnitPlatform()
 }
