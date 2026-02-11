@@ -1,4 +1,4 @@
-package org.triple.backend.user.service;
+package org.triple.backend.user.unit.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,6 +10,7 @@ import org.triple.backend.user.entity.Gender;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
+import org.triple.backend.user.service.UserService;
 
 import java.time.LocalDate;
 

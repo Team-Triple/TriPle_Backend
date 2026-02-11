@@ -1,4 +1,4 @@
-package org.triple.backend.user.repository;
+package org.triple.backend.user.unit.repository;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.triple.backend.common.RepositoryTest;
 import org.triple.backend.user.entity.Gender;
 import org.triple.backend.user.entity.User;
+import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.time.LocalDate;
 

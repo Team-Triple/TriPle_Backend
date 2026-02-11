@@ -1,4 +1,4 @@
-package org.triple.backend.user.controller;
+package org.triple.backend.user.unit.controller;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
