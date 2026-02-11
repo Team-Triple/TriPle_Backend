@@ -2,8 +2,12 @@ package org.triple.backend.user.unit.controller;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.triple.backend.common.ControllerTest;
+import org.triple.backend.user.controller.UserController;
 import org.triple.backend.user.dto.response.UserInfoResponseDto;
+import org.triple.backend.user.service.UserService;
 
 import java.time.LocalDate;
 
@@ -14,7 +18,11 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@WebMvcTest(UserController.class)
 public class UserControllerTest extends ControllerTest{
+
+    @MockitoBean
+    protected UserService userService;
 
     @Test
     @DisplayName("사용자 정보 조회를 하면 사용자 정보와 상태코드 200을 반환한다.")
