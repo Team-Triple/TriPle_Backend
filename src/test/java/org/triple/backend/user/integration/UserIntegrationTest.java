@@ -3,7 +3,8 @@ package org.triple.backend.user.integration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.triple.backend.common.IntegrationTest;
+import org.springframework.test.web.servlet.MockMvc;
+import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.user.entity.Gender;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
@@ -14,9 +15,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-public class UserIntegrationTest extends IntegrationTest {
+@IntegrationTest
+public class UserIntegrationTest {
 
     private static final String USER_SESSION_KEY = "USER_ID";
+
+    @Autowired
+    private MockMvc mockMvc;
 
     @Autowired
     private UserJpaRepository userJpaRepository;
