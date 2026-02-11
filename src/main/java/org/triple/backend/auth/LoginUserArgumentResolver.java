@@ -24,7 +24,7 @@ public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver 
     }
 
     @Override
-    public @Nullable Object resolveArgument(
+    public @Nullable Long resolveArgument(
             MethodParameter parameter,
             @Nullable ModelAndViewContainer mavContainer,
             NativeWebRequest webRequest,
@@ -43,6 +43,6 @@ public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver 
             throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
         }
 
-        return userId;
+        return (Long) userId;
     }
 }
