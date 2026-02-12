@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.userGroup.UserGroup;
@@ -28,9 +29,14 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Enumerated(EnumType.STRING)
+    private OauthProvider provider;
+
     private String providerId;
 
     private String nickname;
+
+    private String email;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
