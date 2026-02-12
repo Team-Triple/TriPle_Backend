@@ -15,16 +15,10 @@ jobs:
             echo "TARGET_HOST=${{ secrets.DEV_HOST }}" >> $GITHUB_ENV
             echo "SSH_KEY=${{ secrets.EC2_SSH_KEY_DEV }}" >> $GITHUB_ENV
             echo "IMAGE_TAG=develop" >> $GITHUB_ENV
-            echo "ENV_CONTENT<<EOF" >> $GITHUB_ENV
-            echo "${{ secrets.ENV_DEV }}" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
           else
             echo "TARGET_HOST=${{ secrets.PROD_HOST }}" >> $GITHUB_ENV
             echo "SSH_KEY=${{ secrets.EC2_SSH_KEY_PROD }}" >> $GITHUB_ENV
             echo "IMAGE_TAG=main" >> $GITHUB_ENV
-            echo "ENV_CONTENT<<EOF" >> $GITHUB_ENV
-            echo "${{ secrets.ENV_PROD }}" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
           fi
 
       - name: SSH key 파일 생성
@@ -42,7 +36,11 @@ jobs:
 
       - name: .env 파일 생성
         run: |
-          printf "%s" "${ENV_CONTENT}" > .env
+          if [ "${GITHUB_REF_NAME}" = "develop" ]; then
+            printf "%s" "${{ secrets.ENV_DEV }}" > .env
+          else
+            printf "%s" "${{ secrets.ENV_PROD }}" > .env
+          fi
 
       - name: .env 업로드
         env:
@@ -76,7 +74,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ubuntu@${TARGET_HOST} "\
             set -e; \
             cd ${DEPLOY_PATH}; \
-            docker pull ghcr.io/${{ github.repository }}:${IMAGE_TAG}; \
+            docker pull ghcr.io/team-triple/backend:${IMAGE_TAG}; \
             IMAGE_TAG=${IMAGE_TAG} docker compose up -d; \
             docker image prune -f \
           "
