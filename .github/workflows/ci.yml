@@ -44,8 +44,8 @@ jobs:
       - name: 도커 이미지 생성
         run: |
           docker build \
-            -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
+            -t ghcr.io/team-triple/backend:${{ github.sha }} .
 
       - name: ghcr에 이미지 push
         run: |
-          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+          docker push ghcr.io/team-triple/backend:${{ github.sha }}
