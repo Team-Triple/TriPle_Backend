@@ -1,7 +1,7 @@
 package org.triple.backend.auth.session;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
@@ -9,13 +9,12 @@ import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
-import org.triple.backend.auth.exception.AuthErrorCode;
-import org.triple.backend.global.error.BusinessException;
 
 @Component
+@RequiredArgsConstructor
 public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver {
 
-    private static final String USER_ID = "USER_ID";
+    private final SessionManager sessionManager;
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
@@ -31,18 +30,6 @@ public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver 
             @Nullable WebDataBinderFactory binderFactory) {
 
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-
-        HttpSession session = request.getSession(false);
-
-        if (session == null) {
-            throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
-        }
-
-        Object userId = session.getAttribute(USER_ID);
-        if (userId == null) {
-            throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
-        }
-
-        return (Long) userId;
+        return sessionManager.getUserIdOrThrow(request);
     }
 }
