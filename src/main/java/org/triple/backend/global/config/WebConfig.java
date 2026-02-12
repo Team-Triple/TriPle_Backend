@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.triple.backend.auth.LoginUserArgumentResolver;
+import org.triple.backend.auth.session.LoginUserArgumentResolver;
 
 import java.util.List;
 
