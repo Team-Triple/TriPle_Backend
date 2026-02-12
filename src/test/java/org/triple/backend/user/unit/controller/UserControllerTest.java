@@ -22,7 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class UserControllerTest extends ControllerTest{
 
     @MockitoBean
-    protected UserService userService;
+    private UserService userService;
 
     @Test
     @DisplayName("사용자 정보 조회를 하면 사용자 정보와 상태코드 200을 반환한다.")
