@@ -1,0 +1,11 @@
+= Auth API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== Oauth2 로그인
+include::{snippets}/auth/login/http-request.adoc[]
+include::{snippets}/auth/login/http-response.adoc[]
+

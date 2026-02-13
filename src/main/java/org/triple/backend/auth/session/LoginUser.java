@@ -1,4 +1,4 @@
-package org.triple.backend.auth;
+package org.triple.backend.auth.session;
 
 import java.lang.annotation.*;
 
