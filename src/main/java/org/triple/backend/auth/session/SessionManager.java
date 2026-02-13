@@ -10,7 +10,7 @@ import org.triple.backend.global.error.BusinessException;
 @Component
 public class SessionManager {
 
-    private static final String SESSION_KEY = "USER_ID";
+    public static final String SESSION_KEY = "USER_ID";
 
     public void login(HttpServletRequest request, Long userId) {
         request.getSession(true).setAttribute(SESSION_KEY, userId);
