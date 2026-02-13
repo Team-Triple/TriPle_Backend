@@ -16,6 +16,7 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -28,8 +29,8 @@ public class AuthService {
     private final SessionManager sessionManager;
 
     public AuthService(Map<String, OauthClient> clients, UserJpaRepository userJpaRepository, TransactionTemplate txTemplate, SessionManager sessionManager) {
-        this.clients = clients.values().stream()
-                .collect(Collectors.toMap(OauthClient::provider, Function.identity()));
+        this.clients = clients.entrySet().stream()
+                .collect(Collectors.toMap(c -> c.getValue().provider(), Map.Entry::getValue));
         this.userJpaRepository = userJpaRepository;
         this.txTemplate = txTemplate;
         this.sessionManager = sessionManager;
