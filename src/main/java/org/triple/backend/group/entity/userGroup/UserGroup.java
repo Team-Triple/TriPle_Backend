@@ -1,12 +1,20 @@
 package org.triple.backend.group.entity.userGroup;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.user.entity.User;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class UserGroup {
 
     @Id
