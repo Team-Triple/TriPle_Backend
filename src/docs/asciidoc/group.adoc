@@ -1,0 +1,10 @@
+= GROUP API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== 그룹 생성
+include::{snippets}/groups/create/http-request.adoc[]
+include::{snippets}/groups/create/http-response.adoc[]
