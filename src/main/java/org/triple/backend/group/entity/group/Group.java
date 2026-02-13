@@ -1,6 +1,10 @@
 package org.triple.backend.group.entity.group;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.userGroup.UserGroup;
@@ -9,8 +13,12 @@ import org.triple.backend.user.entity.User;
 import java.util.ArrayList;
 import java.util.List;
 
+@Getter
 @Entity
 @Table(name = "travel_group")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class Group extends BaseEntity {
 
     @Id
@@ -35,7 +43,7 @@ public class Group extends BaseEntity {
 
     private String description;
 
-    private String thumbnailUrl;
+    private String thumbNailUrl;
 
     private int currentMemberCount = 1;
 
