@@ -14,7 +14,7 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 @RequiredArgsConstructor
 public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver {
 
-    private final SessionManager sessionManager;
+    private static final String LOGIN_USER_ID = "LOGIN_USER_ID";
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
@@ -30,6 +30,6 @@ public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver 
             @Nullable WebDataBinderFactory binderFactory) {
 
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-        return sessionManager.getUserIdOrThrow(request);
+        return (Long) request.getAttribute(LOGIN_USER_ID);
     }
 }
