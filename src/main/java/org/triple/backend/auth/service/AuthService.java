@@ -21,20 +21,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final Map<OauthProvider, OauthClient> clients;
     private final UserJpaRepository userJpaRepository;
     private final TransactionTemplate txTemplate;
     private final SessionManager sessionManager;
-
-    public AuthService(Map<String, OauthClient> clients, UserJpaRepository userJpaRepository, TransactionTemplate txTemplate, SessionManager sessionManager) {
-        this.clients = clients.entrySet().stream()
-                .collect(Collectors.toMap(c -> c.getValue().provider(), Map.Entry::getValue));
-        this.userJpaRepository = userJpaRepository;
-        this.txTemplate = txTemplate;
-        this.sessionManager = sessionManager;
-    }
 
     public AuthLoginResponseDto login(final AuthLoginRequestDto authLoginRequestDto, final HttpServletRequest request) {
         OauthClient client = clients.get(authLoginRequestDto.provider());
