@@ -4,7 +4,7 @@
       cookie:
         same-site: none
         secure: true
-        http-only: false
+        http-only: true
 
 spring:
   datasource:
