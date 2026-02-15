@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.triple.backend.auth.cookie.CookieManager;
 import org.triple.backend.auth.dto.request.AuthLoginRequestDto;
 import org.triple.backend.auth.dto.response.AuthLoginResponseDto;
 import org.triple.backend.auth.service.AuthService;
@@ -20,6 +21,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final CsrfTokenManager csrfTokenManager;
+    private final CookieManager cookieManager;
 
     @PostMapping("/login")
     public AuthLoginResponseDto login(@Valid @RequestBody final AuthLoginRequestDto authLoginRequestDto,
@@ -27,6 +29,7 @@ public class AuthController {
                                       final HttpServletResponse response) {
         AuthLoginResponseDto result = authService.login(authLoginRequestDto, request);
         String token = csrfTokenManager.getOrCreateToken(request);
+        cookieManager.addLoginCookie(response);
         response.setHeader(CsrfTokenManager.CSRF_HEADER, token);
         return result;
     }
