@@ -12,6 +12,7 @@ import org.triple.backend.auth.dto.request.AuthLoginRequestDto;
 import org.triple.backend.auth.dto.response.AuthLoginResponseDto;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.auth.service.AuthService;
+import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.common.ControllerTest;
 import tools.jackson.databind.ObjectMapper;
@@ -34,6 +35,9 @@ public class AuthControllerTest extends ControllerTest {
     @MockitoBean
     private SessionManager sessionManager;
 
+    @MockitoBean
+    private CsrfTokenManager csrfTokenManager;
+
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -46,6 +50,8 @@ public class AuthControllerTest extends ControllerTest {
 
         when(authService.login(eq(req), any(HttpServletRequest.class)))
                 .thenReturn(new AuthLoginResponseDto("test", "test@test.com","https://test.png"));
+        when(csrfTokenManager.getOrCreateToken(any(HttpServletRequest.class)))
+                .thenReturn("csrf-token");
 
         // when & then
         mockMvc.perform(post("/auth/login")

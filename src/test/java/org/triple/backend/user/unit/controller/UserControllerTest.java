@@ -1,9 +1,12 @@
 package org.triple.backend.user.unit.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.triple.backend.auth.session.CsrfInterceptor;
+import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.user.controller.UserController;
 import org.triple.backend.user.dto.response.UserInfoResponseDto;
@@ -11,6 +14,7 @@ import org.triple.backend.user.service.UserService;
 
 import java.time.LocalDate;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
@@ -23,6 +27,9 @@ public class UserControllerTest extends ControllerTest{
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private CsrfTokenManager csrfTokenManager;
 
     @Test
     @DisplayName("사용자 정보 조회를 하면 사용자 정보와 상태코드 200을 반환한다.")
@@ -40,6 +47,8 @@ public class UserControllerTest extends ControllerTest{
                         .description("hi")
                         .profileUrl("https://example.com/profile.png")
                         .build());
+
+        when(csrfTokenManager.isValid(any(), any())).thenReturn(true);
 
         // then
         mockMvc.perform(get("/users/me")

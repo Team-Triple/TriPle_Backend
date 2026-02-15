@@ -1,5 +1,6 @@
 package org.triple.backend.group.unit.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -10,10 +11,12 @@ import org.triple.backend.group.controller.GroupController;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.service.GroupService;
+import org.triple.backend.auth.session.CsrfTokenManager;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
@@ -27,6 +30,9 @@ public class GroupControllerTest extends ControllerTest {
     @MockitoBean
     private GroupService groupService;
 
+    @MockitoBean
+    private CsrfTokenManager csrfTokenManager;
+
     @Test
     @DisplayName("그룹을 생성하면 그룹 정보와 상태코드 200을 반환한다.")
     void 그룹을_생성하면_그룹_정보와_상태코드_200을_반환한다() throws Exception {
@@ -35,6 +41,9 @@ public class GroupControllerTest extends ControllerTest {
 
         given(groupService.create(any(CreateGroupRequestDto.class), eq(1L)))
                 .willReturn(response);
+
+        String csrfToken = "csrf-token";
+        when(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).thenReturn(true);
 
         String body = """
                 {
@@ -49,6 +58,8 @@ public class GroupControllerTest extends ControllerTest {
         //when & then
         mockMvc.perform(post("/groups")
                         .sessionAttr("USER_ID", 1L)
+                        .sessionAttr(CsrfTokenManager.CSRF_TOKEN_KEY, csrfToken)
+                        .header(CsrfTokenManager.CSRF_HEADER, csrfToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())

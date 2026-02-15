@@ -14,6 +14,7 @@ import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
+import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 import tools.jackson.databind.JsonNode;
@@ -78,8 +79,11 @@ public class GroupIntegrationTest {
                 """;
 
         // when
+        String csrfToken = "csrf-token";
         var result = mockMvc.perform(post("/groups")
                         .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(CsrfTokenManager.CSRF_TOKEN_KEY, csrfToken)
+                        .header(CsrfTokenManager.CSRF_HEADER, csrfToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
