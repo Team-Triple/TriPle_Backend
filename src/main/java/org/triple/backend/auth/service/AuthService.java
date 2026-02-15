@@ -16,9 +16,6 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
