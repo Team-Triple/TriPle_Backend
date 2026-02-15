@@ -40,7 +40,6 @@ public class UserControllerTest extends ControllerTest{
         // when
         when(userService.userInfo(userId))
                 .thenReturn(UserInfoResponseDto.builder()
-                        .userId(userId)
                         .nickname("sangyun")
                         .gender("MALE")
                         .birth(LocalDate.of(1999,1,16))
@@ -55,7 +54,6 @@ public class UserControllerTest extends ControllerTest{
                         .sessionAttr("USER_ID", userId))
                 .andDo(document("users/me",
                         responseFields(
-                                fieldWithPath("userId").description("유저 ID"),
                                 fieldWithPath("nickname").description("닉네임"),
                                 fieldWithPath("gender").description("성별"),
                                 fieldWithPath("birth").description("생일").optional(),
