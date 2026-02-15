@@ -22,7 +22,7 @@ public class UserService {
 
         return UserInfoResponseDto.builder()
                 .nickname(savedUser.getNickname())
-                .gender(savedUser.getGender().toString())
+                .gender((savedUser.getGender() != null ? savedUser.getGender().toString() : null))
                 .birth(savedUser.getBirth())
                 .description(savedUser.getDescription())
                 .profileUrl(savedUser.getProfileUrl())
