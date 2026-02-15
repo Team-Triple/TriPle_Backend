@@ -5,9 +5,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.triple.backend.auth.controller.AuthController;
+import org.triple.backend.auth.cookie.CookieManager;
 import org.triple.backend.auth.dto.request.AuthLoginRequestDto;
 import org.triple.backend.auth.dto.response.AuthLoginResponseDto;
 import org.triple.backend.auth.oauth.OauthProvider;
@@ -17,14 +19,17 @@ import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.common.ControllerTest;
 import tools.jackson.databind.ObjectMapper;
 
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(AuthController.class)
 public class AuthControllerTest extends ControllerTest {
@@ -37,6 +42,9 @@ public class AuthControllerTest extends ControllerTest {
 
     @MockitoBean
     private CsrfTokenManager csrfTokenManager;
+
+    @Autowired
+    private CookieManager cookieManager;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -71,5 +79,39 @@ public class AuthControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.nickname").value("test"))
                 .andExpect(jsonPath("$.email").value("test@test.com"))
                 .andExpect(jsonPath("$.profileUrl").value("https://test.png"));
+    }
+
+    @Test
+    @DisplayName("로그인 성공 시 응답 바디 + CSRF 토큰 + 로그인 쿠키를 전달합니다")
+    void 로그인_성공_시_응답_바디값_CSRF_토큰_로그인_쿠키를_전달합니다() throws Exception {
+        // given
+        String body = """
+                {"code":"test-code","provider":"KAKAO"}
+                """;
+
+        given(authService.login(any(AuthLoginRequestDto.class), any(HttpServletRequest.class)))
+                .willReturn(new AuthLoginResponseDto("test", "test@test.com", "http://img"));
+
+        given(csrfTokenManager.getOrCreateToken(any(HttpServletRequest.class)))
+                .willReturn("csrf-token-123");
+
+        // when & then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("test"))
+                .andExpect(jsonPath("$.email").value("test@test.com"))
+                .andExpect(jsonPath("$.profileUrl").value("http://img"))
+                .andExpect(header().string(CsrfTokenManager.CSRF_HEADER, "csrf-token-123"))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
+                            containsString("login_status=true"),
+                            containsString("Secure"),
+                            containsString("SameSite=None"),
+                            not(containsString("HttpOnly"))
+                    )));
+
+        verify(csrfTokenManager, times(1)).getOrCreateToken(any(HttpServletRequest.class));
+        verify(authService, times(1)).login(any(AuthLoginRequestDto.class), any(HttpServletRequest.class));
     }
 }
