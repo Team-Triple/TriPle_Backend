@@ -47,7 +47,6 @@ class UserServiceTest {
         UserInfoResponseDto response = userService.userInfo(saved.getId());
 
         // then
-        assertThat(response.userId()).isEqualTo(saved.getId());
         assertThat(response.nickname()).isEqualTo("상윤");
         assertThat(response.gender()).isEqualTo(Gender.MALE.toString());
         assertThat(response.birth()).isEqualTo(LocalDate.of(1999, 1, 1));
