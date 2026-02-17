@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
+import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.travel.TravelErrorCode;
@@ -35,7 +36,7 @@ public class TravelService {
         Group group = groupJpaRepository.findById(travelsRequestDto.groupId()) //그룹 찾기
                 .orElseThrow(() -> new BusinessException(TravelErrorCode.TRAVEL_GROUP_NOT_FOUND));
 
-        if (!userGroupJpaRepository.existsByUserAndGroup(user, group)) { //그룹에 포함되지 않은 사용자면 예외
+        if (!userGroupJpaRepository.existsByUserAndGroupAndJoinStatus(user, group, JoinStatus.JOINED)) { //그룹에 포함되지 않은 사용자면 예외
             throw new BusinessException(TravelErrorCode.SAVE_FORBIDDEN);
         }
 
