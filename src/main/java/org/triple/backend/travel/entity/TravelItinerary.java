@@ -107,7 +107,7 @@ public class TravelItinerary extends BaseEntity {
     }
 
     private static int validateMemberLimit(int memberLimit) {
-        if (memberLimit < 1 || memberLimit > 20) throw new IllegalArgumentException("멤버 제한은 0보다 크거나, 20보다 작아야 합니다.");
+        if (memberLimit < 1 || memberLimit > 20) throw new IllegalArgumentException("멤버 제한은 0보다 크거나, 21보다 작아야 합니다.");
         return memberLimit;
     }
 }

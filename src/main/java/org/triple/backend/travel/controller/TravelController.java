@@ -13,7 +13,7 @@ import org.triple.backend.travel.service.TravelService;
 @RequestMapping("/travels")
 @RequiredArgsConstructor
 public class TravelController {
-    public final TravelService travelService;
+    private final TravelService travelService;
 
     @LoginRequired
     @PostMapping
