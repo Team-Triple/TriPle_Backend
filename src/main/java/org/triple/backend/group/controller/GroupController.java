@@ -27,4 +27,10 @@ public class GroupController {
     public GroupCursorResponseDto browsePublicGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size) {
         return groupService.browsePublicGroups(cursor, size);
     }
+
+    @LoginRequired
+    @DeleteMapping("/{groupId}")
+    public void delete(@PathVariable Long groupId) {
+        groupService.delete(groupId);
+    }
 }
