@@ -45,10 +45,6 @@ public class AuthController {
             final HttpServletResponse response,
             @RequestHeader(value = CsrfTokenManager.CSRF_HEADER, required = false) final String csrfToken
     ) {
-        if (request.getSession(false) != null && !csrfTokenManager.isValid(request, csrfToken)) {
-            throw new BusinessException(AuthErrorCode.INVALID_CSRF_TOKEN);
-        }
-
         authService.logout(request);
         cookieManager.clearLoginCookie(response);
         cookieManager.clearSessionCookie(response);
