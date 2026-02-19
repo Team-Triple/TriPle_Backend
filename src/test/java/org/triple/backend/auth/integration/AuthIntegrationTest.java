@@ -23,6 +23,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -116,5 +117,24 @@ class AuthIntegrationTest {
         }
 
         assertThat(userJpaRepository.count()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("로그아웃 성공 시 세션을 무효화하고 login_status/JSESSIONID 쿠키를 만료시킨다")
+    void 로그아웃_성공_시_세션을_무효화하고_쿠키를_만료시킨다() throws Exception {
+        // when
+        MvcResult result = mockMvc.perform(get("/auth/logout")
+                        .sessionAttr(SessionManager.SESSION_KEY, 1L))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // then
+        HttpSession session = result.getRequest().getSession(false);
+        assertThat(session).isNull();
+
+        var setCookies = result.getResponse().getHeaders("Set-Cookie");
+        assertThat(setCookies)
+                .anySatisfy(cookie -> assertThat(cookie).contains("login_status=").contains("Max-Age=0"))
+                .anySatisfy(cookie -> assertThat(cookie).contains("JSESSIONID=").contains("Max-Age=0"));
     }
 }
