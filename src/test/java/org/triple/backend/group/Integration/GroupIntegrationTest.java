@@ -25,8 +25,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.group.fixture.GroupFixtures.privateGroup;
@@ -36,6 +35,7 @@ import static org.triple.backend.group.fixture.GroupFixtures.publicGroup;
 public class GroupIntegrationTest {
 
     private static final String USER_SESSION_KEY = "USER_ID";
+    private static final String CSRF_TOKEN = "csrf-token";
 
     @Autowired
     private MockMvc mockMvc;
@@ -84,11 +84,10 @@ public class GroupIntegrationTest {
                 """;
 
         // when
-        String csrfToken = "csrf-token";
         var result = mockMvc.perform(post("/groups")
                         .sessionAttr(USER_SESSION_KEY, owner.getId())
-                        .sessionAttr(CsrfTokenManager.CSRF_TOKEN_KEY, csrfToken)
-                        .header(CsrfTokenManager.CSRF_HEADER, csrfToken)
+                        .sessionAttr(CsrfTokenManager.CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -167,5 +166,38 @@ public class GroupIntegrationTest {
                     assertThat(dto.items())
                             .allSatisfy(item -> assertThat(item.groupId()).isLessThan(nextCursor));
                 });
+    }
+
+    @Test
+    @DisplayName("로그인 세션이 있으면 그룹 삭제가 되고, 연관된 UserGroup도 함께 삭제된다")
+    void 로그인_세션이_있으면_그룹_삭제가_되고_연관된_UserGroup도_함께_삭제된다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner")
+                        .nickname("상윤")
+                        .email("owner@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        assertThat(groupJpaRepository.findById(savedGroup.getId())).isPresent();
+        assertThat(userGroupJpaRepository.findAll()).hasSize(1);
+
+        // when
+        mockMvc.perform(delete("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(CsrfTokenManager.CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        // then
+        assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
+        assertThat(userGroupJpaRepository.findAll()).isEmpty();
     }
 }
