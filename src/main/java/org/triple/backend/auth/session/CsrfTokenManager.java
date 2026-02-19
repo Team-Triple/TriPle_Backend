@@ -2,10 +2,12 @@ package org.triple.backend.auth.session;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
+@Slf4j
 @Component
 public class CsrfTokenManager {
 
@@ -24,10 +26,12 @@ public class CsrfTokenManager {
 
     public boolean isValid(HttpServletRequest request, String providedToken) {
         if (providedToken == null || providedToken.isBlank()) {
+            log.warn("요청에 Csrf 토큰이 없음");
             return false;
         }
         HttpSession session = request.getSession(false);
         if (session == null) {
+            log.warn("세션에 Csrf 토큰이 없음");
             return false;
         }
         String expected = (String) session.getAttribute(CSRF_TOKEN_KEY);

@@ -3,10 +3,12 @@ package org.triple.backend.auth.session;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class LoginInterceptor implements HandlerInterceptor {
@@ -21,6 +23,7 @@ public class LoginInterceptor implements HandlerInterceptor {
         boolean required = handlerMethod.hasMethodAnnotation(LoginRequired.class) || handlerMethod.getBeanType().isAnnotationPresent(LoginRequired.class);
 
         if(!required) return true;
+        log.debug("로그인이 필요한 요청, 로그인 인터셉터 수행");
 
         Long userId = sessionManger.getUserIdOrThrow(request);
         request.setAttribute(LOGIN_USER_ID, userId);

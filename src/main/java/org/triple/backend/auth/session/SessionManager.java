@@ -3,10 +3,14 @@ package org.triple.backend.auth.session;
 import jakarta.annotation.Nullable;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.triple.backend.auth.exception.AuthErrorCode;
 import org.triple.backend.global.error.BusinessException;
 
+import static org.triple.backend.global.log.MaskUtil.maskId;
+
+@Slf4j
 @Component
 public class SessionManager {
 
@@ -14,6 +18,7 @@ public class SessionManager {
 
     public void login(HttpServletRequest request, Long userId) {
         request.getSession(true).setAttribute(SESSION_KEY, userId);
+        log.debug("세션에 저장된 userId = {}", maskId(userId));
     }
 
     public @Nullable Long getUserId(HttpServletRequest request) {
@@ -24,7 +29,10 @@ public class SessionManager {
 
     public Long getUserIdOrThrow(HttpServletRequest request) {
         Long userId = getUserId(request);
-        if (userId == null) throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
+        if (userId == null) {
+            log.warn("세션에 저장된 userId가 없음");
+            throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
+        }
         return userId;
     }
 }
