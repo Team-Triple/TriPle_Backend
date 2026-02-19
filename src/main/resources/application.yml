@@ -21,10 +21,6 @@ spring:
         format_sql: true
         show_sql: false
 
-logging:
-  level:
-    org.hibernate.SQL: debug
-
 oauth:
   kakao:
     token-uri: https://kauth.kakao.com/oauth/token
