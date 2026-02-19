@@ -2,6 +2,7 @@ package org.triple.backend.auth.service;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.triple.backend.auth.dto.request.AuthLoginRequestDto;
@@ -17,6 +18,9 @@ import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.util.Map;
 
+import static org.triple.backend.global.log.MaskUtil.maskId;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -28,12 +32,16 @@ public class AuthService {
 
     public AuthLoginResponseDto login(final AuthLoginRequestDto authLoginRequestDto, final HttpServletRequest request) {
         OauthClient client = clients.get(authLoginRequestDto.provider());
+
         if(client == null) {
             throw new BusinessException(AuthErrorCode.UNSUPPORTED_OAUTH_PROVIDER);
         }
+        log.debug("로그인 시 매핑된 OauthClient = {}", client.provider());
 
         OauthUser oauthUser = client.fetchUser(authLoginRequestDto.code());
+        log.debug("코드를 통해 {}로부터 유저를 잘 받아왔는가? {}", client.provider(), oauthUser != null);
         User user = findOrCreateUser(oauthUser);
+        log.debug("생성된 유저 ID = {}", maskId(user.getId()));
 
         sessionManager.login(request, user.getId());
 

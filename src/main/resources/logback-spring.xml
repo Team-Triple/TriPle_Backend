@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- 콘솔에 아래와 같은 정보들이 출력될 수 있습니다.-->
+            <!-- MDC 객체와 매핑됩니다.-->
+            <pattern>
+                %d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level
+                where.path=%X{method:-}:%X{path:-}
+                where.class=%logger{36}
+                who.user=%X{userId:-anonymous}
+                who.session=%X{sessionId:-none}
+                how.status=%X{status:-}
+                how.latencyMs=%X{latencyMs:-}
+                what.msg="%msg"%n%ex
+            </pattern>
+        </encoder>
+    </appender>
+
+    <!-- dev 환경에서는 로그 레벨을 DEBUG로 설정합니다.-->
+    <springProfile name="dev">
+        <logger name="org.triple.backend" level="DEBUG"/>
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- prod 환경에서는 로그 레벨을 INFO로 설정합니다.-->
+    <springProfile name="prod">
+        <logger name="org.triple.backend" level="INFO"/>
+        <logger name="org.hibernate.SQL" level="WARN"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!dev &amp; !prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>
