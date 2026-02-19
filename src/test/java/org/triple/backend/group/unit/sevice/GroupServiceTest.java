@@ -1,19 +1,23 @@
 package org.triple.backend.group.unit.sevice;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
-import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
+import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
+import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.repository.GroupJpaRepository;
+import org.triple.backend.group.repository.JoinJpaApplyRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.group.service.GroupService;
 import org.triple.backend.user.entity.User;
@@ -40,6 +44,12 @@ public class GroupServiceTest {
 
     @Autowired
     private UserGroupJpaRepository userGroupJpaRepository;
+
+    @Autowired
+    private JoinJpaApplyRepository joinApplyJpaRepository;
+
+    @Autowired
+    private EntityManager em;
 
     @Test
     @DisplayName("새로운 그룹 생성 시 그룹 정보가 올바르게 저장되고 생성자가 방장으로 등록된다")
@@ -145,5 +155,51 @@ public class GroupServiceTest {
 
         GroupCursorResponseDto r2 = groupService.browsePublicGroups(null, 999);
         assertThat(r2.items()).hasSize(10);
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("그룹 삭제 시 Group이 삭제되고, 연관된 UserGroup과 JoinApply도 함께 삭제된다")
+    void 그룹_삭제_시_Group이_삭제되고_연관된_UserGroup과_JoinApply도_함께_삭제된다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-1")
+                .nickname("상윤")
+                .email("test@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-2")
+                .nickname("민규")
+                .email("mingyu@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+
+        Group savedGroup = groupJpaRepository.save(group);
+
+        JoinApply joinApply = JoinApply.builder()
+                .group(savedGroup)
+                .user(applicant)
+                .build();
+
+        savedGroup.getJoinApplies().add(joinApply);
+
+        joinApplyJpaRepository.save(joinApply);
+
+        assertThat(groupJpaRepository.findById(savedGroup.getId())).isPresent();
+        assertThat(userGroupJpaRepository.findAll()).hasSize(1);
+        assertThat(joinApplyJpaRepository.findAll()).hasSize(1);
+
+        // when
+        groupService.delete(savedGroup.getId());
+
+        // then
+        assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
+        assertThat(userGroupJpaRepository.findAll()).isEmpty();
+        assertThat(joinApplyJpaRepository.findAll()).isEmpty();
     }
 }
