@@ -30,11 +30,11 @@ public class Group extends BaseEntity {
     private GroupKind groupKind;
 
     @Builder.Default
-    @OneToMany(mappedBy = "group", cascade = {CascadeType.PERSIST, CascadeType.REMOVE}, orphanRemoval = true)
+    @OneToMany(mappedBy = "group", cascade = {CascadeType.PERSIST})
     private List<UserGroup> userGroups = new ArrayList<>();
 
     @Builder.Default
-    @OneToMany(mappedBy = "group", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    @OneToMany(mappedBy = "group")
     private List<JoinApply> joinApplies = new ArrayList<>();
 
     private String name;
