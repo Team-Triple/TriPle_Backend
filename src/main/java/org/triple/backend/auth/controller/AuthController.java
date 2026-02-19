@@ -42,8 +42,7 @@ public class AuthController {
     @PostMapping("/logout")
     public void logout(
             final HttpServletRequest request,
-            final HttpServletResponse response,
-            @RequestHeader(value = CsrfTokenManager.CSRF_HEADER, required = false) final String csrfToken
+            final HttpServletResponse response
     ) {
         authService.logout(request);
         cookieManager.clearLoginCookie(response);
