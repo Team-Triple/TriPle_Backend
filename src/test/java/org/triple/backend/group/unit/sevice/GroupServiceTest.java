@@ -198,7 +198,7 @@ public class GroupServiceTest {
         assertThat(joinApplyJpaRepository.findAll()).hasSize(1);
 
         // when
-        groupService.delete(savedGroup.getId());
+        groupService.delete(savedGroup.getId(), owner.getId());
 
         // then
         assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
@@ -212,9 +212,10 @@ public class GroupServiceTest {
     void 존재하지_않는_그룹_ID로_삭제_요청_시_GROUP_NOT_FOUND_예외가_발생한다() {
         // given
         Long notExistGroupId = 999999L;
+        Long userId = 1L;
 
         // when & then
-        assertThatThrownBy(() -> groupService.delete(notExistGroupId))
+        assertThatThrownBy(() -> groupService.delete(notExistGroupId, userId))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
