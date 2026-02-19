@@ -8,3 +8,10 @@
 == 그룹 생성
 include::{snippets}/groups/create/http-request.adoc[]
 include::{snippets}/groups/create/http-response.adoc[]
+
+== 그룹 조회(PUBLIC)
+
+include::{snippets}/groups/browse-public/query-parameters.adoc[]
+include::{snippets}/groups/browse-public/http-request.adoc[]
+include::{snippets}/groups/browse-public/http-response.adoc[]
+

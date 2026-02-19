@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
+import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.userGroup.Role;
@@ -23,9 +24,13 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.triple.backend.group.fixture.GroupFixtures.privateGroup;
+import static org.triple.backend.group.fixture.GroupFixtures.publicGroup;
 
 @IntegrationTest
 public class GroupIntegrationTest {
@@ -108,5 +113,59 @@ public class GroupIntegrationTest {
         assertThat(userGroup.getUser().getId()).isEqualTo(owner.getId());
         assertThat(userGroup.getGroup().getId()).isEqualTo(savedGroup.getId());
         assertThat(userGroup.getRole()).isEqualTo(Role.OWNER);
+    }
+
+    @Test
+    @DisplayName("공개 그룹 목록 첫 페이지를 조회하면 PUBLIC만 size개 조회된다")
+    void 공개_그룹_목록_첫_페이지_조회하면_PUBLIC만_size개_조회된다() throws Exception {
+        // given
+        for (int i = 1; i <= 12; i++) {
+            groupJpaRepository.save(publicGroup("public-" + i));
+        }
+
+        for (int i = 1; i <= 3; i++) {
+            groupJpaRepository.save(privateGroup("private-" + i));
+        }
+
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("size", "10")
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(10)))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.nextCursor").isNumber())
+                .andExpect(jsonPath("$.items[*].name", everyItem(startsWith("public-"))));
+    }
+
+    @Test
+    @DisplayName("공개 그룹 목록 다음 페이지를 조회하면 cursor 기준으로 조회된다")
+    void 공개_그룹_목록_다음_페이지_조회하면_cursor_기준으로_조회된다() throws Exception {
+        // given
+        for (int i = 1; i <= 15; i++) groupJpaRepository.save(publicGroup("public-" + i));
+
+        String firstJson = mockMvc.perform(get("/groups").param("size", "10"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        GroupCursorResponseDto first = objectMapper.readValue(firstJson, GroupCursorResponseDto.class);
+        Long nextCursor = first.nextCursor();
+
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("cursor", String.valueOf(nextCursor))
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(5)))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.nextCursor").value(nullValue()))
+                .andExpect(result -> {
+                    String json = result.getResponse().getContentAsString();
+                    GroupCursorResponseDto dto = objectMapper.readValue(json, GroupCursorResponseDto.class);
+                    assertThat(dto.items())
+                            .allSatisfy(item -> assertThat(item.groupId()).isLessThan(nextCursor));
+                });
     }
 }
