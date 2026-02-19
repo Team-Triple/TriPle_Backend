@@ -23,6 +23,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GroupService {
 
+    private static final int MIN_PAGE_SIZE = 1;
+    private static final int MAX_PAGE_SIZE = 10;
+
     private final GroupJpaRepository groupJpaRepository;
     private final UserJpaRepository userJpaRepository;
 
@@ -41,7 +44,7 @@ public class GroupService {
 
     @Transactional(readOnly = true)
     public GroupCursorResponseDto browsePublicGroups(final Long cursor, final int size) {
-        int pageSize = Math.min(Math.max(size, 1), 10);
+        int pageSize = Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
         Pageable pageable = PageRequest.of(0, pageSize + 1);
 
         List<Group> rows = (cursor == null) ? groupJpaRepository.findPublicFirstPage(GroupKind.PUBLIC, pageable)
