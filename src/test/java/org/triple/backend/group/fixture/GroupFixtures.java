@@ -8,22 +8,22 @@ public class GroupFixtures {
     private GroupFixtures(){}
 
     public static Group publicGroup(final String name) {
-        return Group.builder()
-                .groupKind(GroupKind.PUBLIC)
-                .name(name)
-                .description("desc")
-                .thumbNailUrl("https://example.com/thumb.png")
-                .memberLimit(10)
-                .build();
+        return Group.create(
+                GroupKind.PUBLIC,
+                name,
+                "desc",
+                "https://example.com/thumb.png",
+                10
+        );
     }
 
     public static Group privateGroup(final String name) {
-        return Group.builder()
-                .groupKind(GroupKind.PRIVATE)
-                .name(name)
-                .description("desc")
-                .thumbNailUrl("https://example.com/thumb.png")
-                .memberLimit(10)
-                .build();
+        return Group.create(
+                GroupKind.PRIVATE,
+                name,
+                "desc",
+                "https://example.com/thumb.png",
+                10
+        );
     }
 }

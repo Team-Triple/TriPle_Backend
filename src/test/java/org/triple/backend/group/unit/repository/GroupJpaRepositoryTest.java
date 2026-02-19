@@ -26,13 +26,13 @@ public class GroupJpaRepositoryTest {
     @DisplayName("저장한 그룹을 ID로 조회시 Group 엔티티를 반환한다.")
     void 저장한_그룹을_ID로_조회시_Group_엔티티를_반환한다() {
         // given
-        Group group = Group.builder()
-                .name("여행모임")
-                .description("3월 일본 여행")
-                .memberLimit(10)
-                .groupKind(GroupKind.PUBLIC)
-                .thumbNailUrl("https://example.com/thumb.png")
-                .build();
+        Group group = Group.create(
+                GroupKind.PUBLIC,
+                "여행모임",
+                "3월 일본 여행",
+                "https://example.com/thumb.png",
+                10
+        );
 
         // when
         Group saved = groupJpaRepository.save(group);
