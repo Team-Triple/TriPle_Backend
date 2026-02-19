@@ -148,8 +148,9 @@ public class GroupControllerTest extends ControllerTest {
     void 그룹을_삭제합니다() throws Exception {
         // given
         Long groupId = 1L;
+        Long userId = 1L;
 
-        doNothing().when(groupService).delete(groupId);
+        doNothing().when(groupService).delete(groupId, userId);
 
         mockCsrfValid();
 
@@ -165,7 +166,7 @@ public class GroupControllerTest extends ControllerTest {
                         )
                 ));
 
-        verify(groupService, times(1)).delete(groupId);
+        verify(groupService, times(1)).delete(groupId, userId);
         verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
     }
 
