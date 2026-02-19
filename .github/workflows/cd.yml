@@ -1,48 +1,50 @@
 name: CD
 
 on:
-  push:
-    branches:
-      - main
-      - develop
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        (
+          github.event.workflow_run.head_branch == 'develop' ||
+          github.event.workflow_run.head_branch == 'main'
+        )
+      )
     runs-on: ubuntu-latest
 
-    env:
-      BRANCH_NAME: ${{ github.ref_name }}
-
     steps:
-      - name: 코드 체크아웃
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: SSH key 생성 및 환경 변수 설정
+      - name: Set deploy vars
         run: |
           mkdir -p ~/.ssh
+
+          BRANCH_NAME="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}" >> $GITHUB_ENV
 
           if [ "${BRANCH_NAME}" = "develop" ]; then
             echo "${{ secrets.EC2_SSH_KEY_DEV }}" > ~/.ssh/deploy_key.pem
             echo "TARGET_HOST=${{ secrets.DEV_HOST }}" >> $GITHUB_ENV
-            echo "IMAGE_TAG=develop" >> $GITHUB_ENV
           else
             echo "${{ secrets.EC2_SSH_KEY_PROD }}" > ~/.ssh/deploy_key.pem
             echo "TARGET_HOST=${{ secrets.PROD_HOST }}" >> $GITHUB_ENV
-            echo "IMAGE_TAG=main" >> $GITHUB_ENV
           fi
 
           chmod 600 ~/.ssh/deploy_key.pem
 
-      - name: deploy 디렉토리 준비
-        env:
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-        run: |
-          DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/deploy}"
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-          ubuntu@${TARGET_HOST} "mkdir -p ${DEPLOY_PATH}"
-
-      - name: .env 파일 생성
+      - name: Write .env
         run: |
           if [ "${BRANCH_NAME}" = "develop" ]; then
             printf "%s" "${{ secrets.ENV_DEV }}" > .env
@@ -50,38 +52,8 @@ jobs:
             printf "%s" "${{ secrets.ENV_PROD }}" > .env
           fi
 
-      - name: .env 업로드
+      - name: Upload files
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/deploy}"
-
-          scp -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-          .env ubuntu@${TARGET_HOST}:${DEPLOY_PATH}/.env
-
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-          ubuntu@${TARGET_HOST} "chmod 600 ${DEPLOY_PATH}/.env"
-
-      - name: docker-compose.yml 업로드
-        env:
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-        run: |
-          DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/deploy}"
-
-          scp -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no \
-          docker-compose.yml \
-          ubuntu@${TARGET_HOST}:${DEPLOY_PATH}/docker-compose.yml
-
-      - name: 배포 실행
-        env:
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-        run: |
-          DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/deploy}"
-
-          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ubuntu@${TARGET_HOST} "
-            set -e
-            cd ${DEPLOY_PATH}
-            docker pull ghcr.io/team-triple/backend:${IMAGE_TAG}
-            IMAGE_TAG=${IMAGE_TAG} docker compose up -d
-            docker image prune -f
-          "
