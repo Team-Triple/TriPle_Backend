@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.cookie.CookieManager;
 import org.triple.backend.auth.dto.request.AuthLoginRequestDto;
 import org.triple.backend.auth.dto.response.AuthLoginResponseDto;
+import org.triple.backend.auth.exception.AuthErrorCode;
 import org.triple.backend.auth.service.AuthService;
 import org.triple.backend.auth.session.CsrfTokenManager;
+import org.triple.backend.global.error.BusinessException;
 
 import static org.triple.backend.global.log.MaskUtil.maskString;
 
@@ -37,8 +39,16 @@ public class AuthController {
         return result;
     }
 
-    @GetMapping("/logout")
-    public void logout(final HttpServletRequest request, final HttpServletResponse response) {
+    @PostMapping("/logout")
+    public void logout(
+            final HttpServletRequest request,
+            final HttpServletResponse response,
+            @RequestHeader(value = CsrfTokenManager.CSRF_HEADER, required = false) final String csrfToken
+    ) {
+        if (request.getSession(false) != null && !csrfTokenManager.isValid(request, csrfToken)) {
+            throw new BusinessException(AuthErrorCode.INVALID_CSRF_TOKEN);
+        }
+
         authService.logout(request);
         cookieManager.clearLoginCookie(response);
         cookieManager.clearSessionCookie(response);
