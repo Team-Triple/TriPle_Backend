@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.group.controller.GroupController;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
@@ -19,19 +20,20 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
-import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
-import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.restdocs.request.RequestDocumentation.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(GroupController.class)
 public class GroupControllerTest extends ControllerTest {
+
+    private static final String USER_SESSION_KEY = "USER_ID";
+    private static final String CSRF_TOKEN = "csrf-token";
 
     @MockitoBean
     private GroupService groupService;
@@ -48,8 +50,7 @@ public class GroupControllerTest extends ControllerTest {
         given(groupService.create(any(CreateGroupRequestDto.class), eq(1L)))
                 .willReturn(response);
 
-        String csrfToken = "csrf-token";
-        when(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).thenReturn(true);
+        mockCsrfValid();
 
         String body = """
                 {
@@ -63,9 +64,7 @@ public class GroupControllerTest extends ControllerTest {
 
         //when & then
         mockMvc.perform(post("/groups")
-                        .sessionAttr("USER_ID", 1L)
-                        .sessionAttr(CsrfTokenManager.CSRF_TOKEN_KEY, csrfToken)
-                        .header(CsrfTokenManager.CSRF_HEADER, csrfToken)
+                        .with(loginSessionAndCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -141,5 +140,45 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
+    }
+
+
+    @Test
+    @DisplayName("그룹을 삭제합니다.")
+    void 그룹을_삭제합니다() throws Exception {
+        // given
+        Long groupId = 1L;
+
+        doNothing().when(groupService).delete(groupId);
+
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("groups/delete",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("삭제할 그룹 ID")
+                        )
+                ));
+
+        verify(groupService, times(1)).delete(groupId);
+        verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    private void mockCsrfValid() {
+        when(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).thenReturn(true);
+    }
+
+    private RequestPostProcessor loginSessionAndCsrf() {
+        return request -> {
+            request.getSession(true).setAttribute(USER_SESSION_KEY, 1L);
+            request.getSession().setAttribute(CsrfTokenManager.CSRF_TOKEN_KEY, CSRF_TOKEN);
+            request.addHeader(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN);
+            return request;
+        };
     }
 }
