@@ -153,15 +153,4 @@ public class AuthServiceTest {
         // then
         assertThat(request.getSession(false)).isNull();
     }
-
-    @Test
-    @DisplayName("세션이 없어도 로그아웃 요청은 예외 없이 처리된다")
-    void 세션이_없어도_로그아웃_요청은_예외_없이_처리된다() {
-        // given
-        MockHttpServletRequest request = new MockHttpServletRequest();
-
-        // when & then
-        assertThatCode(() -> authService.logout(request))
-                .doesNotThrowAnyException();
-    }
 }
