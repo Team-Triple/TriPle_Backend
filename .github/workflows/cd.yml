@@ -57,3 +57,24 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/deploy}"
+
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ubuntu@${TARGET_HOST} "mkdir -p ${DEPLOY_PATH}"
+
+          scp -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no .env ubuntu@${TARGET_HOST}:${DEPLOY_PATH}/.env
+          scp -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no docker-compose.yml ubuntu@${TARGET_HOST}:${DEPLOY_PATH}/docker-compose.yml
+
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ubuntu@${TARGET_HOST} "chmod 600 ${DEPLOY_PATH}/.env"
+
+      - name: Deploy
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          DEPLOY_PATH="${DEPLOY_PATH:-/home/ubuntu/deploy}"
+
+          ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ubuntu@${TARGET_HOST} "
+            set -e
+            cd ${DEPLOY_PATH}
+            docker pull ghcr.io/team-triple/backend:${IMAGE_TAG}
+            IMAGE_TAG=${IMAGE_TAG} docker compose up -d
+            docker image prune -f
+          "
