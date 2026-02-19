@@ -24,7 +24,7 @@ public class UserService {
 
         log.debug("유저 정보를 받아올 유저의 ID = {}", maskId(userId));
         User savedUser = userJpaRepository.findById(userId).orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
-        log.debug("받아온 유저의 ID = {}", maskId(userId));
+        log.debug("받아온 유저의 ID = {}", maskId(savedUser.getId()));
 
         return UserInfoResponseDto.builder()
                 .nickname(savedUser.getNickname())

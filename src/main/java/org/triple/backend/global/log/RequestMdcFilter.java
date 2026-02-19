@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.triple.backend.auth.session.SessionManager;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -16,8 +17,6 @@ import java.util.UUID;
 @Slf4j
 @Component
 public class RequestMdcFilter extends OncePerRequestFilter {
-
-    private static final String SESSION_USER_KEY = "USER_ID";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -38,7 +37,7 @@ public class RequestMdcFilter extends OncePerRequestFilter {
 
     private void putMdc(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
-        Long userId = session == null ? null : (Long) session.getAttribute(SESSION_USER_KEY);
+        Long userId = session == null ? null : (Long) session.getAttribute(SessionManager.SESSION_KEY);
         String sessionId = session == null ? null : session.getId();
         String maskedUserId = userId == null ? "anonymous" : MaskUtil.maskId(userId);
         String maskedSessionId = sessionId == null ? "none" : MaskUtil.maskString(sessionId);
