@@ -14,6 +14,11 @@ include::{snippets}/groups/browse-public/query-parameters.adoc[]
 include::{snippets}/groups/browse-public/http-request.adoc[]
 include::{snippets}/groups/browse-public/http-response.adoc[]
 
+== 그룹 상세 조회
+include::{snippets}/groups/detail/path-parameters.adoc[]
+include::{snippets}/groups/detail/http-request.adoc[]
+include::{snippets}/groups/detail/http-response.adoc[]
+
 == 그룹 삭제
 include::{snippets}/groups/delete/path-parameters.adoc[]
 include::{snippets}/groups/delete/http-request.adoc[]
