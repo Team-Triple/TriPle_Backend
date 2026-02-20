@@ -28,7 +28,7 @@ public class JoinApplyService {
     private final JoinApplyJpaRepository joinApplyJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
 
-    @Transactional
+@org.springframework.transaction.annotation.Transactional
     public void joinApply(final Long groupId, final Long userId) {
 
         if (userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JOINED)) {
