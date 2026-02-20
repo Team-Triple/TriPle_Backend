@@ -1,42 +1,10 @@
 name: CD
 
 on:
-  workflow_call:
-    inputs:
-      branch_name:
-        required: true
-        type: string
-      image_tag:
-        required: true
-        type: string
-    secrets:
-      EC2_SSH_KEY_DEV:
-        required: true
-      DEV_HOST:
-        required: true
-      EC2_SSH_KEY_PROD:
-        required: true
-      PROD_HOST:
-        required: true
-      ENV_DEV:
-        required: true
-      ENV_PROD:
-        required: true
-      DEPLOY_PATH:
-        required: false
-  workflow_dispatch:
-    inputs:
-      branch_name:
-        description: "배포 브랜치"
-        required: true
-        type: choice
-        options:
-          - develop
-          - main
-      image_tag:
-        description: "배포할 이미지 태그(미입력 시 현재 커밋 SHA)"
-        required: false
-        type: string
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    workflow_dispatch:
 
 concurrency:
   group: deploy-${{ inputs.branch_name || github.event.inputs.branch_name || github.ref_name }}
