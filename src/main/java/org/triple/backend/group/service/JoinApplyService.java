@@ -42,7 +42,6 @@ public class JoinApplyService {
         if (existingApply != null) {
             if (existingApply.isCanceled()) {
                 existingApply.reapply();
-                joinApplyJpaRepository.flush();
                 return;
             }
             if (existingApply.getJoinStatus() == JoinStatus.PENDING) {
