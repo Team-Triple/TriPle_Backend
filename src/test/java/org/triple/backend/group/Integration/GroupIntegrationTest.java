@@ -169,6 +169,118 @@ public class GroupIntegrationTest {
     }
 
     @Test
+    @DisplayName("로그인한 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
+    void 로그인한_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-detail")
+                        .nickname("상윤")
+                        .email("owner-detail@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User viewer = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-viewer-detail")
+                        .nickname("민규")
+                        .email("viewer-detail@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "3월 일본 여행", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, viewer.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("여행모임"))
+                .andExpect(jsonPath("$.description").value("3월 일본 여행"))
+                .andExpect(jsonPath("$.groupKind").value("PUBLIC"))
+                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
+                .andExpect(jsonPath("$.currentMemberCount").value(1))
+                .andExpect(jsonPath("$.memberLimit").value(10))
+                .andExpect(jsonPath("$.users", hasSize(1)))
+                .andExpect(jsonPath("$.users[0].name").value("상윤"))
+                .andExpect(jsonPath("$.users[0].isOwner").value(true));
+    }
+
+    @Test
+    @DisplayName("비공개 그룹 상세 조회 시 멤버가 아니면 403을 반환한다")
+    void 비공개_그룹_상세_조회_시_멤버가_아니면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-private-detail")
+                        .nickname("상윤")
+                        .email("owner-private-detail@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User outsider = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-outsider-private-detail")
+                        .nickname("민규")
+                        .email("outsider-private-detail@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getId()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
+    }
+
+    @Test
+    @DisplayName("비공개 그룹 상세 조회 시 멤버는 200을 반환한다")
+    void 비공개_그룹_상세_조회_시_멤버는_200을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-private-member-detail")
+                        .nickname("상윤")
+                        .email("owner-private-member-detail@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-private-member-detail")
+                        .nickname("민규")
+                        .email("member-private-member-detail@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("비공개모임"))
+                .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
+                .andExpect(jsonPath("$.users", hasSize(2)))
+                .andExpect(jsonPath("$.users[*].name", containsInAnyOrder("상윤", "민규")))
+                .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)));
+    }
+
+    @Test
     @DisplayName("로그인 세션이 있으면 그룹 삭제가 되고, 연관된 UserGroup도 함께 삭제된다")
     void 로그인_세션이_있으면_그룹_삭제가_되고_연관된_UserGroup도_함께_삭제된다() throws Exception {
         // given
