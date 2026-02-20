@@ -1,13 +1,12 @@
 package org.triple.backend.group.service;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.joinApply.JoinApply;
-import org.triple.backend.group.entity.joinApply.JoinStatus;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.exception.JoinApplyErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
@@ -17,7 +16,7 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
-import static org.triple.backend.group.entity.userGroup.JoinStatus.*;
+import static org.triple.backend.group.entity.userGroup.JoinStatus.JOINED;
 
 @Service
 @RequiredArgsConstructor
@@ -28,7 +27,7 @@ public class JoinApplyService {
     private final JoinApplyJpaRepository joinApplyJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
 
-@org.springframework.transaction.annotation.Transactional
+    @Transactional
     public void joinApply(final Long groupId, final Long userId) {
 
         if (userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JOINED)) {
