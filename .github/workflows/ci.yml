@@ -42,3 +42,12 @@ jobs:
           IMAGE_NAME=ghcr.io/team-triple/backend
           docker push $IMAGE_NAME:${{ github.sha }}
           docker push $IMAGE_NAME:${{ github.ref_name }}
+
+  deploy:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    needs: build
+    uses: ./.github/workflows/cd.yml
+    with:
+      branch_name: ${{ github.ref == 'refs/heads/main' && 'main' || 'develop' }}
+      image_tag: ${{ github.sha }}
+    secrets: inherit
