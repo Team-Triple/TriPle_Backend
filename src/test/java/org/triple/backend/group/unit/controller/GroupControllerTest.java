@@ -10,8 +10,11 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.group.controller.GroupController;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
+import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
+import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
+import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.service.GroupService;
 import org.triple.backend.auth.session.CsrfTokenManager;
 
@@ -168,6 +171,103 @@ public class GroupControllerTest extends ControllerTest {
 
         verify(groupService, times(1)).delete(groupId, userId);
         verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
+    @DisplayName("그룹을 수정하면 수정된 그룹 정보를 반환한다.")
+    void 그룹을_수정하면_수정된_그룹_정보를_반환한다() throws Exception {
+        // given
+        Long groupId = 1L;
+        GroupUpdateResponseDto response = new GroupUpdateResponseDto(
+                groupId,
+                GroupKind.PRIVATE,
+                "수정모임",
+                "수정설명",
+                "https://example.com/updated.png",
+                20,
+                1
+        );
+
+        given(groupService.update(any(GroupUpdateRequestDto.class), eq(groupId), eq(1L)))
+                .willReturn(response);
+        mockCsrfValid();
+
+        String body = """
+                {
+                  "groupKind": "PRIVATE",
+                  "name": "수정모임",
+                  "description": "수정설명",
+                  "thumbNailUrl": "https://example.com/updated.png",
+                  "memberLimit": 20
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.groupId").value(groupId))
+                .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
+                .andExpect(jsonPath("$.name").value("수정모임"))
+                .andExpect(jsonPath("$.description").value("수정설명"))
+                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/updated.png"))
+                .andExpect(jsonPath("$.memberLimit").value(20))
+                .andExpect(jsonPath("$.currentMemberCount").value(1))
+                .andDo(document("groups/update",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("수정할 그룹 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("groupKind").description("그룹 종류 (PUBLIC, PRIVATE)"),
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL"),
+                                fieldWithPath("memberLimit").description("최대 인원(1~50)")
+                        ),
+                        responseFields(
+                                fieldWithPath("groupId").description("그룹 ID"),
+                                fieldWithPath("groupKind").description("그룹 종류"),
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL"),
+                                fieldWithPath("memberLimit").description("최대 인원"),
+                                fieldWithPath("currentMemberCount").description("현재 인원")
+                        )
+                ));
+
+        verify(groupService, times(1)).update(any(GroupUpdateRequestDto.class), eq(groupId), eq(1L));
+        verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
+    @DisplayName("그룹 수정 요청 본문이 유효하지 않으면 400을 반환한다.")
+    void 그룹_수정_요청_본문이_유효하지_않으면_400을_반환한다() throws Exception {
+        // given
+        Long groupId = 1L;
+        mockCsrfValid();
+
+        String invalidBody = """
+                {
+                  "groupKind": "PRIVATE",
+                  "name": " ",
+                  "description": "수정설명",
+                  "thumbNailUrl": "https://example.com/updated.png",
+                  "memberLimit": 20
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest());
+
+        verify(groupService, never()).update(any(GroupUpdateRequestDto.class), any(Long.class), any(Long.class));
     }
 
     private void mockCsrfValid() {
