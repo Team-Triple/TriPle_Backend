@@ -1,31 +1,62 @@
 name: CD
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      branch_name:
+        required: true
+        type: string
+      image_tag:
+        required: true
+        type: string
+    secrets:
+      EC2_SSH_KEY_DEV:
+        required: true
+      DEV_HOST:
+        required: true
+      EC2_SSH_KEY_PROD:
+        required: true
+      PROD_HOST:
+        required: true
+      ENV_DEV:
+        required: true
+      ENV_PROD:
+        required: true
+      DEPLOY_PATH:
+        required: false
   workflow_dispatch:
+    inputs:
+      branch_name:
+        description: "배포 브랜치"
+        required: true
+        type: choice
+        options:
+          - develop
+          - main
+      image_tag:
+        description: "배포할 이미지 태그(미입력 시 현재 커밋 SHA)"
+        required: false
+        type: string
 
 concurrency:
-  group: deploy-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  group: deploy-${{ inputs.branch_name || github.event.inputs.branch_name || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   deploy:
     if: |
       (
-        github.event_name == 'workflow_dispatch' &&
+        github.event_name == 'workflow_call' &&
         (
-          github.ref_name == 'develop' ||
-          github.ref_name == 'main'
+          inputs.branch_name == 'develop' ||
+          inputs.branch_name == 'main'
         )
       ) ||
       (
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push' &&
+        github.event_name == 'workflow_dispatch' &&
         (
-          github.event.workflow_run.head_branch == 'develop' ||
-          github.event.workflow_run.head_branch == 'main'
+          github.event.inputs.branch_name == 'develop' ||
+          github.event.inputs.branch_name == 'main'
         )
       )
     runs-on: ubuntu-latest
@@ -37,9 +68,15 @@ jobs:
         run: |
           mkdir -p ~/.ssh
 
-          BRANCH_NAME="${{ github.event.workflow_run.head_branch || github.ref_name }}"
+          BRANCH_NAME="${{ inputs.branch_name || github.event.inputs.branch_name || github.ref_name }}"
+          IMAGE_TAG_INPUT="${{ inputs.image_tag || github.event.inputs.image_tag }}"
+
+          if [ -z "${IMAGE_TAG_INPUT}" ]; then
+            IMAGE_TAG_INPUT="${{ github.sha }}"
+          fi
+
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
-          echo "IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${IMAGE_TAG_INPUT}" >> $GITHUB_ENV
 
           if [ "${BRANCH_NAME}" = "develop" ]; then
             echo "${{ secrets.EC2_SSH_KEY_DEV }}" > ~/.ssh/deploy_key.pem
