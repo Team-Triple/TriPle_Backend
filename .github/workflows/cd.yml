@@ -1,21 +1,32 @@
 name: CD
 
 on:
-  push:
-    branches: [ "develop", "main" ]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
 
 concurrency:
-  group: deploy-${{ github.ref_name }}
+  group: deploy-${{ github.event.workflow_run.head_branch || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   deploy:
     if: |
-      github.event_name != 'workflow_dispatch' ||
       (
-        github.ref_name == 'develop' ||
-        github.ref_name == 'main'
+        github.event_name == 'workflow_dispatch' &&
+        (
+          github.ref_name == 'develop' ||
+          github.ref_name == 'main'
+        )
+      ) ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        (
+          github.event.workflow_run.head_branch == 'develop' ||
+          github.event.workflow_run.head_branch == 'main'
+        )
       )
     runs-on: ubuntu-latest
 
@@ -26,9 +37,9 @@ jobs:
         run: |
           mkdir -p ~/.ssh
 
-          BRANCH_NAME="${{ github.ref_name }}"
+          BRANCH_NAME="${{ github.event.workflow_run.head_branch || github.ref_name }}"
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
-          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.event.workflow_run.head_sha || github.sha }}" >> $GITHUB_ENV
 
           if [ "${BRANCH_NAME}" = "develop" ]; then
             echo "${{ secrets.EC2_SSH_KEY_DEV }}" > ~/.ssh/deploy_key.pem
