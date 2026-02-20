@@ -78,11 +78,11 @@ public class Group extends BaseEntity {
     }
 
     public void update(final Group updatedGroup) {
-        this.groupKind = validateKind(updatedGroup.getGroupKind());
-        this.name = validateName(updatedGroup.getName());
-        this.description = validateDescription(updatedGroup.getDescription());
+        this.groupKind = updatedGroup.getGroupKind();
+        this.name = updatedGroup.getName();
+        this.description = updatedGroup.getDescription();
         this.thumbNailUrl = updatedGroup.getThumbNailUrl();
-        this.memberLimit = validateMemberLimit(updatedGroup.getMemberLimit());
+        this.memberLimit = updatedGroup.getMemberLimit();
     }
 
     private static GroupKind validateKind(final GroupKind kind) {
