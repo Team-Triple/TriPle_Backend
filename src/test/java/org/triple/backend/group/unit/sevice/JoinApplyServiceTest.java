@@ -4,8 +4,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
@@ -50,6 +52,9 @@ public class JoinApplyServiceTest {
 
     @Autowired
     private UserGroupJpaRepository userGroupJpaRepository;
+
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Test
     @DisplayName("가입 신청을 성공하면 PENDING 상태의 신청이 저장된다")
@@ -118,7 +123,7 @@ public class JoinApplyServiceTest {
 
         JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, group));
         joinApply.cancel();
-        joinApplyJpaRepository.flush();
+        joinApplyJpaRepository.saveAndFlush(joinApply);
 
         // when
         joinApplyService.joinApply(group.getId(), applicant.getId());
@@ -235,6 +240,152 @@ public class JoinApplyServiceTest {
             assertThat(successCount.get()).isEqualTo(1);
             assertThat(conflictCount).isEqualTo(1);
             assertThat(joinApplyJpaRepository.count()).isEqualTo(1);
+        } finally {
+            executorService.shutdownNow();
+            joinApplyJpaRepository.deleteAllInBatch();
+            userGroupJpaRepository.deleteAllInBatch();
+            groupJpaRepository.deleteAllInBatch();
+            userJpaRepository.deleteAllInBatch();
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("부모 Group 락이 선점되면 가입 신청은 락 해제 후 처리된다")
+    void 부모_Group_락이_선점되면_가입_신청은_락_해제_후_처리된다() throws InterruptedException {
+        // given
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-lock-applicant")
+                .nickname("지원자")
+                .email("lock-applicant@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = groupJpaRepository.save(
+                Group.create(GroupKind.PUBLIC, "락테스트모임", "설명", "https://example.com/thumb.png", 10)
+        );
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch lockAcquired = new CountDownLatch(1);
+        CountDownLatch releaseLock = new CountDownLatch(1);
+        CountDownLatch applyDone = new CountDownLatch(1);
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        Runnable lockHolderTask = () -> {
+            try {
+                new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                    groupJpaRepository.findByIdForUpdate(group.getId()).orElseThrow();
+                    lockAcquired.countDown();
+                    try {
+                        releaseLock.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
+                });
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+                lockAcquired.countDown();
+            }
+        };
+
+        Runnable applyTask = () -> {
+            try {
+                joinApplyService.joinApply(group.getId(), applicant.getId());
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                applyDone.countDown();
+            }
+        };
+
+        try {
+            executorService.submit(lockHolderTask);
+
+            assertThat(lockAcquired.await(3, TimeUnit.SECONDS)).isTrue();
+
+            executorService.submit(applyTask);
+
+            assertThat(applyDone.await(300, TimeUnit.MILLISECONDS)).isFalse();
+
+            releaseLock.countDown();
+
+            assertThat(applyDone.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(failures).isEmpty();
+
+            JoinApply savedApply = joinApplyJpaRepository.findByGroupIdAndUserId(group.getId(), applicant.getId()).orElseThrow();
+            assertThat(savedApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
+        } finally {
+            releaseLock.countDown();
+            executorService.shutdownNow();
+            joinApplyJpaRepository.deleteAllInBatch();
+            userGroupJpaRepository.deleteAllInBatch();
+            groupJpaRepository.deleteAllInBatch();
+            userJpaRepository.deleteAllInBatch();
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("취소된 신청에 대한 동시 재신청은 하나만 성공한다")
+    void 취소된_신청에_대한_동시_재신청은_하나만_성공한다() throws InterruptedException {
+        // given
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-reapply-applicant")
+                .nickname("지원자")
+                .email("reapply-applicant@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = groupJpaRepository.save(
+                Group.create(GroupKind.PUBLIC, "재신청모임", "설명", "https://example.com/thumb.png", 10)
+        );
+
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, group));
+        joinApply.cancel();
+        joinApplyJpaRepository.saveAndFlush(joinApply);
+
+        int threadCount = 2;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch ready = new CountDownLatch(threadCount);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threadCount);
+        AtomicInteger successCount = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        Runnable reapplyTask = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                joinApplyService.joinApply(group.getId(), applicant.getId());
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        try {
+            executorService.submit(reapplyTask);
+            executorService.submit(reapplyTask);
+
+            assertThat(ready.await(3, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+
+            long conflictCount = failures.stream()
+                    .filter(BusinessException.class::isInstance)
+                    .map(BusinessException.class::cast)
+                    .filter(e -> e.getErrorCode() == JoinApplyErrorCode.ALREADY_APPLY_JOIN_REQUEST)
+                    .count();
+
+            assertThat(successCount.get()).isEqualTo(1);
+            assertThat(conflictCount).isEqualTo(1);
+            assertThat(joinApplyJpaRepository.count()).isEqualTo(1);
+
+            JoinApply reapplied = joinApplyJpaRepository.findByGroupIdAndUserId(group.getId(), applicant.getId()).orElseThrow();
+            assertThat(reapplied.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
         } finally {
             executorService.shutdownNow();
             joinApplyJpaRepository.deleteAllInBatch();
