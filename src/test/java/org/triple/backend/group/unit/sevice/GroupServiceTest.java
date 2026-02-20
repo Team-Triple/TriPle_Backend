@@ -9,8 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
+import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
+import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.joinApply.JoinApply;
@@ -284,4 +286,108 @@ public class GroupServiceTest {
             userJpaRepository.deleteAllInBatch();
         }
     }
+
+    @Test
+    @DisplayName("그룹 수정 시 그룹 정보가 변경되고 수정 응답이 반환된다")
+    void 그룹_수정_시_그룹_정보가_변경되고_수정_응답이_반환된다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner")
+                .nickname("상윤")
+                .email("owner@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "기존모임", "기존설명", "https://example.com/old.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.save(group);
+
+        GroupUpdateRequestDto request = new GroupUpdateRequestDto(
+                GroupKind.PRIVATE,
+                "수정된모임",
+                "수정된설명",
+                "https://example.com/new.png",
+                20
+        );
+
+        // when
+        GroupUpdateResponseDto response = groupService.update(request, savedGroup.getId(), owner.getId());
+
+        // then
+        Group updated = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+        assertThat(updated.getGroupKind()).isEqualTo(GroupKind.PRIVATE);
+        assertThat(updated.getName()).isEqualTo("수정된모임");
+        assertThat(updated.getDescription()).isEqualTo("수정된설명");
+        assertThat(updated.getThumbNailUrl()).isEqualTo("https://example.com/new.png");
+        assertThat(updated.getMemberLimit()).isEqualTo(20);
+
+        assertThat(response.groupId()).isEqualTo(savedGroup.getId());
+        assertThat(response.groupKind()).isEqualTo(GroupKind.PRIVATE);
+        assertThat(response.name()).isEqualTo("수정된모임");
+        assertThat(response.description()).isEqualTo("수정된설명");
+        assertThat(response.thumbNailUrl()).isEqualTo("https://example.com/new.png");
+        assertThat(response.memberLimit()).isEqualTo(20);
+        assertThat(response.currentMemberCount()).isEqualTo(updated.getCurrentMemberCount());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 그룹 수정 시 GROUP_NOT_FOUND 예외가 발생한다")
+    void 존재하지_않는_그룹_수정_시_GROUP_NOT_FOUND_예외가_발생한다() {
+        // given
+        GroupUpdateRequestDto request = new GroupUpdateRequestDto(
+                GroupKind.PRIVATE,
+                "수정된모임",
+                "수정된설명",
+                "https://example.com/new.png",
+                20
+        );
+
+        // when & then
+        assertThatThrownBy(() -> groupService.update(request, 999999L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.GROUP_NOT_FOUND);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 소유자가 아니면 그룹 수정 시 NOT_GROUP_OWNER 예외가 발생한다")
+    void 그룹_소유자가_아니면_그룹_수정_시_NOT_GROUP_OWNER_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner")
+                .nickname("상윤")
+                .email("owner@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User notOwner = userJpaRepository.save(User.builder()
+                .providerId("kakao-member")
+                .nickname("민규")
+                .email("member@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "기존모임", "기존설명", "https://example.com/old.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.save(group);
+
+        GroupUpdateRequestDto request = new GroupUpdateRequestDto(
+                GroupKind.PRIVATE,
+                "수정된모임",
+                "수정된설명",
+                "https://example.com/new.png",
+                20
+        );
+
+        // when & then
+        assertThatThrownBy(() -> groupService.update(request, savedGroup.getId(), notOwner.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_OWNER);
+                });
+    }
+
 }
