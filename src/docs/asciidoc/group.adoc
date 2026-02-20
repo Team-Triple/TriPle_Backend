@@ -18,3 +18,10 @@ include::{snippets}/groups/browse-public/http-response.adoc[]
 include::{snippets}/groups/delete/path-parameters.adoc[]
 include::{snippets}/groups/delete/http-request.adoc[]
 include::{snippets}/groups/delete/http-response.adoc[]
+
+== 그룹 수정
+include::{snippets}/groups/update/path-parameters.adoc[]
+include::{snippets}/groups/update/request-fields.adoc[]
+include::{snippets}/groups/update/response-fields.adoc[]
+include::{snippets}/groups/update/http-request.adoc[]
+include::{snippets}/groups/update/http-response.adoc[]
