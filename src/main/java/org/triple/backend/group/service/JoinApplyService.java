@@ -28,7 +28,7 @@ public class JoinApplyService {
     private final JoinApplyJpaRepository joinApplyJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
 
-    @Transactional
+@org.springframework.transaction.annotation.Transactional
     public void joinApply(final Long groupId, final Long userId) {
 
         if (userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JOINED)) {
@@ -38,17 +38,17 @@ public class JoinApplyService {
         User findUser = userJpaRepository.findById(userId).orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
         Group findGroup = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
-        JoinApply existingApply = joinApplyJpaRepository.findByGroupIdAndUserId(groupId, userId).orElse(null);
-        if (existingApply != null) {
-            if (existingApply.isCanceled()) {
-                existingApply.reapply();
-                return;
+        joinApplyJpaRepository.findByGroupIdAndUserId(groupId, userId).ifPresent(existingApply -> {
+            switch (existingApply.getJoinStatus()) {
+                case CANCELED:
+                    existingApply.reapply();
+                    return;
+                case PENDING:
+                    throw new BusinessException(JoinApplyErrorCode.ALREADY_APPLY_JOIN_REQUEST);
+                default:
+                    throw new BusinessException(JoinApplyErrorCode.REAPPLY_ALLOWED_ONLY_CANCELED);
             }
-            if (existingApply.getJoinStatus() == JoinStatus.PENDING) {
-                throw new BusinessException(JoinApplyErrorCode.ALREADY_APPLY_JOIN_REQUEST);
-            }
-            throw new BusinessException(JoinApplyErrorCode.REAPPLY_ALLOWED_ONLY_CANCELED);
-        }
+        });
 
         try {
             JoinApply joinApply = JoinApply.create(findUser, findGroup);
