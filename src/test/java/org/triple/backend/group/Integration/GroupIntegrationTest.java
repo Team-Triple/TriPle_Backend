@@ -200,4 +200,100 @@ public class GroupIntegrationTest {
         assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
         assertThat(userGroupJpaRepository.findAll()).isEmpty();
     }
+
+    @Test
+    @DisplayName("로그인한 소유자는 그룹 정보를 수정할 수 있고 DB에도 반영된다")
+    void 로그인한_소유자는_그룹_정보를_수정할_수_있고_DB에도_반영된다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-update")
+                        .nickname("상윤")
+                        .email("owner-update@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "기존모임", "기존설명", "https://example.com/old.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        String body = """
+                {
+                  "groupKind": "PRIVATE",
+                  "name": "수정모임",
+                  "description": "수정설명",
+                  "thumbNailUrl": "https://example.com/new.png",
+                  "memberLimit": 20
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(CsrfTokenManager.CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.groupId").value(savedGroup.getId()))
+                .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
+                .andExpect(jsonPath("$.name").value("수정모임"))
+                .andExpect(jsonPath("$.description").value("수정설명"))
+                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/new.png"))
+                .andExpect(jsonPath("$.memberLimit").value(20));
+
+        Group updated = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+        assertThat(updated.getGroupKind()).isEqualTo(GroupKind.PRIVATE);
+        assertThat(updated.getName()).isEqualTo("수정모임");
+        assertThat(updated.getDescription()).isEqualTo("수정설명");
+        assertThat(updated.getThumbNailUrl()).isEqualTo("https://example.com/new.png");
+        assertThat(updated.getMemberLimit()).isEqualTo(20);
+    }
+
+    @Test
+    @DisplayName("그룹 소유자가 아닌 사용자가 수정하면 403을 반환한다")
+    void 그룹_소유자가_아닌_사용자가_수정하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-update")
+                        .nickname("상윤")
+                        .email("owner-update@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User otherUser = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-other-update")
+                        .nickname("민규")
+                        .email("other-update@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "기존모임", "기존설명", "https://example.com/old.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        String body = """
+                {
+                  "groupKind": "PRIVATE",
+                  "name": "수정모임",
+                  "description": "수정설명",
+                  "thumbNailUrl": "https://example.com/new.png",
+                  "memberLimit": 20
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, otherUser.getId())
+                        .sessionAttr(CsrfTokenManager.CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+    }
 }
