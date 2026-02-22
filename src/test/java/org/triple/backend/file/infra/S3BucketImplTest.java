@@ -16,10 +16,12 @@ import org.triple.backend.file.infra.exception.CopyFailedException;
 import org.triple.backend.file.infra.exception.DeleteFailedException;
 import org.triple.backend.file.infra.exception.InvalidKeyException;
 import org.triple.backend.file.infra.exception.UploadFailedException;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -63,42 +65,30 @@ class S3BucketImplTest {
     private S3BucketImpl s3BucketImpl;
 
     @Test
-    @DisplayName("받은 mimeType이 null일 시 예외를 반환한다.")
-    void validateContentType_null_예외() {
-        // given
-        String mimeType = null;
-
-        // when & then
-        assertThatThrownBy(() -> s3BucketImpl.validateContentType(mimeType))
+    @DisplayName("받은 mimeType이 null이면 예외를 반환한다.")
+    void 받은_mimeType이_null이면_예외를_반환한다() {
+        assertThatThrownBy(() -> s3BucketImpl.validateContentType(null))
                 .isInstanceOf(InvalidKeyException.class)
                 .extracting("httpStatus")
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
-    @DisplayName("받은 mimeType이 공백일 시 예외를 반환한다.")
-    void validateContentType_blank_예외() {
-        // given
-        String mimeType = " ";
-
-        // when & then
-        assertThatThrownBy(() -> s3BucketImpl.validateContentType(mimeType))
+    @DisplayName("받은 mimeType이 공백이면 예외를 반환한다.")
+    void 받은_mimeType이_공백이면_예외를_반환한다() {
+        assertThatThrownBy(() -> s3BucketImpl.validateContentType(" "))
                 .isInstanceOf(InvalidKeyException.class)
                 .extracting("httpStatus")
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
-    @DisplayName("받은 mimeType이 허용값이 아닐 시 예외를 반환한다.")
-    void validateContentType_미허용값_예외() {
-        // given
+    @DisplayName("받은 mimeType이 허용값이 아니면 예외를 반환한다.")
+    void 받은_mimeType이_허용값이_아니면_예외를_반환한다() {
         given(s3BucketProperties.getUploadPolicy()).willReturn(s3UploadPolicyProperties);
         given(s3UploadPolicyProperties.getAllowedContentTypes()).willReturn(List.of("image/jpeg", "image/png"));
 
-        String mimeType = "image/gif";
-
-        // when & then
-        assertThatThrownBy(() -> s3BucketImpl.validateContentType(mimeType))
+        assertThatThrownBy(() -> s3BucketImpl.validateContentType("image/gif"))
                 .isInstanceOf(InvalidKeyException.class)
                 .extracting("httpStatus")
                 .isEqualTo(HttpStatus.BAD_REQUEST);
@@ -106,22 +96,17 @@ class S3BucketImplTest {
 
     @Test
     @DisplayName("받은 mimeType이 허용값이면 예외를 반환하지 않는다.")
-    void validateContentType_허용값_정상() {
-        // given
+    void 받은_mimeType이_허용값이면_예외를_반환하지_않는다() {
         given(s3BucketProperties.getUploadPolicy()).willReturn(s3UploadPolicyProperties);
         given(s3UploadPolicyProperties.getAllowedContentTypes()).willReturn(List.of("image/jpeg", "image/png"));
 
-        String mimeType = "image/jpeg";
-
-        // when & then
-        assertThatCode(() -> s3BucketImpl.validateContentType(mimeType))
+        assertThatCode(() -> s3BucketImpl.validateContentType("image/jpeg"))
                 .doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("pendingKey, mimeType 파라미터 사용 시 해당 파라미터 기반의 PresignedUrl이 반환된다.")
-    void issuePresignedUrl_정상_반환() throws Exception {
-        // given
+    @DisplayName("pendingKey와 mimeType으로 PresignedUrl을 생성한다.")
+    void pendingKey와_mimeType으로_PresignedUrl을_생성한다() throws Exception {
         String pendingKey = "uploads/pending/1/test.jpg";
         String mimeType = "image/jpeg";
         String bucket = "triple-dev-s3";
@@ -137,10 +122,8 @@ class S3BucketImplTest {
         ArgumentCaptor<PutObjectPresignRequest> captor = ArgumentCaptor.forClass(PutObjectPresignRequest.class);
         given(s3Presigner.presignPutObject(captor.capture())).willReturn(presignedPutObjectRequest);
 
-        // when
         PresignedUrl result = s3BucketImpl.issuePresignedUrl(pendingKey, mimeType);
 
-        // then
         assertThat(result.key()).isEqualTo(pendingKey);
         assertThat(result.presignedUrl()).isEqualTo("https://example.com/upload");
         assertThat(result.expiresAt()).isEqualTo(Instant.parse("2030-01-01T00:00:00Z"));
@@ -155,47 +138,91 @@ class S3BucketImplTest {
     }
 
     @Test
-    @DisplayName("사용자 소유 prefix가 아닐 경우 pendingKey 검증에서 예외를 반환한다.")
-    void validatePendingKey_소유자불일치_예외() {
-        // given
-        given(s3BucketProperties.getPrefix()).willReturn(s3PrefixProperties);
-        given(s3PrefixProperties.getPending()).willReturn("uploads/pending/");
-
-        String pendingKey = "uploads/pending/2/test.jpg";
-        Long userId = 1L;
-
-        // when & then
-        assertThatThrownBy(() -> s3BucketImpl.validatePendingKey(pendingKey, userId))
+    @DisplayName("pendingKey가 null이면 예외를 반환한다.")
+    void pendingKey가_null이면_예외를_반환한다() {
+        assertThatThrownBy(() -> s3BucketImpl.validatePendingKey(null, 1L))
                 .isInstanceOf(InvalidKeyException.class)
                 .extracting("httpStatus")
                 .isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
-    @DisplayName("S3에 파일이 없으면 업로드 검증에서 UploadFailedException(NOT_FOUND)을 반환한다.")
-    void validateUploadedObject_파일없음_예외() {
-        // given
-        String pendingKey = "uploads/pending/1/test.jpg";
+    @DisplayName("pendingKey prefix와 userId가 일치하지 않으면 예외를 반환한다.")
+    void pendingKey_prefix와_userId가_일치하지_않으면_예외를_반환한다() {
+        given(s3BucketProperties.getPrefix()).willReturn(s3PrefixProperties);
+        given(s3PrefixProperties.getPending()).willReturn("uploads/pending/");
+
+        assertThatThrownBy(() -> s3BucketImpl.validatePendingKey("uploads/pending/2/test.jpg", 1L))
+                .isInstanceOf(InvalidKeyException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("pendingKey prefix와 userId가 일치하면 검증을 통과한다.")
+    void pendingKey_prefix와_userId가_일치하면_검증을_통과한다() {
+        given(s3BucketProperties.getPrefix()).willReturn(s3PrefixProperties);
+        given(s3PrefixProperties.getPending()).willReturn("uploads/pending/");
+
+        assertThatCode(() -> s3BucketImpl.validatePendingKey("uploads/pending/1/test.jpg", 1L))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("업로드된 파일이 없으면 UploadFailedException(NOT_FOUND)을 반환한다.")
+    void 업로드된_파일이_없으면_UploadFailedException_NOT_FOUND를_반환한다() {
         given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
         given(s3Client.headObject(any(HeadObjectRequest.class)))
                 .willThrow(NoSuchKeyException.builder().statusCode(404).message("no such key").build());
 
-        // when & then
-        assertThatThrownBy(() -> s3BucketImpl.validateUploadedObject(pendingKey))
+        assertThatThrownBy(() -> s3BucketImpl.validateUploadedObject("uploads/pending/1/test.jpg"))
                 .isInstanceOf(UploadFailedException.class)
                 .extracting("httpStatus")
                 .isEqualTo(HttpStatus.NOT_FOUND);
     }
 
     @Test
-    @DisplayName("copyObject에서 재시도 대상이 아닌 4xx 오류가 발생하면 CopyFailedException을 반환한다.")
-    void copyObject_4xx_예외변환() {
-        // given
+    @DisplayName("headObject가 성공하면 업로드 검증을 통과한다.")
+    void headObject가_성공하면_업로드_검증을_통과한다() {
+        given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
+        given(s3Client.headObject(any(HeadObjectRequest.class)))
+                .willReturn(HeadObjectResponse.builder().build());
+
+        assertThatCode(() -> s3BucketImpl.validateUploadedObject("uploads/pending/1/test.jpg"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("headObject에서 5xx가 발생하면 재시도 대상 예외를 그대로 전파한다.")
+    void headObject에서_5xx가_발생하면_재시도_대상_예외를_그대로_전파한다() {
+        given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
+        given(s3Client.headObject(any(HeadObjectRequest.class)))
+                .willThrow(S3Exception.builder().statusCode(500).message("internal").build());
+
+        assertThatThrownBy(() -> s3BucketImpl.validateUploadedObject("uploads/pending/1/test.jpg"))
+                .isInstanceOf(S3Exception.class);
+    }
+
+    @Test
+    @DisplayName("headObject에서 비재시도 비표준 status가 발생하면 BAD_REQUEST로 변환한다.")
+    void headObject에서_비재시도_비표준_status가_발생하면_BAD_REQUEST로_변환한다() {
+        given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
+        given(s3Client.headObject(any(HeadObjectRequest.class)))
+                .willThrow(S3Exception.builder().statusCode(499).message("unknown").build());
+
+        assertThatThrownBy(() -> s3BucketImpl.validateUploadedObject("uploads/pending/1/test.jpg"))
+                .isInstanceOf(UploadFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("copyObject에서 비재시도 4xx가 발생하면 CopyFailedException을 반환한다.")
+    void copyObject에서_비재시도_4xx가_발생하면_CopyFailedException을_반환한다() {
         given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
         given(s3Client.copyObject(any(CopyObjectRequest.class)))
                 .willThrow(S3Exception.builder().statusCode(403).message("forbidden").build());
 
-        // when & then
         assertThatThrownBy(() -> s3BucketImpl.copyObject("uploads/pending/1/a.jpg", "uploads/uploaded/1/a.jpg"))
                 .isInstanceOf(CopyFailedException.class)
                 .extracting("httpStatus")
@@ -203,17 +230,131 @@ class S3BucketImplTest {
     }
 
     @Test
-    @DisplayName("deleteObject에서 재시도 대상이 아닌 4xx 오류가 발생하면 DeleteFailedException을 반환한다.")
-    void deleteObject_4xx_예외변환() {
-        // given
+    @DisplayName("copyObject에서 5xx가 발생하면 재시도 대상 예외를 그대로 전파한다.")
+    void copyObject에서_5xx가_발생하면_재시도_대상_예외를_그대로_전파한다() {
+        given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
+        given(s3Client.copyObject(any(CopyObjectRequest.class)))
+                .willThrow(S3Exception.builder().statusCode(500).message("internal").build());
+
+        assertThatThrownBy(() -> s3BucketImpl.copyObject("uploads/pending/1/a.jpg", "uploads/uploaded/1/a.jpg"))
+                .isInstanceOf(S3Exception.class);
+    }
+
+    @Test
+    @DisplayName("copyObject에서 비재시도 비표준 status가 발생하면 BAD_GATEWAY로 변환한다.")
+    void copyObject에서_비재시도_비표준_status가_발생하면_BAD_GATEWAY로_변환한다() {
+        given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
+        given(s3Client.copyObject(any(CopyObjectRequest.class)))
+                .willThrow(S3Exception.builder().statusCode(499).message("unknown").build());
+
+        assertThatThrownBy(() -> s3BucketImpl.copyObject("uploads/pending/1/a.jpg", "uploads/uploaded/1/a.jpg"))
+                .isInstanceOf(CopyFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
+    }
+
+    @Test
+    @DisplayName("deleteObject에서 비재시도 4xx가 발생하면 DeleteFailedException을 반환한다.")
+    void deleteObject에서_비재시도_4xx가_발생하면_DeleteFailedException을_반환한다() {
         given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
         given(s3Client.deleteObject(any(DeleteObjectRequest.class)))
                 .willThrow(S3Exception.builder().statusCode(400).message("bad request").build());
 
-        // when & then
         assertThatThrownBy(() -> s3BucketImpl.deleteObject("uploads/uploaded/1/a.jpg"))
                 .isInstanceOf(DeleteFailedException.class)
                 .extracting("httpStatus")
                 .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("deleteObject에서 5xx가 발생하면 재시도 대상 예외를 그대로 전파한다.")
+    void deleteObject에서_5xx가_발생하면_재시도_대상_예외를_그대로_전파한다() {
+        given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
+        given(s3Client.deleteObject(any(DeleteObjectRequest.class)))
+                .willThrow(S3Exception.builder().statusCode(500).message("internal").build());
+
+        assertThatThrownBy(() -> s3BucketImpl.deleteObject("uploads/uploaded/1/a.jpg"))
+                .isInstanceOf(S3Exception.class);
+    }
+
+    @Test
+    @DisplayName("deleteObject에서 비재시도 비표준 status가 발생하면 BAD_GATEWAY로 변환한다.")
+    void deleteObject에서_비재시도_비표준_status가_발생하면_BAD_GATEWAY로_변환한다() {
+        given(s3BucketProperties.getBucket()).willReturn("triple-dev-s3");
+        given(s3Client.deleteObject(any(DeleteObjectRequest.class)))
+                .willThrow(S3Exception.builder().statusCode(499).message("unknown").build());
+
+        assertThatThrownBy(() -> s3BucketImpl.deleteObject("uploads/uploaded/1/a.jpg"))
+                .isInstanceOf(DeleteFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
+    }
+
+    @Test
+    @DisplayName("headObject 재시도 소진(S3Exception) 시 UploadFailedException으로 복구한다.")
+    void headObject_재시도_소진_S3Exception_시_UploadFailedException으로_복구한다() {
+        S3Exception s3Exception = (S3Exception) S3Exception.builder().statusCode(500).message("fail").build();
+
+        assertThatThrownBy(() -> s3BucketImpl.recoverUploadFailed(s3Exception, "uploads/pending/1/a.jpg"))
+                .isInstanceOf(UploadFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
+    }
+
+    @Test
+    @DisplayName("headObject 재시도 소진(SdkClientException) 시 UploadFailedException으로 복구한다.")
+    void headObject_재시도_소진_SdkClientException_시_UploadFailedException으로_복구한다() {
+        SdkClientException sdkClientException = SdkClientException.builder().message("network").build();
+
+        assertThatThrownBy(() -> s3BucketImpl.recoverUploadFailed(sdkClientException, "uploads/pending/1/a.jpg"))
+                .isInstanceOf(UploadFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
+    }
+
+    @Test
+    @DisplayName("copyObject 재시도 소진(S3Exception) 시 CopyFailedException으로 복구한다.")
+    void copyObject_재시도_소진_S3Exception_시_CopyFailedException으로_복구한다() {
+        S3Exception s3Exception = (S3Exception) S3Exception.builder().statusCode(500).message("fail").build();
+
+        assertThatThrownBy(() -> s3BucketImpl.recoverCopyFailed(
+                s3Exception, "uploads/pending/1/a.jpg", "uploads/uploaded/1/a.jpg"))
+                .isInstanceOf(CopyFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
+    }
+
+    @Test
+    @DisplayName("copyObject 재시도 소진(SdkClientException) 시 CopyFailedException으로 복구한다.")
+    void copyObject_재시도_소진_SdkClientException_시_CopyFailedException으로_복구한다() {
+        SdkClientException sdkClientException = SdkClientException.builder().message("network").build();
+
+        assertThatThrownBy(() -> s3BucketImpl.recoverCopyFailed(
+                sdkClientException, "uploads/pending/1/a.jpg", "uploads/uploaded/1/a.jpg"))
+                .isInstanceOf(CopyFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
+    }
+
+    @Test
+    @DisplayName("deleteObject 재시도 소진(S3Exception) 시 DeleteFailedException으로 복구한다.")
+    void deleteObject_재시도_소진_S3Exception_시_DeleteFailedException으로_복구한다() {
+        S3Exception s3Exception = (S3Exception) S3Exception.builder().statusCode(500).message("fail").build();
+
+        assertThatThrownBy(() -> s3BucketImpl.recoverDeleteFailed(s3Exception, "uploads/uploaded/1/a.jpg"))
+                .isInstanceOf(DeleteFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
+    }
+
+    @Test
+    @DisplayName("deleteObject 재시도 소진(SdkClientException) 시 DeleteFailedException으로 복구한다.")
+    void deleteObject_재시도_소진_SdkClientException_시_DeleteFailedException으로_복구한다() {
+        SdkClientException sdkClientException = SdkClientException.builder().message("network").build();
+
+        assertThatThrownBy(() -> s3BucketImpl.recoverDeleteFailed(sdkClientException, "uploads/uploaded/1/a.jpg"))
+                .isInstanceOf(DeleteFailedException.class)
+                .extracting("httpStatus")
+                .isEqualTo(HttpStatus.BAD_GATEWAY);
     }
 }
