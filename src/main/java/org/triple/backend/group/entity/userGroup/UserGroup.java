@@ -15,6 +15,15 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@Table(
+        name = "user_group",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_user_group_group_user",
+                        columnNames = {"group_id", "user_id"}
+                )
+        }
+)
 public class UserGroup {
 
     @Id
@@ -39,4 +48,24 @@ public class UserGroup {
     private LocalDateTime joinedAt;
 
     private LocalDateTime leftAt;
+
+    public static UserGroup create(final User user, final Group group, final Role role) {
+        return UserGroup.builder()
+                .user(user)
+                .group(group)
+                .role(role)
+                .joinStatus(JoinStatus.JOINED)
+                .joinedAt(LocalDateTime.now())
+                .build();
+    }
+
+    public void rejoin(final Role role) {
+        if (this.joinStatus != JoinStatus.LEFTED) {
+            throw new IllegalStateException("탈퇴 이력인 경우에만 재가입할 수 있습니다.");
+        }
+        this.role = role;
+        this.joinStatus = JoinStatus.JOINED;
+        this.joinedAt = LocalDateTime.now();
+        this.leftAt = null;
+    }
 }
