@@ -63,6 +63,22 @@ public class JoinApplyTest {
     }
 
     @Test
+    @DisplayName("approve 하면 상태가 APPROVED가 되고 approvedAt이 기록된다")
+    void approve_하면_상태가_APPROVED가_되고_approvedAt이_기록된다() {
+        // given
+        JoinApply joinApply = JoinApply.create(createUser("kakao-approve", "approve@test.com"), createGroup("모임-approve"));
+
+        // when
+        joinApply.approve();
+
+        // then
+        assertThat(joinApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.APPROVED);
+        assertThat(joinApply.getApprovedAt()).isNotNull();
+        assertThat(joinApply.getRejectedAt()).isNull();
+        assertThat(joinApply.getCanceledAt()).isNull();
+    }
+
+    @Test
     @DisplayName("취소된 신청은 reapply 시 PENDING으로 변경되고 시간 필드가 초기화된다")
     void 취소된_신청은_reapply_시_PENDING으로_변경되고_시간_필드가_초기화된다() {
         // given
