@@ -14,7 +14,9 @@ import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
+import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
+import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.exception.JoinApplyErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.JoinApplyJpaRepository;
@@ -23,6 +25,7 @@ import org.triple.backend.group.service.JoinApplyService;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -184,6 +187,190 @@ public class JoinApplyServiceTest {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(JoinApplyErrorCode.ALREADY_JOINED_GROUP);
                 });
+    }
+
+    @Test
+    @DisplayName("오너는 대기중인 가입 신청을 승인할 수 있다")
+    void 오너는_대기중인_가입_신청을_승인할_수_있다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner")
+                .nickname("오너")
+                .email("owner@test.com")
+                .profileUrl("http://img")
+                .build());
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-applicant-approve")
+                .nickname("지원자")
+                .email("approve-applicant@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "승인테스트모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when
+        joinApplyService.approve(savedGroup.getId(), owner.getId(), joinApply.getId());
+
+        // then
+        JoinApply approvedJoinApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+        assertThat(approvedJoinApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.APPROVED);
+        assertThat(approvedJoinApply.getApprovedAt()).isNotNull();
+        assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
+                .isTrue();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자는 가입 신청을 승인할 수 없다")
+    void 오너가_아닌_사용자는_가입_신청을_승인할_수_없다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner")
+                .nickname("오너")
+                .email("owner@test.com")
+                .profileUrl("http://img")
+                .build());
+        User outsider = userJpaRepository.save(User.builder()
+                .providerId("kakao-outsider")
+                .nickname("외부인")
+                .email("outsider@test.com")
+                .profileUrl("http://img")
+                .build());
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-applicant")
+                .nickname("지원자")
+                .email("applicant@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "권한테스트모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        assertThatThrownBy(() -> joinApplyService.approve(savedGroup.getId(), outsider.getId(), joinApply.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(JoinApplyErrorCode.NO_SIGNUP_APPROVAL_PERMISSION);
+                });
+
+        JoinApply pendingJoinApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        assertThat(pendingJoinApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
+        assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 가입 신청은 승인할 수 없다")
+    void 존재하지_않는_가입_신청은_승인할_수_없다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner")
+                .nickname("오너")
+                .email("owner@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "미존재신청모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> joinApplyService.approve(savedGroup.getId(), owner.getId(), 9999L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(JoinApplyErrorCode.JOIN_APPLY_NOT_FOUND);
+                });
+    }
+
+    @Test
+    @DisplayName("이미 가입된 사용자의 신청은 승인할 수 없다")
+    void 이미_가입된_사용자의_신청은_승인할_수_없다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner")
+                .nickname("오너")
+                .email("owner@test.com")
+                .profileUrl("http://img")
+                .build());
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-applicant")
+                .nickname("지원자")
+                .email("applicant@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "중복멤버모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        userGroupJpaRepository.saveAndFlush(UserGroup.create(applicant, savedGroup, Role.MEMBER));
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        assertThatThrownBy(() -> joinApplyService.approve(savedGroup.getId(), owner.getId(), joinApply.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(JoinApplyErrorCode.ALREADY_JOINED_GROUP);
+                });
+    }
+
+    @Test
+    @DisplayName("LEFTED 이력이 있으면 승인 시 기존 멤버를 재가입 처리한다")
+    void LEFTED_이력이_있으면_승인_시_기존_멤버를_재가입_처리한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-lefted")
+                .nickname("오너")
+                .email("owner-lefted@test.com")
+                .profileUrl("http://img")
+                .build());
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-applicant-lefted")
+                .nickname("지원자")
+                .email("applicant-lefted@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "재가입충돌모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        UserGroup leftedHistory = UserGroup.builder()
+                .user(applicant)
+                .group(savedGroup)
+                .role(Role.MEMBER)
+                .joinStatus(JoinStatus.LEFTED)
+                .joinedAt(LocalDateTime.now().minusDays(1))
+                .leftAt(LocalDateTime.now())
+                .build();
+        userGroupJpaRepository.saveAndFlush(leftedHistory);
+
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when
+        joinApplyService.approve(savedGroup.getId(), owner.getId(), joinApply.getId());
+
+        // then
+        JoinApply approvedJoinApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        UserGroup rejoinedUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), applicant.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+
+        assertThat(approvedJoinApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.APPROVED);
+        assertThat(rejoinedUserGroup.getJoinStatus()).isEqualTo(JoinStatus.JOINED);
+        assertThat(rejoinedUserGroup.getLeftAt()).isNull();
+        assertThat(rejoinedUserGroup.getJoinedAt()).isNotNull();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(2);
+        assertThat(userGroupJpaRepository.count()).isEqualTo(2);
     }
 
     @Test
