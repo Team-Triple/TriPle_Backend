@@ -6,8 +6,10 @@ import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
+import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
+import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.service.GroupService;
 
 @RestController
@@ -32,5 +34,11 @@ public class GroupController {
     @DeleteMapping("/{groupId}")
     public void delete(@PathVariable Long groupId, @LoginUser final Long userId) {
         groupService.delete(groupId, userId);
+    }
+
+    @LoginRequired
+    @PatchMapping("/{groupId}")
+    public GroupUpdateResponseDto update(@Valid @RequestBody GroupUpdateRequestDto request, @PathVariable Long groupId, @LoginUser final Long userId) {
+        return groupService.update(request, groupId, userId);
     }
 }

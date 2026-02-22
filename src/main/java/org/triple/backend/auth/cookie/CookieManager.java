@@ -11,6 +11,7 @@ import java.time.Duration;
 public class CookieManager {
 
     public static final String LOGIN_STATUS = "login_status";
+    public static final String JSESSION_ID = "JSESSIONID";
 
     public void addLoginCookie(final HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(LOGIN_STATUS, "true")
@@ -28,6 +29,18 @@ public class CookieManager {
         ResponseCookie cookie = ResponseCookie.from(LOGIN_STATUS, "")
                 .path("/")
                 .httpOnly(false)
+                .secure(true)
+                .sameSite("None")
+                .maxAge(0)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    public void clearSessionCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(JSESSION_ID, "")
+                .path("/")
+                .httpOnly(true)
                 .secure(true)
                 .sameSite("None")
                 .maxAge(0)

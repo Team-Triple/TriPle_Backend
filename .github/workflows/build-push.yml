@@ -1,0 +1,82 @@
+name: Build and Push
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+
+jobs:
+  test_build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+      - uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582
+      - run: chmod +x ./gradlew
+      - run: ./gradlew test
+        env:
+          SPRING_PROFILES_ACTIVE: test
+      - run: ./gradlew bootJar
+      - run: ./gradlew build -x test
+
+      - name: Upload boot jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: |
+            build/libs/*.jar
+            !build/libs/*-plain.jar
+          if-no-files-found: error
+
+  publish_image:
+    needs: test_build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download boot jar
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs
+
+      - name: Prepare jar for docker build
+        run: |
+          set -e
+          JAR_PATH="$(find build -type f -name '*.jar' ! -name '*-plain.jar' | head -n 1)"
+          if [ -z "${JAR_PATH}" ]; then
+            echo "No jar found after artifact download"
+            find build -maxdepth 5 -type f || true
+            exit 1
+          fi
+
+          cp "${JAR_PATH}" /tmp/app.jar
+          rm -rf build/libs
+          mkdir -p build/libs
+          cp /tmp/app.jar build/libs/app.jar
+          ls -al build/libs
+
+      - name: Login GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build Image
+        run: |
+          IMAGE_NAME=ghcr.io/team-triple/backend
+          docker build \
+            -t "${IMAGE_NAME}:${{ github.sha }}" \
+            -t "${IMAGE_NAME}:${{ github.ref_name }}" .
+
+      - name: Push Image
+        run: |
+          IMAGE_NAME=ghcr.io/team-triple/backend
+          docker push "${IMAGE_NAME}:${{ github.sha }}"
+          docker push "${IMAGE_NAME}:${{ github.ref_name }}"

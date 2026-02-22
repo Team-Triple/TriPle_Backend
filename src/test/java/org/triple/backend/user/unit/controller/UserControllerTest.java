@@ -1,11 +1,9 @@
 package org.triple.backend.user.unit.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.triple.backend.auth.session.CsrfInterceptor;
 import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.user.controller.UserController;
@@ -21,6 +19,7 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWit
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 @WebMvcTest(UserController.class)
 public class UserControllerTest extends ControllerTest{
@@ -51,7 +50,7 @@ public class UserControllerTest extends ControllerTest{
 
         // then
         mockMvc.perform(get("/users/me")
-                        .sessionAttr("USER_ID", userId))
+                        .sessionAttr(USER_SESSION_KEY, userId))
                 .andDo(document("users/me",
                         responseFields(
                                 fieldWithPath("nickname").description("닉네임"),

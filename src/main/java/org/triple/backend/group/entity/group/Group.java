@@ -2,6 +2,7 @@ package org.triple.backend.group.entity.group;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
@@ -15,6 +16,7 @@ import java.util.List;
 
 @Getter
 @Entity
+@DynamicUpdate
 @Table(name = "travel_group")
 @Builder(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
@@ -25,6 +27,9 @@ public class Group extends BaseEntity {
     @Column(name = "group_id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
 
     @Enumerated(EnumType.STRING)
     private GroupKind groupKind;
@@ -70,6 +75,14 @@ public class Group extends BaseEntity {
                 .memberLimit(validateMemberLimit(memberLimit))
                 .currentMemberCount(1)
                 .build();
+    }
+
+    public void update(final GroupKind groupKind, final String name, final String description, final String thumbNailUrl, final int memberLimit) {
+        this.groupKind = groupKind;
+        this.name = name;
+        this.description = description;
+        this.thumbNailUrl = thumbNailUrl;
+        this.memberLimit = memberLimit;
     }
 
     private static GroupKind validateKind(final GroupKind kind) {

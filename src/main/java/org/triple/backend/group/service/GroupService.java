@@ -3,12 +3,15 @@ package org.triple.backend.group.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
+import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
+import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.userGroup.Role;
@@ -80,5 +83,32 @@ public class GroupService {
         userGroupJpaRepository.bulkDeleteByGroupId(groupId);
 
         groupJpaRepository.deleteById(groupId);
+    }
+
+    @Transactional
+    public GroupUpdateResponseDto update(final GroupUpdateRequestDto dto, final Long groupId, final Long userId) {
+
+        try {
+            Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
+            if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRole(groupId, userId, Role.OWNER)) {
+                throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
+            }
+
+            group.update(dto.groupKind(), dto.name(), dto.description(), dto.thumbNailUrl(), dto.memberLimit());
+            groupJpaRepository.flush();
+
+            return new GroupUpdateResponseDto(
+                    group.getId(),
+                    group.getGroupKind(),
+                    group.getName(),
+                    group.getDescription(),
+                    group.getThumbNailUrl(),
+                    group.getMemberLimit(),
+                    group.getCurrentMemberCount()
+            );
+        } catch (OptimisticLockingFailureException e) {
+            throw new BusinessException(GroupErrorCode.CONCURRENT_GROUP_UPDATE);
+        }
     }
 }

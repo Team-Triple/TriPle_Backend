@@ -52,6 +52,10 @@ public class AuthService {
         );
     }
 
+    public void logout(final HttpServletRequest request) {
+        sessionManager.logout(request);
+    }
+
     private User findOrCreateUser(final OauthUser oauthUser) {
         return txTemplate.execute(
                 status -> userJpaRepository.findByProviderAndProviderId(oauthUser.provider(), oauthUser.providerId())

@@ -21,6 +21,18 @@ public class SessionManager {
         log.debug("세션에 저장된 userId = {}", maskId(userId));
     }
 
+    public void logout(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            log.debug("무효화할 세션이 없음");
+            return;
+        }
+
+        Long userId = (Long) session.getAttribute(SESSION_KEY);
+        session.invalidate();
+        log.debug("세션 무효화 완료, userId = {}", maskId(userId));
+    }
+
     public @Nullable Long getUserId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) return null;

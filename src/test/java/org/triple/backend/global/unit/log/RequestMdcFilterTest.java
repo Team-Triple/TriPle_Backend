@@ -11,6 +11,7 @@ import org.triple.backend.global.log.RequestMdcFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 class RequestMdcFilterTest {
 
@@ -42,7 +43,7 @@ class RequestMdcFilterTest {
         RequestMdcFilter filter = new RequestMdcFilter();
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/auth/login");
         MockHttpServletResponse response = new MockHttpServletResponse();
-        request.getSession(true).setAttribute("USER_ID", 12345L);
+        request.getSession(true).setAttribute(USER_SESSION_KEY, 12345L);
         String sessionId = request.getSession(false).getId();
 
         filter.doFilter(request, response, (req, res) -> {
