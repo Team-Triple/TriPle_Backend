@@ -12,9 +12,11 @@ import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
+import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.JoinApplyJpaRepository;
+import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
@@ -42,6 +44,9 @@ public class JoinApplyIntegrationTest {
 
     @Autowired
     private JoinApplyJpaRepository joinApplyJpaRepository;
+
+    @Autowired
+    private UserGroupJpaRepository userGroupJpaRepository;
 
     @BeforeEach
     void setUp() {
@@ -187,5 +192,92 @@ public class JoinApplyIntegrationTest {
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("오너는 그룹 가입 신청을 승인할 수 있다")
+    void 오너는_그룹_가입_신청을_승인할_수_있다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner")
+                        .nickname("오너")
+                        .email("owner@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User applicant = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-applicant")
+                        .nickname("지원자")
+                        .email("applicant@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        Group group = Group.create(GroupKind.PUBLIC, "승인모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", savedGroup.getId(), joinApply.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        JoinApply approvedApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+        assertThat(approvedApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.APPROVED);
+        assertThat(approvedApply.getApprovedAt()).isNotNull();
+        assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
+                .isTrue();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자가 가입 신청을 승인하면 403을 반환한다")
+    void 오너가_아닌_사용자가_가입_신청을_승인하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner")
+                        .nickname("오너")
+                        .email("owner@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User outsider = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-outsider")
+                        .nickname("외부인")
+                        .email("outsider@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User applicant = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-applicant")
+                        .nickname("지원자")
+                        .email("applicant@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        Group group = Group.create(GroupKind.PUBLIC, "권한모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", savedGroup.getId(), joinApply.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden());
+
+        JoinApply pendingApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        assertThat(pendingApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
+        assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
+                .isFalse();
     }
 }
