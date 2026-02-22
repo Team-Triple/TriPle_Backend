@@ -2,6 +2,7 @@ package org.triple.backend.file.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
@@ -11,6 +12,7 @@ import org.triple.backend.file.dto.response.FileUploadCompleteResponsesDto;
 import org.triple.backend.file.dto.response.PresignedUrlResponsesDto;
 import org.triple.backend.file.service.FileServiceFacade;
 
+@Slf4j
 @RestController
 @RequestMapping("/files")
 @RequiredArgsConstructor

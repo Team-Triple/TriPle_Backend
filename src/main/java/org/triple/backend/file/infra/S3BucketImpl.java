@@ -97,6 +97,7 @@ public class S3BucketImpl implements S3Bucket {
     )
     @Override
     public void copyObject(String sourceKey, String destinationKey) {
+        log.debug("업로드 할 sourceKey = {}, destinationKey = {}", sourceKey, destinationKey);
         try {
             s3Client.copyObject(
                     CopyObjectRequest.builder()
@@ -126,6 +127,7 @@ public class S3BucketImpl implements S3Bucket {
     )
     @Override
     public void deleteObject(String sourceKey) {
+        log.debug("삭제 할 sourceKey = {}", sourceKey);
         try {
             s3Client.deleteObject(
                     DeleteObjectRequest.builder()

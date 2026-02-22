@@ -15,6 +15,8 @@ import org.triple.backend.file.infra.exception.FinalizeUploadException;
 import org.triple.backend.file.infra.exception.InvalidKeyException;
 import org.triple.backend.file.repository.FileJpaRepository;
 
+import static org.triple.backend.global.log.MaskUtil.maskString;
+
 /**
  * DB, S3Bucket 에서 발생할 수 있는 예외들을 처리
  * 디테일한 예외의 경계는 여기까지이다.
@@ -29,9 +31,11 @@ public class FileService {
     private final FileJpaRepository fileJpaRepository;
 
     public PresignedUrlResponseDto issuePutPresignedUrl(PresignedUrlRequestDto requestDto, Long userId) {
+        log.debug("요청 받은 파일명={}, 파일타입={}", requestDto.fileName(), requestDto.mimeType());
         try {
             s3Bucket.validateContentType(requestDto.mimeType());
             String pendingKey = bucketKeyPublisher.publishPendingKey(requestDto.fileName(), userId);
+            log.debug("pendingKey={}", pendingKey);
             PresignedUrl presignedUrl = s3Bucket.issuePresignedUrl(pendingKey, requestDto.mimeType());
             return PresignedUrlResponseDto.success(requestDto, presignedUrl);
         } catch (RuntimeException e) {
@@ -75,6 +79,7 @@ public class FileService {
         try {
             File file = File.of(userId, uploadedKey);
             fileJpaRepository.save(file);
+            log.debug("DB 저장 성공 = {}", file);
         } catch (IllegalArgumentException e) {
             throw new InvalidKeyException(e.getMessage(), e);
         } catch (RuntimeException e) {
