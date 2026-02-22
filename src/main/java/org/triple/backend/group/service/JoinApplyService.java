@@ -7,6 +7,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.joinApply.JoinApply;
+import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
+import org.triple.backend.group.entity.userGroup.JoinStatus;
+import org.triple.backend.group.entity.userGroup.Role;
+import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.exception.JoinApplyErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
@@ -17,6 +21,7 @@ import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import static org.triple.backend.group.entity.userGroup.JoinStatus.JOINED;
+import static org.triple.backend.group.exception.JoinApplyErrorCode.*;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +36,7 @@ public class JoinApplyService {
     public void joinApply(final Long groupId, final Long userId) {
 
         if (userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JOINED)) {
-            throw new BusinessException(JoinApplyErrorCode.ALREADY_JOINED_GROUP);
+            throw new BusinessException(ALREADY_JOINED_GROUP);
         }
 
         User findUser = userJpaRepository.findById(userId).orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
@@ -45,9 +50,9 @@ public class JoinApplyService {
                     existingApply.reapply();
                     return;
                 case PENDING:
-                    throw new BusinessException(JoinApplyErrorCode.ALREADY_APPLY_JOIN_REQUEST);
+                    throw new BusinessException(ALREADY_APPLY_JOIN_REQUEST);
                 default:
-                    throw new BusinessException(JoinApplyErrorCode.REAPPLY_ALLOWED_ONLY_CANCELED);
+                    throw new BusinessException(REAPPLY_ALLOWED_ONLY_CANCELED);
             }
         }
 
@@ -56,8 +61,37 @@ public class JoinApplyService {
             joinApplyJpaRepository.save(joinApply);
             joinApplyJpaRepository.flush();
         } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(JoinApplyErrorCode.ALREADY_APPLY_JOIN_REQUEST);
+            throw new BusinessException(ALREADY_APPLY_JOIN_REQUEST);
         }
     }
 
+    @Transactional
+    public void approve(final Long groupId, final Long ownerUserId, final Long joinApplyId) {
+
+        userJpaRepository.findById(ownerUserId).orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        Group findGroup = groupJpaRepository.findByIdForUpdate(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
+        if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRoleAndJoinStatus(groupId, ownerUserId, Role.OWNER, JoinStatus.JOINED)) {
+            throw new BusinessException(NO_SIGNUP_APPROVAL_PERMISSION);
+        }
+
+        JoinApply joinApply = joinApplyJpaRepository.findByIdAndGroupIdAndJoinApplyStatus(joinApplyId, groupId , JoinApplyStatus.PENDING).orElseThrow(() -> new BusinessException(JoinApplyErrorCode.JOIN_APPLY_NOT_FOUND));
+        User applicantUser = joinApply.getUser();
+
+        if(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, applicantUser.getId(), JoinStatus.JOINED)) {
+            throw new BusinessException(ALREADY_JOINED_GROUP);
+        }
+
+        findGroup.addCurrentMemberCount();
+
+        try {
+            UserGroup userGroup = UserGroup.create(applicantUser, findGroup, Role.MEMBER);
+            userGroupJpaRepository.save(userGroup);
+            userGroupJpaRepository.flush();
+        } catch (DataIntegrityViolationException e) {
+            throw new BusinessException(ALREADY_JOINED_GROUP);
+        }
+
+        joinApply.approve();
+    }
 }
