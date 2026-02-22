@@ -7,7 +7,9 @@ public enum JoinApplyErrorCode implements ErrorCode {
 
     ALREADY_APPLY_JOIN_REQUEST(HttpStatus.CONFLICT,"이미 가입이 요청된 그룹입니다."),
     ALREADY_JOINED_GROUP(HttpStatus.CONFLICT, "이미 가입된 그룹입니다."),
-    REAPPLY_ALLOWED_ONLY_CANCELED(HttpStatus.CONFLICT, "취소된 신청만 재신청할 수 있습니다.");
+    REAPPLY_ALLOWED_ONLY_CANCELED(HttpStatus.CONFLICT, "취소된 신청만 재신청할 수 있습니다."),
+    NO_SIGNUP_APPROVAL_PERMISSION(HttpStatus.FORBIDDEN, "가입 승인 권한이 없습니다."),
+    JOIN_APPLY_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 가입 신청입니다.");
 
     private HttpStatus status;
     private String message;
