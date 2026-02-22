@@ -23,6 +23,7 @@ public class File extends BaseEntity {
 
     private Long ownerId;
 
+    @Column(name = "file_key")
     private String key;
 
     @Builder(access = AccessLevel.PRIVATE)
