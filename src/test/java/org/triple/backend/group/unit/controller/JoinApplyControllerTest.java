@@ -8,7 +8,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.common.ControllerTest;
+import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.controller.JoinApplyController;
+import org.triple.backend.group.exception.JoinApplyErrorCode;
 import org.triple.backend.group.service.JoinApplyService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -87,6 +89,20 @@ public class JoinApplyControllerTest extends ControllerTest {
 
         verify(joinApplyService, times(1)).approve(1L, 1L, 2L);
         verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
+    @DisplayName("이미 가입된 사용자를 승인하면 409를 반환한다")
+    void 이미_가입된_사용자를_승인하면_409를_반환한다() throws Exception {
+        // given
+        mockCsrfValid();
+        doThrow(new BusinessException(JoinApplyErrorCode.ALREADY_JOINED_GROUP))
+                .when(joinApplyService).approve(1L, 1L, 2L);
+
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict());
     }
 
     @Test
