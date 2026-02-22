@@ -78,20 +78,22 @@ public class JoinApplyService {
         JoinApply joinApply = joinApplyJpaRepository.findByIdAndGroupIdAndJoinApplyStatus(joinApplyId, groupId , JoinApplyStatus.PENDING).orElseThrow(() -> new BusinessException(JoinApplyErrorCode.JOIN_APPLY_NOT_FOUND));
         User applicantUser = joinApply.getUser();
 
-        if(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, applicantUser.getId(), JoinStatus.JOINED)) {
-            throw new BusinessException(ALREADY_JOINED_GROUP);
+        UserGroup existingUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, applicantUser.getId()).orElse(null);
+        if (existingUserGroup != null) {
+            if (existingUserGroup.getJoinStatus() == JoinStatus.JOINED) {
+                throw new BusinessException(ALREADY_JOINED_GROUP);
+            }
+            existingUserGroup.rejoin(Role.MEMBER);
+        } else {
+            try {
+                UserGroup userGroup = UserGroup.create(applicantUser, findGroup, Role.MEMBER);
+                userGroupJpaRepository.saveAndFlush(userGroup);
+            } catch (DataIntegrityViolationException e) {
+                throw new BusinessException(ALREADY_JOINED_GROUP);
+            }
         }
 
         findGroup.addCurrentMemberCount();
-
-        try {
-            UserGroup userGroup = UserGroup.create(applicantUser, findGroup, Role.MEMBER);
-            userGroupJpaRepository.save(userGroup);
-            userGroupJpaRepository.flush();
-        } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ALREADY_JOINED_GROUP);
-        }
-
         joinApply.approve();
     }
 }
