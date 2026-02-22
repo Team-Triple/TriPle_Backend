@@ -14,11 +14,14 @@ import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
+import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.JoinApplyJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
+
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -279,5 +282,61 @@ public class JoinApplyIntegrationTest {
         assertThat(pendingApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
         assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
                 .isFalse();
+    }
+
+    @Test
+    @DisplayName("LEFTED 이력이 있는 사용자는 가입 승인 시 재가입 처리된다")
+    void LEFTED_이력이_있는_사용자는_가입_승인_시_재가입_처리된다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-rejoin")
+                        .nickname("오너")
+                        .email("owner-rejoin@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User applicant = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-applicant-rejoin")
+                        .nickname("지원자")
+                        .email("applicant-rejoin@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "재가입모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        userGroupJpaRepository.saveAndFlush(UserGroup.builder()
+                .user(applicant)
+                .group(savedGroup)
+                .role(Role.MEMBER)
+                .joinStatus(JoinStatus.LEFTED)
+                .joinedAt(LocalDateTime.now().minusDays(1))
+                .leftAt(LocalDateTime.now())
+                .build());
+
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", savedGroup.getId(), joinApply.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        JoinApply approvedApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+        UserGroup rejoinedUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), applicant.getId())
+                .orElseThrow();
+
+        assertThat(approvedApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.APPROVED);
+        assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
+                .isTrue();
+        assertThat(rejoinedUserGroup.getLeftAt()).isNull();
+        assertThat(userGroupJpaRepository.count()).isEqualTo(2);
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(2);
     }
 }
