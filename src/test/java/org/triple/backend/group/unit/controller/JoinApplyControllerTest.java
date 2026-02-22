@@ -66,6 +66,39 @@ public class JoinApplyControllerTest extends ControllerTest {
         verify(joinApplyService, never()).joinApply(any(Long.class), any(Long.class));
     }
 
+    @Test
+    @DisplayName("로그인 사용자는 그룹 가입 신청을 승인할 수 있다")
+    void 로그인_사용자는_그룹_가입_신청을_승인할_수_있다() throws Exception {
+        // given
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("groups/join-apply-approve",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 승인할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("승인할 가입 신청 ID")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).approve(1L, 1L, 2L);
+        verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 그룹 가입 승인 시 401을 반환한다")
+    void 비로그인_사용자는_그룹_가입_승인_시_401을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", 1L, 2L))
+                .andExpect(status().isUnauthorized());
+
+        verify(joinApplyService, never()).approve(any(Long.class), any(Long.class), any(Long.class));
+    }
+
     private void mockCsrfValid() {
         when(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).thenReturn(true);
     }
