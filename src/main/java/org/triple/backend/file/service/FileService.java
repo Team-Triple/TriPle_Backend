@@ -77,6 +77,7 @@ public class FileService {
         try {
             File file = File.of(userId, uploadedKey);
             fileJpaRepository.save(file);
+            fileJpaRepository.flush();
             log.debug("DB 저장 성공 = {}", file);
         } catch (IllegalArgumentException e) {
             throw new InvalidKeyException(e.getMessage(), e);
