@@ -6,6 +6,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.triple.backend.group.entity.group.Group;
+import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.travel.dto.request.TravelSaveRequestDto;
 import org.triple.backend.travel.entity.TravelItinerary;
 
@@ -33,7 +34,7 @@ class TravelItineraryTest {
                 5
         );
 
-        TravelItinerary itinerary = TravelItinerary.of(req, Group.builder().build());
+        TravelItinerary itinerary = TravelItinerary.of(req, createGroup());
 
         assertThat(itinerary.getMemberCount()).isEqualTo(1);
     }
@@ -45,7 +46,7 @@ class TravelItineraryTest {
                 "title",
                 START,
                 END,
-                Group.builder().build(),
+                createGroup(),
                 "desc",
                 "test-url",
                 1,
@@ -81,15 +82,19 @@ class TravelItineraryTest {
 
     private static Stream<Arguments> invalidArguments() {
         return Stream.of(
-                Arguments.of(null, START, END, Group.builder().build(), 5),
-                Arguments.of("   ", START, END, Group.builder().build(), 5),
-                Arguments.of("title", null, END, Group.builder().build(), 5),
-                Arguments.of("title", START, null, Group.builder().build(), 5),
+                Arguments.of(null, START, END, createGroup(), 5),
+                Arguments.of("   ", START, END, createGroup(), 5),
+                Arguments.of("title", null, END, createGroup(), 5),
+                Arguments.of("title", START, null, createGroup(), 5),
                 Arguments.of("title", START, END, null, 5),
-                Arguments.of("title", START, END, Group.builder().build(), 0),
-                Arguments.of("title", START, END, Group.builder().build(), 21),
-                Arguments.of("title", END, START, Group.builder().build(), 5),
-                Arguments.of("title", START, START, Group.builder().build(), 5)
+                Arguments.of("title", START, END, createGroup(), 0),
+                Arguments.of("title", START, END, createGroup(), 21),
+                Arguments.of("title", END, START, createGroup(), 5),
+                Arguments.of("title", START, START, createGroup(), 5)
         );
+    }
+
+    private static Group createGroup() {
+        return Group.create(GroupKind.PUBLIC, "group", "desc", "thumb", 10);
     }
 }

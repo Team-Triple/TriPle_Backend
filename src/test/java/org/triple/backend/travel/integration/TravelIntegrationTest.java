@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.triple.backend.auth.oauth.OauthProvider;
+import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
@@ -52,13 +53,12 @@ class TravelIntegrationTest {
     @Autowired
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
+    @Autowired
+    private DbCleaner dbCleaner;
+
     @BeforeEach
     void setUp() {
-        userTravelItineraryJpaRepository.deleteAll();
-        travelItineraryJpaRepository.deleteAll();
-        userGroupJpaRepository.deleteAll();
-        groupJpaRepository.deleteAll();
-        userJpaRepository.deleteAll();
+        dbCleaner.clean();
     }
 
     @Test
@@ -151,13 +151,13 @@ class TravelIntegrationTest {
     }
 
     private Group createGroup() {
-        return Group.builder()
-                .groupKind(GroupKind.PUBLIC)
-                .name("모임")
-                .description("설명")
-                .thumbNailUrl("http://thumb")
-                .memberLimit(10)
-                .build();
+        return Group.create(
+                GroupKind.PUBLIC,
+                "모임",
+                "설명",
+                "http://thumb",
+                10
+        );
     }
 
     private UserGroup createUserGroup(User user, Group group) {

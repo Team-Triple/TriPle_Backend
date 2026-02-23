@@ -49,7 +49,6 @@ class TravelServiceTest {
     @Autowired
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
-
     @BeforeEach
     void setUp() {
         userTravelItineraryJpaRepository.deleteAll();
@@ -60,12 +59,11 @@ class TravelServiceTest {
     }
 
     @Test
-    @DisplayName("여행 저장 시 유저를 찾을 수 없다면, 예외를 던진다.")
+    @DisplayName("여행 저장 시 유저를 찾을 수 없으면 예외를 던진다.")
     void 여행_저장_유저_없음_예외() {
-        //given
+        // given
         Long invalidUserId = 1L;
-
-        TravelSaveRequestDto travelSaveRequestDto = new TravelSaveRequestDto(
+        TravelSaveRequestDto request = new TravelSaveRequestDto(
                 "제목",
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
@@ -75,45 +73,42 @@ class TravelServiceTest {
                 5
         );
 
-        //when & then
-        Assertions.assertThatThrownBy(() -> travelService.saveTravels(travelSaveRequestDto, invalidUserId))
+        // when & then
+        Assertions.assertThatThrownBy(() -> travelService.saveTravels(request, invalidUserId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(TravelErrorCode.TRAVEL_USER_NOT_FOUND);
     }
 
     @Test
-    @DisplayName("여행 저장 시 그룹을 찾을 수 없다면, 예외를 던진다.")
+    @DisplayName("여행 저장 시 그룹을 찾을 수 없으면 예외를 던진다.")
     void 여행_저장_그룹_없음_예외() {
-        //given
+        // given
         User user = userJpaRepository.save(createUser());
-        Long invalidGroupId = 1L;
-
-        TravelSaveRequestDto travelSaveRequestDto = new TravelSaveRequestDto(
+        TravelSaveRequestDto request = new TravelSaveRequestDto(
                 "제목",
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
-                invalidGroupId, //없는 그룹 아이디 넣기
+                1L,
                 "설명",
                 "test-url",
                 5
         );
 
-        //when & then
-        Assertions.assertThatThrownBy(() -> travelService.saveTravels(travelSaveRequestDto, user.getId()))
+        // when & then
+        Assertions.assertThatThrownBy(() -> travelService.saveTravels(request, user.getId()))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(TravelErrorCode.TRAVEL_GROUP_NOT_FOUND);
     }
 
     @Test
-    @DisplayName("여행 저장 시 해당 그룹에 포함되어있지 않는 사용자라면 예외를 던진다.(권한 없음)")
-    void 여행_저장_그룹_사용자_아님_예외() {
-        //given
+    @DisplayName("여행 저장 시 그룹 멤버가 아니면 권한 예외를 던진다.")
+    void 여행_저장_그룹_멤버_아님_예외() {
+        // given
         User user = userJpaRepository.save(createUser());
         Group group = groupJpaRepository.save(createGroup());
-
-        TravelSaveRequestDto travelSaveRequestDto = new TravelSaveRequestDto(
+        TravelSaveRequestDto request = new TravelSaveRequestDto(
                 "제목",
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
@@ -123,22 +118,22 @@ class TravelServiceTest {
                 5
         );
 
-        //when & then
-        Assertions.assertThatThrownBy(() -> travelService.saveTravels(travelSaveRequestDto, user.getId()))
+        // when & then
+        Assertions.assertThatThrownBy(() -> travelService.saveTravels(request, user.getId()))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(TravelErrorCode.SAVE_FORBIDDEN);
     }
 
     @Test
-    @DisplayName("여행 저장 시 값들이 누락없이 저장된다.")
-    void 여행_저장_테스트() {
-        //given
+    @DisplayName("여행 저장 요청을 정상 처리한다.")
+    void 여행_저장_성공() {
+        // given
         User user = userJpaRepository.save(createUser());
         Group group = groupJpaRepository.save(createGroup());
         userGroupJpaRepository.save(createUserGroup(user, group));
 
-        TravelSaveRequestDto travelSaveRequestDto = new TravelSaveRequestDto(
+        TravelSaveRequestDto request = new TravelSaveRequestDto(
                 "제목",
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
@@ -148,14 +143,14 @@ class TravelServiceTest {
                 5
         );
 
-        //when
-        TravelSaveResponseDto answer = travelService.saveTravels(travelSaveRequestDto, user.getId());
+        // when
+        TravelSaveResponseDto response = travelService.saveTravels(request, user.getId());
 
-        //then
-        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.findById(answer.itineraryId()).orElse(null);
-        Assertions.assertThat(answer).isNotNull();
-        Assertions.assertThat(savedTravelItinerary).isNotNull();
-        Assertions.assertThat(savedTravelItinerary)
+        // then
+        TravelItinerary saved = travelItineraryJpaRepository.findById(response.itineraryId()).orElse(null);
+        Assertions.assertThat(response).isNotNull();
+        Assertions.assertThat(saved).isNotNull();
+        Assertions.assertThat(saved)
                 .extracting("title", "startAt", "endAt", "description", "thumbnailUrl", "memberLimit")
                 .containsExactly(
                         "제목",
@@ -168,13 +163,7 @@ class TravelServiceTest {
     }
 
     private static Group createGroup() {
-        return Group.builder()
-                .groupKind(GroupKind.PUBLIC)
-                .name("모임")
-                .description("설명")
-                .thumbNailUrl("http://thumb")
-                .memberLimit(10)
-                .build();
+        return Group.create(GroupKind.PUBLIC, "모임", "설명", "http://thumb", 10);
     }
 
     private User createUser() {
@@ -196,5 +185,4 @@ class TravelServiceTest {
                 .joinedAt(LocalDateTime.now())
                 .build();
     }
-
 }

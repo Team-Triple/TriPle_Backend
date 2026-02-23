@@ -36,13 +36,12 @@ class UserTravelItineraryJpaRepositoryTest {
     private TravelItineraryJpaRepository travelItineraryJpaRepository;
 
     @Test
-    @DisplayName("유저-여행 일정 매핑이 저장된다.")
-    void 유저_여행_일정_매핑_저장() {
-        //given
+    @DisplayName("유저와 여행 일정 매핑을 저장한다.")
+    void 유저와_여행_일정_매핑을_저장한다() {
+        // given
         User user = userJpaRepository.save(User.builder().build());
         Group group = groupJpaRepository.save(createGroup());
-
-        TravelSaveRequestDto req = new TravelSaveRequestDto(
+        TravelSaveRequestDto request = new TravelSaveRequestDto(
                 "제목",
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
@@ -51,28 +50,21 @@ class UserTravelItineraryJpaRepositoryTest {
                 "test-url",
                 5
         );
-        TravelItinerary travel = travelItineraryJpaRepository.save(TravelItinerary.of(req, group));
+        TravelItinerary travel = travelItineraryJpaRepository.save(TravelItinerary.of(request, group));
 
-        //when
-        UserTravelItinerary savedUserTravelItinerary = userTravelItineraryJpaRepository.save(
+        // when
+        UserTravelItinerary saved = userTravelItineraryJpaRepository.save(
                 UserTravelItinerary.of(user, travel, UserRole.LEADER)
         );
+        UserTravelItinerary found = userTravelItineraryJpaRepository.findById(saved.getId()).orElseThrow();
 
-        //then
-        UserTravelItinerary foundedUserTravelItinerary = userTravelItineraryJpaRepository.findById(savedUserTravelItinerary.getId()).orElseThrow();
-
-        assertThat(foundedUserTravelItinerary)
+        // then
+        assertThat(found)
                 .extracting("user", "travelItinerary", "userRole")
                 .containsExactly(user, travel, UserRole.LEADER);
     }
 
     private Group createGroup() {
-        return Group.builder()
-                .groupKind(GroupKind.PUBLIC)
-                .name("모임")
-                .description("설명")
-                .thumbNailUrl("http://thumb")
-                .memberLimit(10)
-                .build();
+        return Group.create(GroupKind.PUBLIC, "모임", "설명", "http://thumb", 10);
     }
 }

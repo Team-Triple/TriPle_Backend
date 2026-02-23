@@ -6,6 +6,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.triple.backend.group.entity.group.Group;
+import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
@@ -28,7 +29,7 @@ class UserTravelItineraryTest {
                         "title",
                         LocalDateTime.of(2026, 2, 14, 0, 0),
                         LocalDateTime.of(2026, 2, 16, 0, 0),
-                        Group.builder().build(),
+                        createGroup(),
                         "desc",
                         "test-url",
                         5,
@@ -60,7 +61,7 @@ class UserTravelItineraryTest {
                 "title",
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
-                Group.builder().build(),
+                createGroup(),
                 "desc",
                 "test-url",
                 5,
@@ -74,5 +75,9 @@ class UserTravelItineraryTest {
                 Arguments.of(user, null, UserRole.MEMBER),
                 Arguments.of(user, itinerary, null)
         );
+    }
+
+    private static Group createGroup() {
+        return Group.create(GroupKind.PUBLIC, "group", "desc", "thumb", 10);
     }
 }
