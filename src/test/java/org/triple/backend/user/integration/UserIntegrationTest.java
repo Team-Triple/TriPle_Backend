@@ -14,11 +14,10 @@ import java.time.LocalDate;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 @IntegrationTest
 public class UserIntegrationTest {
-
-    private static final String USER_SESSION_KEY = "USER_ID";
 
     @Autowired
     private MockMvc mockMvc;

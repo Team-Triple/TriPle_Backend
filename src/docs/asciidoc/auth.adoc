@@ -9,3 +9,8 @@
 include::{snippets}/auth/login/http-request.adoc[]
 include::{snippets}/auth/login/http-response.adoc[]
 
+== 로그아웃
+include::{snippets}/auth/logout/http-request.adoc[]
+include::{snippets}/auth/logout/http-response.adoc[]
+include::{snippets}/auth/logout/request-headers.adoc[]
+include::{snippets}/auth/logout/response-headers.adoc[]

@@ -19,9 +19,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
+import static org.triple.backend.global.constants.AuthConstants.LOGIN_USER_ID;
 
 public class LoginInterceptorTest {
-    private static final String LOGIN_USER_ID = "LOGIN_USER_ID";
 
     private final SessionManager sessionManager = mock(SessionManager.class);
     private final LoginInterceptor interceptor = new LoginInterceptor(sessionManager);

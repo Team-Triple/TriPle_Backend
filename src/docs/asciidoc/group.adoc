@@ -8,3 +8,29 @@
 == 그룹 생성
 include::{snippets}/groups/create/http-request.adoc[]
 include::{snippets}/groups/create/http-response.adoc[]
+
+== 그룹 조회(PUBLIC)
+include::{snippets}/groups/browse-public/query-parameters.adoc[]
+include::{snippets}/groups/browse-public/http-request.adoc[]
+include::{snippets}/groups/browse-public/http-response.adoc[]
+
+== 그룹 상세 조회
+include::{snippets}/groups/detail/path-parameters.adoc[]
+include::{snippets}/groups/detail/http-request.adoc[]
+include::{snippets}/groups/detail/http-response.adoc[]
+
+== 그룹 삭제
+include::{snippets}/groups/delete/path-parameters.adoc[]
+include::{snippets}/groups/delete/http-request.adoc[]
+include::{snippets}/groups/delete/http-response.adoc[]
+
+== 그룹 수정
+include::{snippets}/groups/update/path-parameters.adoc[]
+include::{snippets}/groups/update/http-request.adoc[]
+include::{snippets}/groups/update/http-response.adoc[]
+
+
+== 그룹 가입 신청
+include::{snippets}/groups/join-apply/path-parameters.adoc[]
+include::{snippets}/groups/join-apply/http-request.adoc[]
+include::{snippets}/groups/join-apply/http-response.adoc[]

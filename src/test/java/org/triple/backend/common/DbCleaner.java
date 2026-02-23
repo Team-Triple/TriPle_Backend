@@ -21,7 +21,7 @@ public class DbCleaner {
     @PostConstruct
     void init() {
         tableNames = jdbcTemplate.queryForList(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
+                "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'PUBLIC'",
                 String.class
         );
     }

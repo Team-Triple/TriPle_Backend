@@ -57,4 +57,26 @@ public class CookieManagerTest {
         assertThat(setCookie).contains("SameSite=None");
         assertThat(setCookie).doesNotContainIgnoringCase("HttpOnly");
     }
+
+    @Test
+    @DisplayName("clearSessionCookie는 JSESSIONID 쿠키를 만료시킨다")
+    void clearSessionCookie는_JSESSIONID_쿠키를_만료시킨다() {
+        // given
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        ArgumentCaptor<String> headerValueCaptor = ArgumentCaptor.forClass(String.class);
+
+        // when
+        cookieManager.clearSessionCookie(response);
+
+        // then
+        verify(response, times(1)).addHeader(eq(HttpHeaders.SET_COOKIE), headerValueCaptor.capture());
+
+        String setCookie = headerValueCaptor.getValue();
+        assertThat(setCookie).contains("JSESSIONID=");
+        assertThat(setCookie).contains("Path=/");
+        assertThat(setCookie).contains("Max-Age=0");
+        assertThat(setCookie).contains("Secure");
+        assertThat(setCookie).contains("SameSite=None");
+        assertThat(setCookie).contains("HttpOnly");
+    }
 }

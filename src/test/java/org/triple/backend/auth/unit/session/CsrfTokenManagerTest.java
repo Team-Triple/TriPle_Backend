@@ -9,8 +9,10 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 import org.triple.backend.auth.session.CsrfTokenManager;
 
+import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN_KEY;
+import static org.triple.backend.global.constants.AuthConstants.TEST_TOKEN;
+
 class CsrfTokenManagerTest {
-    private static final String CSRF_TOKEN_KEY = "CSRF_TOKEN";
 
     @Test
     @DisplayName("세션에 토큰이 없을 경우, 생성 후 세션에 저장되어야 한다.")
@@ -33,7 +35,7 @@ class CsrfTokenManagerTest {
     void 토큰_반환() {
         //given
         CsrfTokenManager csrfTokenManager = new CsrfTokenManager();
-        String csrfToken = "test-token";
+        String csrfToken = TEST_TOKEN;
 
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(CSRF_TOKEN_KEY, csrfToken);
@@ -70,7 +72,7 @@ class CsrfTokenManagerTest {
         //given
         CsrfTokenManager csrfTokenManager = new CsrfTokenManager();
         MockHttpServletRequest request = new MockHttpServletRequest();
-        String requestedToken = "test-token";
+        String requestedToken = TEST_TOKEN;
 
         //when
         boolean answer = csrfTokenManager.isValid(request, requestedToken);

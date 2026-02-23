@@ -2,3 +2,4 @@
 
 * xref:auth.adoc[Auth API]
 * xref:user.adoc[User API]
+* xref:group.adoc[Group API]

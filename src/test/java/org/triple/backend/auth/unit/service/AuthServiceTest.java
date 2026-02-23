@@ -1,13 +1,10 @@
 package org.triple.backend.auth.unit.service;
 
 import jakarta.servlet.http.HttpSession;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -29,6 +26,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 
 @Import({AuthService.class, SessionManager.class})
@@ -136,6 +134,20 @@ public class AuthServiceTest {
 
         // then
         HttpSession session = servletRequest.getSession(false);
-        assertThat(session.getAttribute(SessionManager.SESSION_KEY)).isEqualTo(saved.getId());
+        assertThat(session.getAttribute(USER_SESSION_KEY)).isEqualTo(saved.getId());
+    }
+
+    @Test
+    @DisplayName("로그아웃 시 세션이 무효화된다")
+    void 로그아웃_시_세션이_무효화된다() {
+        // given
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true).setAttribute(USER_SESSION_KEY, 1L);
+
+        // when
+        authService.logout(request);
+
+        // then
+        assertThat(request.getSession(false)).isNull();
     }
 }
