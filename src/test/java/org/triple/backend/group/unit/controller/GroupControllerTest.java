@@ -13,6 +13,7 @@ import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
+import org.triple.backend.group.dto.response.GroupDetailResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.service.GroupService;
@@ -143,6 +144,65 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
+    }
+
+    @Test
+    @DisplayName("로그인한 사용자는 그룹 상세 정보를 조회할 수 있다.")
+    void 로그인한_사용자는_그룹_상세_정보를_조회할_수_있다() throws Exception {
+        // given
+        Long groupId = 1L;
+        GroupDetailResponseDto response = new GroupDetailResponseDto(
+                List.of(
+                        new GroupDetailResponseDto.UserDto("상윤", "모임장", "http://img", true),
+                        new GroupDetailResponseDto.UserDto("민규", "멤버", "http://img2", false)
+                ),
+                "여행모임",
+                "3월 일본 여행",
+                GroupKind.PRIVATE,
+                "https://example.com/thumb.png",
+                2,
+                10
+        );
+
+        given(groupService.detail(eq(groupId), eq(1L)))
+                .willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users").isArray())
+                .andExpect(jsonPath("$.users.length()").value(2))
+                .andExpect(jsonPath("$.users[0].name").value("상윤"))
+                .andExpect(jsonPath("$.users[0].isOwner").value(true))
+                .andExpect(jsonPath("$.name").value("여행모임"))
+                .andExpect(jsonPath("$.description").value("3월 일본 여행"))
+                .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
+                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
+                .andExpect(jsonPath("$.currentMemberCount").value(2))
+                .andExpect(jsonPath("$.memberLimit").value(10))
+                .andDo(document("groups/detail",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("조회할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("users").description("그룹 멤버 목록"),
+                                fieldWithPath("users[].name").description("멤버 이름"),
+                                fieldWithPath("users[].description").description("멤버 소개").optional(),
+                                fieldWithPath("users[].profileUrl").description("멤버 프로필 이미지 URL").optional(),
+                                fieldWithPath("users[].isOwner").description("방장 여부"),
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("groupKind").description("그룹 종류"),
+                                fieldWithPath("thumbNailUrl").description("그룹 썸네일 URL").optional(),
+                                fieldWithPath("currentMemberCount").description("현재 인원"),
+                                fieldWithPath("memberLimit").description("최대 인원")
+                        )
+                ));
+
+        verify(groupService, times(1)).detail(groupId, 1L);
     }
 
 

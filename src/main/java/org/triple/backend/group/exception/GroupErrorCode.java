@@ -7,6 +7,7 @@ public enum GroupErrorCode implements ErrorCode {
 
     GROUP_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 그룹 입니다."),
     NOT_GROUP_OWNER(HttpStatus.FORBIDDEN, "그룹 수정/삭제 권한이 없습니다."),
+    NOT_GROUP_MEMBER(HttpStatus.FORBIDDEN, "해당 그룹을 조회할 권한이 없습니다."),
     CONCURRENT_GROUP_UPDATE(HttpStatus.CONFLICT, "동시에 그룹 정보가 변경되었습니다. 다시 시도해주세요.");
 
     private HttpStatus status;
