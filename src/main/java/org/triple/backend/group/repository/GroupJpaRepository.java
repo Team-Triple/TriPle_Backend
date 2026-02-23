@@ -27,4 +27,25 @@ public interface GroupJpaRepository extends JpaRepository<Group, Long> {
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("SELECT g FROM Group g WHERE g.id = :groupId")
     Optional<Group> findByIdForRead(Long groupId);
+
+    @Query("""
+            SELECT g
+            FROM Group g
+            WHERE g.groupKind = :kind
+              AND (g.name LIKE CONCAT(:keyword, '%')
+                OR g.description LIKE CONCAT('%', :keyword, '%'))
+            ORDER BY g.id DESC
+            """)
+    List<Group> findFirstPageByKeyword(String keyword, Pageable pageable, GroupKind kind);
+
+    @Query("""
+            SELECT g
+            FROM Group g
+            WHERE g.id < :cursor
+              AND g.groupKind = :kind
+              AND (g.name LIKE CONCAT(:keyword, '%')
+                OR g.description LIKE CONCAT('%', :keyword, '%'))
+            ORDER BY g.id DESC
+            """)
+    List<Group> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable, GroupKind kind);
 }
