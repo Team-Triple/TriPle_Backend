@@ -68,7 +68,10 @@ public class JoinApplyService {
     @Transactional
     public void approve(final Long groupId, final Long ownerUserId, final Long joinApplyId) {
 
-        userJpaRepository.findById(ownerUserId).orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        if(!userJpaRepository.existsById(ownerUserId)) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+
         Group findGroup = groupJpaRepository.findByIdForUpdate(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
         if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRoleAndJoinStatus(groupId, ownerUserId, Role.OWNER, JoinStatus.JOINED)) {
