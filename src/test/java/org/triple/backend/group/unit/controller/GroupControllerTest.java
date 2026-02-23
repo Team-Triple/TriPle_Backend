@@ -22,6 +22,7 @@ import org.triple.backend.auth.session.CsrfTokenManager;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -180,6 +181,19 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.items[0].name").value("제주여행"));
 
         verify(groupService, times(1)).search("제주", null, 10);
+    }
+
+    @Test
+    @DisplayName("키워드 길이가 20자를 초과하면 400을 반환한다")
+    void 키워드_길이가_20자를_초과하면_400을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("keyword", "aaaaaaaaaaaaaaaaaaaaa")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 입력 문자 수를 초과했습니다."));
+
+        verify(groupService, never()).search(any(), any(), anyInt());
     }
 
     @Test
