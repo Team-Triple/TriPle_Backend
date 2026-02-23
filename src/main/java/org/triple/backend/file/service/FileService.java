@@ -15,8 +15,6 @@ import org.triple.backend.file.infra.exception.FinalizeUploadException;
 import org.triple.backend.file.infra.exception.InvalidKeyException;
 import org.triple.backend.file.repository.FileJpaRepository;
 
-import static org.triple.backend.global.log.MaskUtil.maskString;
-
 /**
  * DB, S3Bucket 에서 발생할 수 있는 예외들을 처리
  * 디테일한 예외의 경계는 여기까지이다.

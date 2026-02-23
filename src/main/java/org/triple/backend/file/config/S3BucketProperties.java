@@ -4,13 +4,19 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
+import software.amazon.awssdk.regions.Region;
 
 @Getter
 @Validated
+@RequiredArgsConstructor
 @ConfigurationProperties(prefix = "app.aws.s3")
 public class S3BucketProperties {
+    @NotNull
+    private final Region region;
+
     @NotBlank
     private final String bucket;
 
@@ -25,16 +31,4 @@ public class S3BucketProperties {
     @NotNull
     @Valid
     private final S3UploadPolicyProperties uploadPolicy;
-
-    public S3BucketProperties(
-            String bucket,
-            S3PresignProperties presign,
-            S3PrefixProperties prefix,
-            S3UploadPolicyProperties uploadPolicy
-    ) {
-        this.bucket = bucket;
-        this.presign = presign;
-        this.prefix = prefix;
-        this.uploadPolicy = uploadPolicy;
-    }
 }

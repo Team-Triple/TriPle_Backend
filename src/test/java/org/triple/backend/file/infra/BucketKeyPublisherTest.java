@@ -6,6 +6,7 @@ import org.triple.backend.file.config.S3BucketProperties;
 import org.triple.backend.file.config.S3PrefixProperties;
 import org.triple.backend.file.config.S3PresignProperties;
 import org.triple.backend.file.config.S3UploadPolicyProperties;
+import software.amazon.awssdk.regions.Region;
 
 import java.util.List;
 
@@ -16,6 +17,7 @@ class BucketKeyPublisherTest {
 
     private final BucketKeyPublisher bucketKeyPublisher = new BucketKeyPublisher(
             new S3BucketProperties(
+                    Region.AP_NORTHEAST_2,
                     "test-bucket",
                     new S3PresignProperties(180),
                     new S3PrefixProperties("uploads/pending/", "uploads/uploaded/"),
