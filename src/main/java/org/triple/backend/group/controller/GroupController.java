@@ -2,6 +2,7 @@ package org.triple.backend.group.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
@@ -12,6 +13,7 @@ import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.service.GroupService;
 
+@Validated
 @RestController
 @RequestMapping("/groups")
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class GroupController {
     }
 
     @GetMapping
-    public GroupCursorResponseDto browsePublicGroups(@Valid @RequestParam(required = false) @Size(max = 20) String keyword,
+    public GroupCursorResponseDto browsePublicGroups(@RequestParam(required = false) @Size(max = 20, message = "검색어는 최대 입력 문자 수를 초과했습니다.") String keyword,
                                                      @RequestParam(required = false) Long cursor,
                                                      @RequestParam(defaultValue = "10") int size) {
         return groupService.search(keyword, cursor, size);
