@@ -23,6 +23,7 @@ import org.triple.backend.group.repository.JoinApplyJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.group.service.JoinApplyService;
 import org.triple.backend.user.entity.User;
+import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.time.LocalDateTime;
@@ -223,6 +224,33 @@ public class JoinApplyServiceTest {
         assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
                 .isTrue();
         assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 오너는 가입 신청을 승인할 수 없다")
+    void 존재하지_않는_오너는_가입_신청을_승인할_수_없다() {
+        // given
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-applicant-missing-owner")
+                .nickname("지원자")
+                .email("missing-owner-applicant@test.com")
+                .profileUrl("http://img")
+                .build());
+        Group group = groupJpaRepository.saveAndFlush(
+                Group.create(GroupKind.PUBLIC, "유저검증모임", "설명", "https://example.com/thumb.png", 10)
+        );
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, group));
+
+        // when & then
+        assertThatThrownBy(() -> joinApplyService.approve(group.getId(), 999999L, joinApply.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                });
+
+        JoinApply pendingJoinApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        assertThat(pendingJoinApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
     }
 
     @Test
