@@ -25,5 +25,6 @@ public interface GroupJpaRepository extends JpaRepository<Group, Long> {
     List<Group> findPublicNextPage(GroupKind groupKind, Long cursor, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("SELECT g FROM Group g WHERE g.id = :groupId")
     Optional<Group> findByIdForRead(Long groupId);
 }
