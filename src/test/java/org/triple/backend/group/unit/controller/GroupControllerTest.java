@@ -107,7 +107,7 @@ public class GroupControllerTest extends ControllerTest {
                 true
         );
 
-        given(groupService.browsePublicGroups(eq(null), eq(10)))
+        given(groupService.search(eq(null), eq(null), eq(10)))
                 .willReturn(response);
 
         // when & then
@@ -128,6 +128,7 @@ public class GroupControllerTest extends ControllerTest {
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         queryParameters(
+                                parameterWithName("keyword").optional().description("검색 키워드(없으면 전체 공개 그룹 조회)"),
                                 parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
                                 parameterWithName("size").optional().description("페이지 크기(기본 10)")
                         ),
@@ -143,6 +144,41 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
+
+        verify(groupService, times(1)).search(null, null, 10);
+    }
+
+    @Test
+    @DisplayName("키워드가 있으면 공개 그룹 키워드 검색을 수행한다.")
+    void 키워드가_있으면_공개_그룹_키워드_검색을_수행한다() throws Exception {
+        // given
+        GroupCursorResponseDto response = new GroupCursorResponseDto(
+                List.of(
+                        new GroupCursorResponseDto.GroupSummaryDto(
+                                20L,
+                                "제주여행",
+                                "맛집 탐방",
+                                1,
+                                10,
+                                "https://example.com/thumb.png"
+                        )
+                ),
+                null,
+                false
+        );
+
+        given(groupService.search(eq("제주"), eq(null), eq(10)))
+                .willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("keyword", "제주")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].name").value("제주여행"));
+
+        verify(groupService, times(1)).search("제주", null, 10);
     }
 
 
