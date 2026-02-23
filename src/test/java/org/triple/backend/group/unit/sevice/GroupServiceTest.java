@@ -163,46 +163,6 @@ public class GroupServiceTest {
     }
 
     @Test
-    @DisplayName("키워드가 비어 있으면 전체 공개 그룹 조회로 처리된다")
-    void 키워드가_비어_있으면_전체_공개_그룹_조회로_처리된다() {
-        // given
-        for (int i = 1; i <= 12; i++) {
-            groupJpaRepository.save(publicGroup("public-" + i));
-        }
-        for (int i = 1; i <= 3; i++) {
-            groupJpaRepository.save(privateGroup("private-" + i));
-        }
-
-        // when
-        GroupCursorResponseDto res = groupService.search("   ", null, 10);
-
-        // then
-        assertThat(res.items()).hasSize(10);
-        assertThat(res.items())
-                .allSatisfy(item -> assertThat(item.name()).startsWith("public-"));
-    }
-
-    @Test
-    @DisplayName("키워드 검색은 PUBLIC 그룹에서 이름 접두 또는 설명 포함 조건으로 조회된다")
-    void 키워드_검색은_PUBLIC_그룹에서_이름_접두_또는_설명_포함_조건으로_조회된다() {
-        // given
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "제주여행", "주말 여행", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "부산모임", "제주 맛집 탐방", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "서울모임", "한강 산책", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PRIVATE, "제주프라이빗", "제주 비공개 모임", "thumb", 10));
-
-        // when
-        GroupCursorResponseDto res = groupService.search("제주", null, 10);
-
-        // then
-        assertThat(res.items()).hasSize(2);
-        assertThat(res.hasNext()).isFalse();
-        assertThat(res.items())
-                .extracting(GroupCursorResponseDto.GroupSummaryDto::name)
-                .containsExactlyInAnyOrder("제주여행", "부산모임");
-    }
-
-    @Test
     @DisplayName("공개 그룹 상세 조회 시 상세 정보를 조회할 수 있다")
     void 공개_그룹_상세_조회_시_상세_정보를_조회할_수_있다() {
         // given

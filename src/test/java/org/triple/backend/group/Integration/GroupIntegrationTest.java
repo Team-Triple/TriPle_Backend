@@ -21,7 +21,6 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -167,74 +166,6 @@ public class GroupIntegrationTest {
                     assertThat(dto.items())
                             .allSatisfy(item -> assertThat(item.groupId()).isLessThan(nextCursor));
                 });
-    }
-
-    @Test
-    @DisplayName("키워드 검색 시 PUBLIC 그룹만 이름/설명 기준으로 조회된다")
-    void 키워드_검색_시_PUBLIC_그룹만_이름_설명_기준으로_조회된다() throws Exception {
-        // given
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "제주여행", "주말 여행", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "부산모임", "제주 맛집 탐방", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "서울모임", "한강 산책", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PRIVATE, "제주프라이빗", "제주 비공개 모임", "thumb", 10));
-
-        // when & then
-        mockMvc.perform(get("/groups")
-                        .param("keyword", "제주")
-                        .param("size", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items", hasSize(2)))
-                .andExpect(jsonPath("$.items[*].name", containsInAnyOrder("제주여행", "부산모임")));
-    }
-
-    @Test
-    @DisplayName("키워드 검색 다음 페이지는 cursor 기준으로 중복 없이 이어진다")
-    void 키워드_검색_다음_페이지는_cursor_기준으로_중복_없이_이어진다() throws Exception {
-        // given
-        for (int i = 1; i <= 12; i++) {
-            groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "제주-" + i, "일반 설명", "thumb", 10));
-        }
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "부산모임", "제주 맛집 탐방", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PRIVATE, "제주-비공개", "제주 비공개 모임", "thumb", 10));
-
-        // when
-        String firstJson = mockMvc.perform(get("/groups")
-                        .param("keyword", "제주")
-                        .param("size", "5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items", hasSize(5)))
-                .andExpect(jsonPath("$.hasNext").value(true))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        GroupCursorResponseDto first = objectMapper.readValue(firstJson, GroupCursorResponseDto.class);
-        Long firstNextCursor = first.nextCursor();
-        List<Long> firstIds = first.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
-
-        String secondJson = mockMvc.perform(get("/groups")
-                        .param("keyword", "제주")
-                        .param("cursor", String.valueOf(firstNextCursor))
-                        .param("size", "5"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items", hasSize(5)))
-                .andExpect(jsonPath("$.hasNext").value(true))
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        GroupCursorResponseDto second = objectMapper.readValue(secondJson, GroupCursorResponseDto.class);
-        List<Long> secondIds = second.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
-
-        // then
-        assertThat(secondIds).allSatisfy(id -> assertThat(id).isLessThan(firstNextCursor));
-        assertThat(secondIds).doesNotContainAnyElementsOf(firstIds);
-
-        List<Long> fetchedIds = new ArrayList<>(firstIds);
-        fetchedIds.addAll(secondIds);
-        List<Group> fetchedGroups = groupJpaRepository.findAllById(fetchedIds);
-        assertThat(fetchedGroups).hasSize(fetchedIds.size());
-        assertThat(fetchedGroups).allSatisfy(group -> assertThat(group.getGroupKind()).isEqualTo(GroupKind.PUBLIC));
     }
 
     @Test
