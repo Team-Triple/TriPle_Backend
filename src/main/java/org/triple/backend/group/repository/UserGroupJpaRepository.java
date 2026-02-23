@@ -4,7 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
-import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
 
 import java.util.List;
@@ -16,8 +15,6 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
     List<UserGroup> findAllByGroupIdAndJoinStatus(Long groupId, JoinStatus joinStatus);
 
     boolean existsByGroupIdAndUserIdAndJoinStatus(Long groupId, Long userId, JoinStatus joinStatus);
-
-    boolean existsByGroupIdAndUserIdAndRole(Long groupId, Long userId, Role role);
 
     Optional<UserGroup> findByGroupIdAndUserId(Long groupId, Long userId);
 
