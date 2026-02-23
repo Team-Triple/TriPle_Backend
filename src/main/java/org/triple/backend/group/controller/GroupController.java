@@ -1,7 +1,6 @@
 package org.triple.backend.group.controller;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
@@ -28,10 +27,8 @@ public class GroupController {
     }
 
     @GetMapping
-    public GroupCursorResponseDto browsePublicGroups(@Valid @RequestParam(required = false) @Size(max = 20) String keyword,
-                                                     @RequestParam(required = false) Long cursor,
-                                                     @RequestParam(defaultValue = "10") int size) {
-        return groupService.search(keyword, cursor, size);
+    public GroupCursorResponseDto browsePublicGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size) {
+        return groupService.browsePublicGroups(cursor, size);
     }
 
     @LoginRequired
