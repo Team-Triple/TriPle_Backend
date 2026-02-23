@@ -1,9 +1,9 @@
 package org.triple.backend.group.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
@@ -11,10 +11,13 @@ import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
+import org.triple.backend.group.dto.response.GroupDetailResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
+import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
+import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.JoinApplyJpaRepository;
@@ -31,7 +34,6 @@ public class GroupService {
 
     private static final int MIN_PAGE_SIZE = 1;
     private static final int MAX_PAGE_SIZE = 10;
-    private static final int KEYWORD_MAX_LENGTH = 20;
 
     private final GroupJpaRepository groupJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
@@ -114,31 +116,19 @@ public class GroupService {
     }
 
     @Transactional(readOnly = true)
-    public GroupCursorResponseDto search(final String keyword, final Long cursor, final int size) {
-        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+    public GroupDetailResponseDto detail(final Long groupId, final Long userId) {
 
-        if (normalizedKeyword.isBlank()) {
-            return browsePublicGroups(cursor, size);
+        Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+        userJpaRepository.findById(userId).orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        if(group.getGroupKind().equals(GroupKind.PRIVATE)) {
+            if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)) {
+                throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+            }
         }
 
-        if(normalizedKeyword.length() > KEYWORD_MAX_LENGTH) {
-            throw new BusinessException(GroupErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
-        }
+        List<UserGroup> userGroups = userGroupJpaRepository.findAllByGroupIdAndJoinStatus(groupId, JoinStatus.JOINED);
 
-        int pageSize = Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
-        Pageable pageable = PageRequest.of(0, pageSize + 1);
-
-        List<Group> rows = cursor == null ? groupJpaRepository.findFirstPageByKeyword(normalizedKeyword, pageable, GroupKind.PUBLIC) :
-                groupJpaRepository.findNextPageByKeyword(normalizedKeyword, cursor, pageable, GroupKind.PUBLIC);
-
-        boolean hasNext = rows.size() > pageSize;
-
-        if(hasNext) {
-            rows = rows.subList(0, pageSize);
-        }
-
-        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
-
-        return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
+        return GroupDetailResponseDto.from(userGroups, group);
     }
 }

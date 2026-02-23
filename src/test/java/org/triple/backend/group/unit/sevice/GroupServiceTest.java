@@ -12,6 +12,7 @@ import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
+import org.triple.backend.group.dto.response.GroupDetailResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
@@ -162,43 +163,105 @@ public class GroupServiceTest {
     }
 
     @Test
-    @DisplayName("키워드가 비어 있으면 전체 공개 그룹 조회로 처리된다")
-    void 키워드가_비어_있으면_전체_공개_그룹_조회로_처리된다() {
+    @DisplayName("공개 그룹 상세 조회 시 상세 정보를 조회할 수 있다")
+    void 공개_그룹_상세_조회_시_상세_정보를_조회할_수_있다() {
         // given
-        for (int i = 1; i <= 12; i++) {
-            groupJpaRepository.save(publicGroup("public-" + i));
-        }
-        for (int i = 1; i <= 3; i++) {
-            groupJpaRepository.save(privateGroup("private-" + i));
-        }
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-detail")
+                .nickname("상윤")
+                .email("owner-detail@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User viewer = userJpaRepository.save(User.builder()
+                .providerId("kakao-viewer-detail")
+                .nickname("조회자")
+                .email("viewer-detail@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.save(group);
 
         // when
-        GroupCursorResponseDto res = groupService.search("   ", null, 10);
+        GroupDetailResponseDto response = groupService.detail(savedGroup.getId(), viewer.getId());
 
         // then
-        assertThat(res.items()).hasSize(10);
-        assertThat(res.items())
-                .allSatisfy(item -> assertThat(item.name()).startsWith("public-"));
+        assertThat(response.name()).isEqualTo("여행모임");
+        assertThat(response.description()).isEqualTo("설명");
+        assertThat(response.groupKind()).isEqualTo(GroupKind.PUBLIC);
+        assertThat(response.thumbNailUrl()).isEqualTo("thumb");
+        assertThat(response.currentMemberCount()).isEqualTo(1);
+        assertThat(response.memberLimit()).isEqualTo(10);
+        assertThat(response.users()).hasSize(1);
+        assertThat(response.users().get(0).name()).isEqualTo("상윤");
+        assertThat(response.users().get(0).isOwner()).isTrue();
     }
 
     @Test
-    @DisplayName("키워드 검색은 PUBLIC 그룹에서 이름 접두 또는 설명 포함 조건으로 조회된다")
-    void 키워드_검색은_PUBLIC_그룹에서_이름_접두_또는_설명_포함_조건으로_조회된다() {
+    @DisplayName("비공개 그룹 상세 조회 시 멤버가 아니면 NOT_GROUP_MEMBER 예외가 발생한다")
+    void 비공개_그룹_상세_조회_시_멤버가_아니면_NOT_GROUP_MEMBER_예외가_발생한다() {
         // given
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "제주여행", "주말 여행", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "부산모임", "제주 맛집 탐방", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "서울모임", "한강 산책", "thumb", 10));
-        groupJpaRepository.save(Group.create(GroupKind.PRIVATE, "제주프라이빗", "제주 비공개 모임", "thumb", 10));
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-private-detail")
+                .nickname("상윤")
+                .email("owner-private-detail@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User outsider = userJpaRepository.save(User.builder()
+                .providerId("kakao-outsider-private-detail")
+                .nickname("민규")
+                .email("outsider-private-detail@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.save(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.detail(savedGroup.getId(), outsider.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+                });
+    }
+
+    @Test
+    @DisplayName("비공개 그룹 상세 조회 시 멤버는 상세 정보를 조회할 수 있다")
+    void 비공개_그룹_상세_조회_시_멤버는_상세_정보를_조회할_수_있다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-private-member-detail")
+                .nickname("상윤")
+                .email("owner-private-member-detail@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User member = userJpaRepository.save(User.builder()
+                .providerId("kakao-member-private-member-detail")
+                .nickname("민규")
+                .email("member-private-member-detail@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        Group savedGroup = groupJpaRepository.save(group);
 
         // when
-        GroupCursorResponseDto res = groupService.search("제주", null, 10);
+        GroupDetailResponseDto response = groupService.detail(savedGroup.getId(), member.getId());
 
         // then
-        assertThat(res.items()).hasSize(2);
-        assertThat(res.hasNext()).isFalse();
-        assertThat(res.items())
-                .extracting(GroupCursorResponseDto.GroupSummaryDto::name)
-                .containsExactlyInAnyOrder("제주여행", "부산모임");
+        assertThat(response.groupKind()).isEqualTo(GroupKind.PRIVATE);
+        assertThat(response.users()).hasSize(2);
+        assertThat(response.users().stream().map(GroupDetailResponseDto.UserDto::name).toList())
+                .containsExactlyInAnyOrder("상윤", "민규");
+        assertThat(response.users().stream().filter(GroupDetailResponseDto.UserDto::isOwner).count()).isEqualTo(1);
     }
 
     @Test
