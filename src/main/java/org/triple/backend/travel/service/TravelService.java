@@ -30,23 +30,23 @@ public class TravelService {
 
     @Transactional
     public TravelSaveResponseDto saveTravels(final TravelSaveRequestDto travelsRequestDto, final Long userId) {
-        User user = userJpaRepository.findById(userId) //유저 찾기
+        User user = userJpaRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(TravelErrorCode.TRAVEL_USER_NOT_FOUND));
 
-        Group group = groupJpaRepository.findById(travelsRequestDto.groupId()) //그룹 찾기
+        Group group = groupJpaRepository.findByIdForUpdate(travelsRequestDto.groupId())
                 .orElseThrow(() -> new BusinessException(TravelErrorCode.TRAVEL_GROUP_NOT_FOUND));
 
-        if (!userGroupJpaRepository.existsByUserAndGroupAndJoinStatus(user, group, JoinStatus.JOINED)) { //그룹에 포함되지 않은 사용자면 예외
+        if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(group.getId(), userId, JoinStatus.JOINED)) {
             throw new BusinessException(TravelErrorCode.SAVE_FORBIDDEN);
         }
 
-        TravelItinerary travelItinerary = TravelItinerary.of(travelsRequestDto, group); //여행 일정 생성
-        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary); //저장
+        TravelItinerary travelItinerary = TravelItinerary.of(travelsRequestDto, group);
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
 
-        UserTravelItinerary userTravelItinerary = UserTravelItinerary.of(user, savedTravelItinerary, //여행-유저 매핑 생성
+        UserTravelItinerary userTravelItinerary = UserTravelItinerary.of(user, savedTravelItinerary,
                 UserRole.LEADER);
-        userTravelItineraryJpaRepository.save(userTravelItinerary); //저장
+        userTravelItineraryJpaRepository.save(userTravelItinerary);
 
-        return TravelSaveResponseDto.from(savedTravelItinerary.getId()); //dto 반환
+        return TravelSaveResponseDto.from(savedTravelItinerary.getId());
     }
 }

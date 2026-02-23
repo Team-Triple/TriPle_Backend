@@ -68,7 +68,7 @@ public class TravelItinerary extends BaseEntity {
     }
 
     //첫 생성 정적 팩터리 메서드
-    public static TravelItinerary of(TravelSaveRequestDto travelsRequestDto, Group group) {
+    public static TravelItinerary of(final TravelSaveRequestDto travelsRequestDto, final Group group) {
         return TravelItinerary.builder()
                 .title(travelsRequestDto.title())
                 .startAt(travelsRequestDto.startAt())
