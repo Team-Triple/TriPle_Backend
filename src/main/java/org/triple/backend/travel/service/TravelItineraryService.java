@@ -36,7 +36,7 @@ public class TravelItineraryService {
         User user = userJpaRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_USER_NOT_FOUND));
 
-        Group group = groupJpaRepository.findByIdForUpdate(travelsRequestDto.groupId())
+        Group group = groupJpaRepository.findByIdForRead(travelsRequestDto.groupId())
                 .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_GROUP_NOT_FOUND));
 
         if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(group.getId(), userId, JoinStatus.JOINED)) {
