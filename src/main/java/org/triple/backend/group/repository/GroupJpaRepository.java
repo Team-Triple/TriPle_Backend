@@ -22,4 +22,25 @@ public interface GroupJpaRepository extends JpaRepository<Group, Long> {
 
     @Query("SELECT g FROM Group g WHERE g.groupKind = :groupKind AND g.id < :cursor ORDER BY g.id desc")
     List<Group> findPublicNextPage(GroupKind groupKind, Long cursor, Pageable pageable);
+
+    @Query("""
+            SELECT g
+            FROM Group g
+            WHERE g.groupKind = :kind
+              AND (g.name LIKE CONCAT(:keyword, '%')
+                OR g.description LIKE CONCAT('%', :keyword, '%'))
+            ORDER BY g.id DESC
+            """)
+    List<Group> findFirstPageByKeyword(String keyword, Pageable pageable, GroupKind kind);
+
+    @Query("""
+            SELECT g
+            FROM Group g
+            WHERE g.id < :cursor
+              AND g.groupKind = :kind
+              AND (g.name LIKE CONCAT(:keyword, '%')
+                OR g.description LIKE CONCAT('%', :keyword, '%'))
+            ORDER BY g.id DESC
+            """)
+    List<Group> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable, GroupKind kind);
 }
