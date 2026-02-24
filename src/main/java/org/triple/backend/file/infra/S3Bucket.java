@@ -12,4 +12,6 @@ public interface S3Bucket {
     void deleteObject(String key);
 
     void validateContentType(String mimeType);
+
+    String concatUploadPrefix(String uploadedKey);
 }
