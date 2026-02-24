@@ -55,7 +55,7 @@ public class TravelItineraryService {
 
     @Transactional
     public void updateTravel(TravelItineraryUpdateRequestDto travelItineraryUpdateRequestDto, Long travelItineraryId, Long userId) {
-        TravelItinerary travelItinerary = travelItineraryJpaRepository.findById(travelItineraryId)
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.findByIdAndIsDeletedFalse(travelItineraryId)
                 .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
 
         UserTravelItinerary userTravelItinerary = userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(userId, travelItineraryId)
@@ -70,6 +70,26 @@ public class TravelItineraryService {
             travelItineraryJpaRepository.flush();
         } catch (OptimisticLockingFailureException e) {
             throw new BusinessException(TravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_UPDATE);
+        }
+    }
+
+    @Transactional
+    public void deleteTravel(Long travelItineraryId, Long userId) {
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.findByIdAndIsDeletedFalse(travelItineraryId)
+                .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
+
+        UserTravelItinerary userTravelItinerary = userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(userId, travelItineraryId)
+                .orElseThrow(() -> new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
+
+        if (!userTravelItinerary.getUserRole().equals(UserRole.LEADER)) {
+            throw new BusinessException(UserTravelItineraryErrorCode.DELETE_UNAUTHORIZED);
+        }
+
+        try {
+            travelItinerary.deleteTravelItinerary();
+            travelItineraryJpaRepository.flush();
+        } catch (OptimisticLockingFailureException e) {
+            throw new BusinessException(TravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_DELETE);
         }
     }
 }
