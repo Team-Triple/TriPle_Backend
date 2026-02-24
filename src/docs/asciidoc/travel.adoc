@@ -16,3 +16,8 @@ include::{snippets}/travels/update/path-parameters.adoc[]
 include::{snippets}/travels/update/http-request.adoc[]
 include::{snippets}/travels/update/request-fields.adoc[]
 include::{snippets}/travels/update/http-response.adoc[]
+
+== 여행 일정 삭제
+include::{snippets}/travels/delete/path-parameters.adoc[]
+include::{snippets}/travels/delete/http-request.adoc[]
+include::{snippets}/travels/delete/http-response.adoc[]

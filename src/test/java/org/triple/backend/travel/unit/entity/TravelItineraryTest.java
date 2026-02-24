@@ -41,7 +41,7 @@ class TravelItineraryTest {
     }
 
     @Test
-    @DisplayName("memberLimit이 1이면 예외가 발생하지 않는다.")
+    @DisplayName("멤버 제한이 1이면 예외가 발생하지 않는다.")
     void 멤버제한_1_유효() {
         TravelItinerary itinerary = new TravelItinerary(
                 "title",
@@ -90,6 +90,16 @@ class TravelItineraryTest {
         TravelItinerary travelItinerary = createTravelItinerary();
         assertThatThrownBy(() -> travelItinerary.updateTravelItinerary(travelItineraryUpdateRequestDto))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("삭제 시 여행 일정은 삭제 상태가 된다.")
+    void 삭제_상태_변경() {
+        TravelItinerary travelItinerary = createTravelItinerary();
+
+        travelItinerary.deleteTravelItinerary();
+
+        assertThat(travelItinerary.isDeleted()).isTrue();
     }
 
     private static Stream<Arguments> invalidArguments() {

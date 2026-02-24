@@ -14,11 +14,15 @@ import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
 import org.triple.backend.travel.service.TravelItineraryService;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -152,6 +156,25 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
                                 fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
                                 fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("여행 일정 삭제 요청 성공 시 200을 반환한다.")
+    void 여행_일정_삭제_요청_성공() throws Exception {
+        Long travelId = 1L;
+        given(sessionManager.getUserId(any())).willReturn(1L);
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(csrfTokenManager.isValid(any(), any())).willReturn(true);
+        doNothing().when(travelItineraryService).deleteTravel(travelId, 1L);
+
+        mockMvc.perform(delete("/travels/{travelId}", travelId)
+                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .andExpect(status().isOk())
+                        .andDo(document("travels/delete",
+                                pathParameters(
+                                parameterWithName("travelId").description("삭제할 여행 일정 ID")
                         )
                 ));
     }
