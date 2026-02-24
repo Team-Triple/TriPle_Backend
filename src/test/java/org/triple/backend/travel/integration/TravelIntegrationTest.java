@@ -16,6 +16,9 @@ import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
+import org.triple.backend.travel.entity.TravelItinerary;
+import org.triple.backend.travel.entity.UserRole;
+import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
@@ -24,6 +27,7 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -138,6 +142,35 @@ class TravelIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("여행 일정 삭제 시 소프트 삭제된다.")
+    void 여행_일정_삭제_성공() throws Exception {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-url",
+                5,
+                1,
+                false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
+
+        mockMvc.perform(delete("/travels/{travelId}", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, user.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
+                        .header(CSRF_HEADER, "test-token"))
+                .andExpect(status().isOk());
+
+        TravelItinerary deleted = travelItineraryJpaRepository.findById(travelItinerary.getId()).orElseThrow();
+        assertThat(deleted.isDeleted()).isTrue();
     }
 
     private User createUser() {

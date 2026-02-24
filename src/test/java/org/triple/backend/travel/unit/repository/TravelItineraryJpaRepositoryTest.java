@@ -49,6 +49,27 @@ class TravelItineraryJpaRepositoryTest {
                 .containsExactly("제목", "설명", "test-url", 5, 1, group);
     }
 
+    @Test
+    @DisplayName("삭제된 여행 일정은 활성 조회에서 제외된다.")
+    void 삭제된_여행_일정_활성조회_제외() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "desc",
+                "test-url",
+                5
+        );
+
+        TravelItinerary saved = travelItineraryJpaRepository.save(TravelItinerary.of(request, group));
+        saved.deleteTravelItinerary();
+        travelItineraryJpaRepository.flush();
+
+        assertThat(travelItineraryJpaRepository.findByIdAndIsDeletedFalse(saved.getId())).isEmpty();
+    }
+
     private Group createGroup() {
         return Group.create(GroupKind.PUBLIC, "모임", "설명", "http://thumb", 10);
     }
