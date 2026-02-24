@@ -25,8 +25,3 @@ logging:
 restClient:
   connectTimeout: 2
   readTimeout: 2
-
-app:
-  search:
-    group:
-      fulltext-enabled: false
