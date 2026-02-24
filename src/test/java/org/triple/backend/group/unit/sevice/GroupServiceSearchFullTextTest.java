@@ -55,7 +55,6 @@ class GroupServiceSearchFullTextTest {
                 joinApplyJpaRepository,
                 userJpaRepository
         );
-        ReflectionTestUtils.setField(groupService, "groupSearchFullTextEnabled", true);
     }
 
     @Test
@@ -78,8 +77,6 @@ class GroupServiceSearchFullTextTest {
         assertThat(response.items())
                 .extracting(GroupCursorResponseDto.GroupSummaryDto::name)
                 .containsExactly("제주여행", "제주모임");
-
-        verify(groupJpaRepository, never()).findFirstPageByKeywordLike(any(), any(), any());
     }
 
     @Test
