@@ -20,7 +20,11 @@ class BucketKeyPublisherTest {
                     Region.AP_NORTHEAST_2,
                     "test-bucket",
                     new S3PresignProperties(180),
-                    new S3PrefixProperties("uploads/pending/", "uploads/uploaded/"),
+                    new S3PrefixProperties(
+                            "uploads/pending/",
+                            "uploads/uploaded/",
+                            "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/"
+                    ),
                     new S3UploadPolicyProperties(List.of("jpg", "png"), List.of("image/jpeg", "image/png"))
             )
     );

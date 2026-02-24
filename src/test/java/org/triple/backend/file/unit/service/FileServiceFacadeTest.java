@@ -66,7 +66,7 @@ class FileServiceFacadeTest {
                 null,
                 false,
                 400,
-                "허용되지 않는 mimeType입니다."
+                "invalid mimeType"
         );
 
         given(fileService.issuePutPresignedUrl(firstRequest, userId)).willReturn(firstResponse);
@@ -87,6 +87,7 @@ class FileServiceFacadeTest {
         String firstPendingKey = "uploads/pending/1/a.jpg";
         String secondPendingKey = "uploads/pending/1/b.jpg";
         String firstUploadedKey = "uploads/uploaded/1/a.jpg";
+        String firstUploadedUrl = "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/a.jpg";
 
         UploadedKeysRequestDto requestDto = new UploadedKeysRequestDto(List.of(firstPendingKey, secondPendingKey));
 
@@ -96,6 +97,7 @@ class FileServiceFacadeTest {
 
         given(fileService.finalizeUpload(firstPendingKey)).willReturn(firstUploadedKey);
         doNothing().when(fileService).saveFile(firstUploadedKey, userId);
+        given(fileService.concatPrefix(firstUploadedKey)).willReturn(firstUploadedUrl);
 
         // when
         FileUploadCompleteResponsesDto result = fileServiceFacade.completeUploads(requestDto, userId);
@@ -107,10 +109,13 @@ class FileServiceFacadeTest {
         UploadResult first = uploadResults.get(0);
         assertThat(first.pendingKey()).isEqualTo(firstPendingKey);
         assertThat(first.uploadedKey()).isEqualTo(firstUploadedKey);
+        assertThat(first.uploadedUrl()).isEqualTo(firstUploadedUrl);
         assertThat(first.success()).isTrue();
 
         UploadResult second = uploadResults.get(1);
         assertThat(second.pendingKey()).isEqualTo(secondPendingKey);
+        assertThat(second.uploadedKey()).isNull();
+        assertThat(second.uploadedUrl()).isNull();
         assertThat(second.success()).isFalse();
         assertThat(second.httpStatus()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(second.message()).isEqualTo("업로드된 파일을 찾을 수 없습니다.");
