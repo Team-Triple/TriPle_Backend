@@ -21,5 +21,18 @@ jobs:
       - run: ./gradlew test
         env:
           SPRING_PROFILES_ACTIVE: test
+      - name: Verify MySQL FULLTEXT integration test is executed
+        run: |
+          REPORT="build/test-results/test/TEST-org.triple.backend.group.Integration.GroupServiceSearchFullTextMySqlTest.xml"
+          if [ ! -f "$REPORT" ]; then
+            echo "Missing test report: $REPORT"
+            exit 1
+          fi
+          SKIPPED=$(grep -o 'skipped="[0-9]*"' "$REPORT" | head -n1 | tr -dc '0-9')
+          if [ "$SKIPPED" != "0" ]; then
+            echo "MySQL FULLTEXT integration test was skipped."
+            cat "$REPORT"
+            exit 1
+          fi
       - run: ./gradlew bootJar
       - run: ./gradlew build -x test
