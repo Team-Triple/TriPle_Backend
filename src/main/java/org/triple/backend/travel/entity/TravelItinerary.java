@@ -83,6 +83,10 @@ public class TravelItinerary extends BaseEntity {
         validateMemberCountInLimit(memberCount, memberLimit);
     }
 
+    public void deleteTravelItinerary() {
+        this.isDeleted = true;
+    }
+
     private void updateTitle(String title) {
         if (title == null) return;
         this.title = validateTitle(title);
