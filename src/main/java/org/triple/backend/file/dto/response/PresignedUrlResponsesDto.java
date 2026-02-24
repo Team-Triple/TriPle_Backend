@@ -3,6 +3,6 @@ package org.triple.backend.file.dto.response;
 import java.util.List;
 
 public record PresignedUrlResponsesDto(
-        List<PresignedUrlResponseDto> presignedUrlResponseDtos
+        List<PresignedUrlResponse> presignedUrlResponses
 ) {
 }
