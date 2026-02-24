@@ -262,6 +262,17 @@ public class GroupIntegrationTest {
     }
 
     @Test
+    @DisplayName("키워드 길이가 20자를 초과하면 400을 반환한다")
+    void 키워드_길이가_20자를_초과하면_400을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("keyword", "aaaaaaaaaaaaaaaaaaaaa")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
+    }
+
+    @Test
     @DisplayName("키워드 검색 다음 페이지는 cursor 기준으로 중복 없이 이어진다")
     void 키워드_검색_다음_페이지는_cursor_기준으로_중복_없이_이어진다() throws Exception {
         // given
