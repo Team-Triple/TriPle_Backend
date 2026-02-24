@@ -195,15 +195,10 @@ public class GroupService {
     }
 
     private String toBooleanModeQuery(String keyword) {
-        return Arrays.stream(keyword.split("\\s+"))
-                .map(this::normalizeKeywordToken)
+        return Arrays.stream(keyword.trim().split("[^\\p{L}\\p{N}]+"))
                 .filter(token -> !token.isBlank())
                 .map(token -> "+" + token + "*")
                 .reduce((left, right) -> left + " " + right)
                 .orElse("");
-    }
-
-    private String normalizeKeywordToken(String token) {
-        return token.replaceAll("[^\\p{L}\\p{N}]", "");
     }
 }
