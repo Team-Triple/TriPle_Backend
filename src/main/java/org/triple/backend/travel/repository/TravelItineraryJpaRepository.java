@@ -11,5 +11,5 @@ public interface TravelItineraryJpaRepository extends JpaRepository<TravelItiner
     Optional<TravelItinerary> findById(Long travelId);
 
     @Query("select t from TravelItinerary t where t.id = :travelId and t.isDeleted = false")
-    Optional<TravelItinerary> findByIdAndIsDeletedFalse(Long travelId);
+    Optional<TravelItinerary> findByIdAndIsDeletedFalse(@Param("travelId") Long travelId);
 }
