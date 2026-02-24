@@ -59,6 +59,7 @@ app:
       prefix:
         pending: uploads/pending/
         uploaded: uploads/uploaded/
+        get-url-prefix: https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/
       upload-policy:
         allowed-extensions: [jpg, jpeg, png]
         allowed-content-types: [image/jpeg, image/png]
