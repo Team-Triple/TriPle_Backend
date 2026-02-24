@@ -84,7 +84,7 @@ public class GroupService {
        groupJpaRepository.findByIdForUpdate(groupId)
                 .orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
-        if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRole(groupId, userId, Role.OWNER)) {
+        if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRoleAndJoinStatus(groupId, userId, Role.OWNER, JoinStatus.JOINED)) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
         }
 
@@ -100,7 +100,7 @@ public class GroupService {
         try {
             Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
-            if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRole(groupId, userId, Role.OWNER)) {
+            if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRoleAndJoinStatus(groupId, userId, Role.OWNER, JoinStatus.JOINED)) {
                 throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
             }
 

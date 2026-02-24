@@ -77,6 +77,10 @@ public class Group extends BaseEntity {
                 .build();
     }
 
+    public void addCurrentMemberCount() {
+        this.currentMemberCount = validateCurrentMember(this.currentMemberCount + 1);
+    }
+
     public void update(final GroupKind groupKind, final String name, final String description, final String thumbNailUrl, final int memberLimit) {
         this.groupKind = groupKind;
         this.name = name;
@@ -98,6 +102,11 @@ public class Group extends BaseEntity {
     private static String validateName(final String name) {
         if (name == null || name.isBlank()) throw new IllegalArgumentException("그룹 이름은 null값 혹은 빈값일 수 없습니다.");
         return name;
+    }
+
+    private int validateCurrentMember(int memberCount) {
+        if(memberCount > memberLimit) throw new IllegalArgumentException("현재 가입 멤버는 멤버 제한 인원보다 많을 수 없습니다.");
+        return memberCount;
     }
 
     private static int validateMemberLimit(final int memberLimit) {

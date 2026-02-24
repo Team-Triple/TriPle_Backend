@@ -34,3 +34,8 @@ include::{snippets}/groups/update/http-response.adoc[]
 include::{snippets}/groups/join-apply/path-parameters.adoc[]
 include::{snippets}/groups/join-apply/http-request.adoc[]
 include::{snippets}/groups/join-apply/http-response.adoc[]
+
+== 그룹 가입 신청 승인
+include::{snippets}/groups/join-apply-approve/path-parameters.adoc[]
+include::{snippets}/groups/join-apply-approve/http-request.adoc[]
+include::{snippets}/groups/join-apply-approve/http-response.adoc[]

@@ -21,4 +21,10 @@ public class JoinApplyController {
     public void joinApply(@PathVariable final Long groupId, @LoginUser final Long userId) {
         joinApplyService.joinApply(groupId, userId);
     }
+
+    @LoginRequired
+    @PostMapping("/{groupId}/join-applies/{joinApplyId}")
+    public void joinApplyApprove(@PathVariable final Long groupId, @PathVariable Long joinApplyId, @LoginUser final Long userId) {
+        joinApplyService.approve(groupId, userId, joinApplyId);
+    }
 }
