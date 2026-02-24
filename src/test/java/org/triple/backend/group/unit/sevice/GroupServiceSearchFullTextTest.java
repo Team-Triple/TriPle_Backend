@@ -123,7 +123,7 @@ class GroupServiceSearchFullTextTest {
 
     @Test
     @DisplayName("검색어 길이가 20자를 초과하면 INVALID_SEARCH_KEYWORD_LENGTH 예외가 발생한다")
-    void 검색어_길이가_이십자를_초과하면_INVALID_SEARCH_KEYWORD_LENGTH_예외가_발생한다() {
+    void 검색어_길이가_20자를_초과하면_INVALID_SEARCH_KEYWORD_LENGTH_예외가_발생한다() {
         // when & then
         assertThatThrownBy(() -> groupService.search("aaaaaaaaaaaaaaaaaaaaa", null, 10))
                 .isInstanceOf(BusinessException.class)
