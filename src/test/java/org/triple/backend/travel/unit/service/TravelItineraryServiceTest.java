@@ -13,6 +13,7 @@ import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
+import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
@@ -27,6 +28,7 @@ import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.travel.service.TravelItineraryService;
 import org.triple.backend.user.entity.User;
+import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.time.LocalDateTime;
@@ -71,7 +73,7 @@ class TravelItineraryServiceTest {
         Assertions.assertThatThrownBy(() -> travelItineraryService.saveTravels(request, invalidUserId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
-                .isEqualTo(TravelItineraryErrorCode.TRAVEL_USER_NOT_FOUND);
+                .isEqualTo(UserErrorCode.USER_NOT_FOUND);
     }
 
     @Test
@@ -93,7 +95,7 @@ class TravelItineraryServiceTest {
         Assertions.assertThatThrownBy(() -> travelItineraryService.saveTravels(request, user.getId()))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
-                .isEqualTo(TravelItineraryErrorCode.TRAVEL_GROUP_NOT_FOUND);
+                .isEqualTo(GroupErrorCode.GROUP_NOT_FOUND);
     }
 
     @Test

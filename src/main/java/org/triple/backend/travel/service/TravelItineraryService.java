@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
+import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
@@ -20,6 +21,7 @@ import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
+import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 @Service
@@ -34,10 +36,10 @@ public class TravelItineraryService {
     @Transactional
     public TravelItinerarySaveResponseDto saveTravels(final TravelItinerarySaveRequestDto travelsRequestDto, final Long userId) {
         User user = userJpaRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
         Group group = groupJpaRepository.findByIdForRead(travelsRequestDto.groupId())
-                .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_GROUP_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
         if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(group.getId(), userId, JoinStatus.JOINED)) {
             throw new BusinessException(TravelItineraryErrorCode.SAVE_FORBIDDEN);
