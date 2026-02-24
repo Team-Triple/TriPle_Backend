@@ -1,6 +1,7 @@
 package org.triple.backend.group.repository;
 
 import jakarta.persistence.LockModeType;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -27,7 +28,6 @@ public interface GroupJpaRepository extends JpaRepository<Group, Long> {
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("SELECT g FROM Group g WHERE g.id = :groupId")
     Optional<Group> findByIdForRead(Long groupId);
-
 
     @Query("""
             SELECT g
