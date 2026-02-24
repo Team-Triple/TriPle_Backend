@@ -4,7 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.group.Group;
-import org.triple.backend.travel.dto.request.TravelSaveRequestDto;
+import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
+import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -43,6 +44,9 @@ public class TravelItinerary extends BaseEntity {
     @OneToMany(mappedBy = "travelItinerary")
     private List<UserTravelItinerary> userTravelItineraries = new ArrayList<>();
 
+    @Version
+    private Long version;
+
     @Builder(access = AccessLevel.PROTECTED)
     public TravelItinerary(
             String title,
@@ -64,11 +68,54 @@ public class TravelItinerary extends BaseEntity {
         this.thumbnailUrl = thumbnailUrl;
         this.memberLimit = validateMemberLimit(memberLimit);
         this.memberCount = memberCount;
+        validateMemberCountInLimit(memberCount, memberLimit);
         this.isDeleted = isDeleted;
     }
 
+    public void updateTravelItinerary(final TravelItineraryUpdateRequestDto travelItineraryUpdateRequestDto) {
+        updateTitle(travelItineraryUpdateRequestDto.title());
+        updateStartAt(travelItineraryUpdateRequestDto.startAt());
+        updateEndAt(travelItineraryUpdateRequestDto.endAt());
+        validateDateOrder(this.startAt, this.endAt);
+        updateDescription(travelItineraryUpdateRequestDto.description());
+        updateThumbnailUrl(travelItineraryUpdateRequestDto.thumbnailUrl());
+        updateMemberLimit(travelItineraryUpdateRequestDto.memberLimit());
+        validateMemberCountInLimit(memberCount, memberLimit);
+    }
+
+    private void updateTitle(String title) {
+        if (title == null) return;
+        this.title = validateTitle(title);
+    }
+
+    private void updateStartAt(LocalDateTime startAt) {
+        if (startAt == null) return;
+        this.startAt = validateStartAt(startAt);
+    }
+
+    private void updateEndAt(LocalDateTime endAt) {
+        if (endAt == null) return;
+        this.endAt = validateEndAt(endAt);
+    }
+
+    private void updateDescription(String description) {
+        if (description == null) return;
+        this.description = description;
+    }
+
+    private void updateThumbnailUrl(String thumbnailUrl) {
+        if (thumbnailUrl == null) return;
+        this.thumbnailUrl = thumbnailUrl;
+    }
+
+    private void updateMemberLimit(Integer memberLimit) {
+        if (memberLimit == null) return;
+        this.memberLimit = validateMemberLimit(memberLimit);
+    }
+
     //첫 생성 정적 팩터리 메서드
-    public static TravelItinerary of(final TravelSaveRequestDto travelsRequestDto, final Group group) {
+
+    public static TravelItinerary of(final TravelItinerarySaveRequestDto travelsRequestDto, final Group group) {
         return TravelItinerary.builder()
                 .title(travelsRequestDto.title())
                 .startAt(travelsRequestDto.startAt())
@@ -81,7 +128,6 @@ public class TravelItinerary extends BaseEntity {
                 .isDeleted(false)
                 .build();
     }
-
     private static String validateTitle(String title) {
         if (title == null || title.isBlank()) throw new IllegalArgumentException("제목은 빈값일 수 없습니다.");
         return title;
@@ -109,5 +155,9 @@ public class TravelItinerary extends BaseEntity {
     private static int validateMemberLimit(int memberLimit) {
         if (memberLimit < 1 || memberLimit > 20) throw new IllegalArgumentException("멤버 제한은 0보다 크거나, 21보다 작아야 합니다.");
         return memberLimit;
+    }
+
+    private static void validateMemberCountInLimit(int memberCount, int memberLimit) {
+        if (memberLimit < memberCount) throw new IllegalArgumentException("멤버 제한 수보다 멤버 수가 많을 수 없습니다.");
     }
 }

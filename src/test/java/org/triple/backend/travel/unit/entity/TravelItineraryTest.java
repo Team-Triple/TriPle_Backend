@@ -7,7 +7,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
-import org.triple.backend.travel.dto.request.TravelSaveRequestDto;
+import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
+import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
 import org.triple.backend.travel.entity.TravelItinerary;
 
 import java.time.LocalDateTime;
@@ -24,7 +25,7 @@ class TravelItineraryTest {
     @Test
     @DisplayName("여행 일정 생성 시 memberCount는 1이다.")
     void 멤버카운트_초기값_1() {
-        TravelSaveRequestDto req = new TravelSaveRequestDto(
+        TravelItinerarySaveRequestDto req = new TravelItinerarySaveRequestDto(
                 "title",
                 START,
                 END,
@@ -80,6 +81,17 @@ class TravelItineraryTest {
         )).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @ParameterizedTest
+    @MethodSource("invalidTravelSaveRequestDto")
+    @DisplayName("업데이트 시 불변식 위반 시 예외를 던진다.")
+    void 업데이트_불변식_위반(
+            TravelItineraryUpdateRequestDto travelItineraryUpdateRequestDto
+    ) {
+        TravelItinerary travelItinerary = createTravelItinerary();
+        assertThatThrownBy(() -> travelItinerary.updateTravelItinerary(travelItineraryUpdateRequestDto))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private static Stream<Arguments> invalidArguments() {
         return Stream.of(
                 Arguments.of(null, START, END, createGroup(), 5),
@@ -92,6 +104,20 @@ class TravelItineraryTest {
                 Arguments.of("title", END, START, createGroup(), 5),
                 Arguments.of("title", START, START, createGroup(), 5)
         );
+    }
+
+    private static Stream<Arguments> invalidTravelSaveRequestDto() {
+        return Stream.of(
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, null, null, null, null, 21)),
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, START, null, null, 20)),
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, null, null, null, 20)),
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, null, START, null, null, 20))
+        );
+    }
+
+    private TravelItinerary createTravelItinerary() {
+        return new TravelItinerary(
+                "test", START, END, createGroup(), "test-description", "url", 20, 1, false);
     }
 
     private static Group createGroup() {

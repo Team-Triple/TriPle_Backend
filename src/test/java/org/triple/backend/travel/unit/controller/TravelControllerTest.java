@@ -8,25 +8,27 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.common.ControllerTest;
-import org.triple.backend.travel.controller.TravelController;
-import org.triple.backend.travel.dto.request.TravelSaveRequestDto;
-import org.triple.backend.travel.dto.response.TravelSaveResponseDto;
-import org.triple.backend.travel.service.TravelService;
-
+import org.triple.backend.travel.controller.TravelItineraryController;
+import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
+import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
+import org.triple.backend.travel.service.TravelItineraryService;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(TravelController.class)
+@WebMvcTest(TravelItineraryController.class)
 class TravelControllerTest extends ControllerTest {
 
     @MockitoBean
-    private TravelService travelService;
+    private TravelItineraryService travelItineraryService;
 
     @MockitoBean
     private SessionManager sessionManager;
@@ -41,8 +43,8 @@ class TravelControllerTest extends ControllerTest {
         given(sessionManager.getUserId(any())).willReturn(1L);
         given(csrfTokenManager.isValid(any(), any())).willReturn(true);
 
-        TravelSaveResponseDto response = new TravelSaveResponseDto(1L);
-        given(travelService.saveTravels(any(TravelSaveRequestDto.class), any()))
+        TravelItinerarySaveResponseDto response = new TravelItinerarySaveResponseDto(1L);
+        given(travelItineraryService.saveTravels(any(TravelItinerarySaveRequestDto.class), any()))
                 .willReturn(response);
 
         String requestBody = buildTravelSaveRequestBody(
@@ -115,6 +117,45 @@ class TravelControllerTest extends ControllerTest {
         ).andExpect(status().isBadRequest());
     }
 
+    @Test
+    @DisplayName("여행 업데이트 요청 성공 시 200 반환")
+    void 여행_업데이트_요청_성공() throws Exception {
+        // given
+        Long travelId = 1L;
+        given(sessionManager.getUserId(any())).willReturn(1L);
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(csrfTokenManager.isValid(any(), any())).willReturn(true);
+
+        String requestBody = buildTravelUpdateRequestBody(
+                "수정 제목",
+                "2026-02-20T00:00",
+                "2026-02-22T00:00",
+                "수정 설명",
+                "https://example.com/updated.png",
+                10
+        );
+
+        // when, then
+        mockMvc.perform(patch("/travels/{travelId}", travelId)
+                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andDo(document("travels/update",
+                        pathParameters(
+                                parameterWithName("travelId").description("수정할 여행 일정 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("title").description("여행 제목").optional(),
+                                fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
+                                fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
+                                fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
+                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                        )
+                ));
+    }
+
     private String buildTravelSaveRequestBody(Object... values) {
         String answer =
                 """
@@ -129,5 +170,25 @@ class TravelControllerTest extends ControllerTest {
                 }
                 """;
         return answer.formatted(values);
+    }
+
+    private String buildTravelUpdateRequestBody(
+            String title,
+            String startAt,
+            String endAt,
+            String description,
+            String thumbnailUrl,
+            int memberLimit
+    ) {
+        return """
+                {
+                  "title": "%s",
+                  "startAt": "%s",
+                  "endAt": "%s",
+                  "description": "%s",
+                  "thumbnailUrl": "%s",
+                  "memberLimit": %d
+                }
+                """.formatted(title, startAt, endAt, description, thumbnailUrl, memberLimit);
     }
 }
