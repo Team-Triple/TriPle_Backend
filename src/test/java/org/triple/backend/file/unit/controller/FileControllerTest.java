@@ -32,6 +32,7 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.payload.JsonFieldType.ARRAY;
+import static org.springframework.restdocs.payload.JsonFieldType.NUMBER;
 import static org.springframework.restdocs.payload.JsonFieldType.STRING;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
@@ -104,7 +105,7 @@ class FileControllerTest extends ControllerTest {
                                 fieldWithPath("presignedUrlResponses[].key").type(STRING).description("upload target key").optional(),
                                 fieldWithPath("presignedUrlResponses[].presignedUrl").type(STRING).description("S3 PUT presigned URL").optional(),
                                 fieldWithPath("presignedUrlResponses[].expiresAt").type(STRING).description("presigned URL expires at").optional(),
-                                fieldWithPath("presignedUrlResponses[].errorCode").type(STRING).description("error code").optional(),
+                                fieldWithPath("presignedUrlResponses[].errorCode").type(NUMBER).description("error code").optional(),
                                 fieldWithPath("presignedUrlResponses[].message").type(STRING).description("error message").optional()
                         )
                 ));
