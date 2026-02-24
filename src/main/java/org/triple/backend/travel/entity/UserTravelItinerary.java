@@ -2,7 +2,6 @@ package org.triple.backend.travel.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.triple.backend.user.entity.User;
@@ -28,19 +27,14 @@ public class UserTravelItinerary {
     @Enumerated(EnumType.STRING)
     private UserRole userRole;
 
-    @Builder(access = AccessLevel.PROTECTED)
     public UserTravelItinerary(User user, TravelItinerary travelItinerary, UserRole userRole) {
         this.user = validateUser(user);
         this.travelItinerary = validateTravelItinerary(travelItinerary);
         this.userRole = validateUserRole(userRole);
     }
 
-    public static UserTravelItinerary of(User user, TravelItinerary savedTravelItinerary, UserRole userRole) {
-        return UserTravelItinerary.builder()
-                .user(user)
-                .travelItinerary(savedTravelItinerary)
-                .userRole(userRole)
-                .build();
+    public static UserTravelItinerary of(User user, TravelItinerary travelItinerary, UserRole userRole) {
+        return new UserTravelItinerary(user, travelItinerary, userRole);
     }
 
     private static User validateUser(User user) {

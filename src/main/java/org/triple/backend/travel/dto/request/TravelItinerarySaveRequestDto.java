@@ -4,7 +4,7 @@ import jakarta.validation.constraints.*;
 
 import java.time.LocalDateTime;
 
-public record TravelSaveRequestDto(
+public record TravelItinerarySaveRequestDto(
         @NotBlank(message = "제목은 필수입니다!") String title,
         @NotNull(message = "시작일은 필수입니다!") LocalDateTime startAt,
         @NotNull(message = "마지막일은 필수입니다!") LocalDateTime endAt,

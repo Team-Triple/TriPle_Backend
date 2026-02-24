@@ -7,7 +7,7 @@ import org.triple.backend.common.annotation.RepositoryTest;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.repository.GroupJpaRepository;
-import org.triple.backend.travel.dto.request.TravelSaveRequestDto;
+import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
@@ -41,7 +41,7 @@ class UserTravelItineraryJpaRepositoryTest {
         // given
         User user = userJpaRepository.save(User.builder().build());
         Group group = groupJpaRepository.save(createGroup());
-        TravelSaveRequestDto request = new TravelSaveRequestDto(
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "제목",
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
