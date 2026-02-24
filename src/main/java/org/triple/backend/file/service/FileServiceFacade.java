@@ -43,7 +43,8 @@ public class FileServiceFacade {
             fileService.validateFinalizeUpload(pendingKey, userId);
             String uploadedKey = fileService.finalizeUpload(pendingKey);
             fileService.saveFile(uploadedKey, userId);
-            return UploadResult.success(pendingKey, uploadedKey);
+            String uploadedUrl = fileService.concatPrefix(uploadedKey);
+            return UploadResult.success(pendingKey, uploadedKey, uploadedUrl);
         } catch (FinalizeUploadException e) {
             return UploadResult.fail(pendingKey, e.getHttpStatus(), e.getMessage());
         }

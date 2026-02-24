@@ -7,9 +7,12 @@
 
 == 여행 일정 생성
 include::{snippets}/travels/create/http-request.adoc[]
+include::{snippets}/travels/create/request-fields.adoc[]
 include::{snippets}/travels/create/http-response.adoc[]
+include::{snippets}/travels/create/response-fields.adoc[]
 
 == 여행 일정 수정
 include::{snippets}/travels/update/path-parameters.adoc[]
 include::{snippets}/travels/update/http-request.adoc[]
+include::{snippets}/travels/update/request-fields.adoc[]
 include::{snippets}/travels/update/http-response.adoc[]
