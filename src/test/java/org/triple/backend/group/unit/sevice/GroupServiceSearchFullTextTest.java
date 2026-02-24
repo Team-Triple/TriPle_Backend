@@ -83,6 +83,23 @@ class GroupServiceSearchFullTextTest {
     }
 
     @Test
+    @DisplayName("FULLTEXT 검색은 구두점을 단어 경계로 처리해 boolean mode 쿼리로 변환한다")
+    void FULLTEXT_검색은_구두점을_단어_경계로_처리해_boolean_mode_쿼리로_변환한다() {
+        // given
+        Group g1 = newGroup(31L, "jeju-travelers");
+
+        when(groupJpaRepository.findFirstPageByKeywordFullText(eq("+jeju* +travel* +plan*"), eq("PUBLIC"), any(Pageable.class)))
+                .thenReturn(List.of(g1));
+
+        // when
+        GroupCursorResponseDto response = groupService.search("jeju-travel, plan", null, 10);
+
+        // then
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).name()).isEqualTo("jeju-travelers");
+    }
+
+    @Test
     @DisplayName("FULLTEXT 검색 다음 페이지는 커서 조건과 pageSize+1로 조회하고 hasNext를 계산한다")
     void FULLTEXT_검색_다음_페이지는_커서_조건과_pageSize_플러스_일로_조회하고_hasNext를_계산한다() {
         // given
@@ -141,4 +158,3 @@ class GroupServiceSearchFullTextTest {
         return group;
     }
 }
-
