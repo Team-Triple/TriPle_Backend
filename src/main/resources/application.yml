@@ -48,3 +48,17 @@ cors:
 restClient:
   connectTimeout: 2
   readTimeout: 2
+
+app:
+  aws:
+    s3:
+      region: ap-northeast-2
+      bucket: triple-dev-s3
+      presign:
+        put-expire-seconds: 180
+      prefix:
+        pending: uploads/pending/
+        uploaded: uploads/uploaded/
+      upload-policy:
+        allowed-extensions: [jpg, jpeg, png]
+        allowed-content-types: [image/jpeg, image/png]

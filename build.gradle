@@ -103,6 +103,9 @@ dependencies {
 
     implementation 'org.springframework.retry:spring-retry:2.0.12'
 
+    implementation platform("software.amazon.awssdk:bom:2.25.32")
+    implementation "software.amazon.awssdk:s3"
+
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'

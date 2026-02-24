@@ -4,3 +4,4 @@
 * xref:user.adoc[User API]
 * xref:group.adoc[Group API]
 * xref:travel.adoc[Travel API]
+* xref:file.adoc[File API]

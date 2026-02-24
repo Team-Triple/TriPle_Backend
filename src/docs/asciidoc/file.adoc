@@ -1,0 +1,18 @@
+= File API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== 업로드 Presigned URL 발급
+include::{snippets}/files/upload-presign/http-request.adoc[]
+include::{snippets}/files/upload-presign/request-fields.adoc[]
+include::{snippets}/files/upload-presign/http-response.adoc[]
+include::{snippets}/files/upload-presign/response-fields.adoc[]
+
+== 업로드 완료 처리
+include::{snippets}/files/upload-complete/http-request.adoc[]
+include::{snippets}/files/upload-complete/request-fields.adoc[]
+include::{snippets}/files/upload-complete/http-response.adoc[]
+include::{snippets}/files/upload-complete/response-fields.adoc[]
