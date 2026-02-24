@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.common.ControllerTest;
+import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.controller.GroupController;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
@@ -16,6 +17,7 @@ import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupDetailResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.GroupKind;
+import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.service.GroupService;
 import org.triple.backend.auth.session.CsrfTokenManager;
 
@@ -183,62 +185,21 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("로그인한 사용자는 그룹 상세 정보를 조회할 수 있다.")
-    void 로그인한_사용자는_그룹_상세_정보를_조회할_수_있다() throws Exception {
+    @DisplayName("키워드 길이가 20자를 초과하면 400을 반환한다.")
+    void 키워드_길이가_20자를_초과하면_400을_반환한다() throws Exception {
         // given
-        Long groupId = 1L;
-        GroupDetailResponseDto response = new GroupDetailResponseDto(
-                List.of(
-                        new GroupDetailResponseDto.UserDto("상윤", "모임장", "http://img", true),
-                        new GroupDetailResponseDto.UserDto("민규", "멤버", "http://img2", false)
-                ),
-                "여행모임",
-                "3월 일본 여행",
-                GroupKind.PRIVATE,
-                "https://example.com/thumb.png",
-                2,
-                10
-        );
-
-        given(groupService.detail(eq(groupId), eq(1L)))
-                .willReturn(response);
+        String keyword = "aaaaaaaaaaaaaaaaaaaaa";
+        given(groupService.search(eq(keyword), eq(null), eq(10)))
+                .willThrow(new BusinessException(GroupErrorCode.INVALID_SEARCH_KEYWORD_LENGTH));
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", groupId)
-                        .with(loginSessionAndCsrf()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.users").isArray())
-                .andExpect(jsonPath("$.users.length()").value(2))
-                .andExpect(jsonPath("$.users[0].name").value("상윤"))
-                .andExpect(jsonPath("$.users[0].isOwner").value(true))
-                .andExpect(jsonPath("$.name").value("여행모임"))
-                .andExpect(jsonPath("$.description").value("3월 일본 여행"))
-                .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
-                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
-                .andExpect(jsonPath("$.currentMemberCount").value(2))
-                .andExpect(jsonPath("$.memberLimit").value(10))
-                .andDo(document("groups/detail",
-                        preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint()),
-                        pathParameters(
-                                parameterWithName("groupId").description("조회할 그룹 ID")
-                        ),
-                        responseFields(
-                                fieldWithPath("users").description("그룹 멤버 목록"),
-                                fieldWithPath("users[].name").description("멤버 이름"),
-                                fieldWithPath("users[].description").description("멤버 소개").optional(),
-                                fieldWithPath("users[].profileUrl").description("멤버 프로필 이미지 URL").optional(),
-                                fieldWithPath("users[].isOwner").description("방장 여부"),
-                                fieldWithPath("name").description("그룹 이름"),
-                                fieldWithPath("description").description("그룹 설명"),
-                                fieldWithPath("groupKind").description("그룹 종류"),
-                                fieldWithPath("thumbNailUrl").description("그룹 썸네일 URL").optional(),
-                                fieldWithPath("currentMemberCount").description("현재 인원"),
-                                fieldWithPath("memberLimit").description("최대 인원")
-                        )
-                ));
+        mockMvc.perform(get("/groups")
+                        .param("keyword", keyword)
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
 
-        verify(groupService, times(1)).detail(groupId, 1L);
+        verify(groupService, times(1)).search(keyword, null, 10);
     }
 
     @Test
@@ -299,7 +260,6 @@ public class GroupControllerTest extends ControllerTest {
 
         verify(groupService, times(1)).detail(groupId, 1L);
     }
-
 
     @Test
     @DisplayName("그룹을 삭제합니다.")
