@@ -1,6 +1,5 @@
 package org.triple.backend.group.service;
 
-import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
@@ -37,9 +36,6 @@ public class GroupService {
     private static final int KEYWORD_MAX_LENGTH = 20;
     private static final int MIN_PAGE_SIZE = 1;
     private static final int MAX_PAGE_SIZE = 10;
-
-    @Value("${app.search.group.fulltext-enabled:true}")
-    private boolean groupSearchFullTextEnabled;
 
     private final GroupJpaRepository groupJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
@@ -169,10 +165,6 @@ public class GroupService {
     }
 
     private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
-        if (!groupSearchFullTextEnabled) {
-            return groupJpaRepository.findFirstPageByKeywordLike(keyword, pageable, GroupKind.PUBLIC);
-        }
-
         String booleanQuery = toBooleanModeQuery(keyword);
         if (booleanQuery.isBlank()) {
             return List.of();
@@ -182,10 +174,6 @@ public class GroupService {
     }
 
     private List<Group> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable) {
-        if (!groupSearchFullTextEnabled) {
-            return groupJpaRepository.findNextPageByKeywordLike(keyword, cursor, pageable, GroupKind.PUBLIC);
-        }
-
         String booleanQuery = toBooleanModeQuery(keyword);
         if (booleanQuery.isBlank()) {
             return List.of();
