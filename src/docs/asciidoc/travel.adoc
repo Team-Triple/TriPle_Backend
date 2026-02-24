@@ -1,0 +1,12 @@
+= Travel API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== 여행 일정 생성
+include::{snippets}/travels/create/http-request.adoc[]
+include::{snippets}/travels/create/request-fields.adoc[]
+include::{snippets}/travels/create/http-response.adoc[]
+include::{snippets}/travels/create/response-fields.adoc[]
