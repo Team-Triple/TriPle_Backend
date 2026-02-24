@@ -1,5 +1,6 @@
 package org.triple.backend.group.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
@@ -26,14 +27,19 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GroupService {
 
+    private static final int KEYWORD_MAX_LENGTH = 20;
     private static final int MIN_PAGE_SIZE = 1;
     private static final int MAX_PAGE_SIZE = 10;
+
+    @Value("${app.search.group.fulltext-enabled:true}")
+    private boolean groupSearchFullTextEnabled;
 
     private final GroupJpaRepository groupJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
@@ -130,5 +136,74 @@ public class GroupService {
         List<UserGroup> userGroups = userGroupJpaRepository.findAllByGroupIdAndJoinStatus(groupId, JoinStatus.JOINED);
 
         return GroupDetailResponseDto.from(userGroups, group);
+    }
+
+    @Transactional(readOnly = true)
+    public GroupCursorResponseDto search(final String keyword, final Long cursor, final int size) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+
+        if (normalizedKeyword.isBlank()) {
+            return browsePublicGroups(cursor, size);
+        }
+
+        if(normalizedKeyword.length() > KEYWORD_MAX_LENGTH) {
+            throw new BusinessException(GroupErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
+        }
+
+        int pageSize = Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+        Pageable pageable = PageRequest.of(0, pageSize + 1);
+
+        List<Group> rows = cursor == null
+                ? findFirstPageByKeyword(normalizedKeyword, pageable)
+                : findNextPageByKeyword(normalizedKeyword, cursor, pageable);
+
+        boolean hasNext = rows.size() > pageSize;
+
+        if(hasNext) {
+            rows = rows.subList(0, pageSize);
+        }
+
+        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
+
+        return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
+    }
+
+    private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
+        if (!groupSearchFullTextEnabled) {
+            return groupJpaRepository.findFirstPageByKeywordLike(keyword, pageable, GroupKind.PUBLIC);
+        }
+
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        return groupJpaRepository.findFirstPageByKeywordFullText(booleanQuery, GroupKind.PUBLIC.name(), pageable);
+    }
+
+    private List<Group> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable) {
+        if (!groupSearchFullTextEnabled) {
+            return groupJpaRepository.findNextPageByKeywordLike(keyword, cursor, pageable, GroupKind.PUBLIC);
+        }
+
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        return groupJpaRepository.findNextPageByKeywordFullText(booleanQuery, cursor, GroupKind.PUBLIC.name(), pageable);
+    }
+
+    private String toBooleanModeQuery(String keyword) {
+        return Arrays.stream(keyword.split("\\s+"))
+                .map(this::normalizeKeywordToken)
+                .filter(token -> !token.isBlank())
+                .map(token -> "+" + token + "*")
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
+    }
+
+    private String normalizeKeywordToken(String token) {
+        return token.replaceAll("[^\\p{L}\\p{N}]", "");
     }
 }
