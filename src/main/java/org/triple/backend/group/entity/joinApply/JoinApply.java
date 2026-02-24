@@ -58,6 +58,11 @@ public class JoinApply extends BaseEntity {
         return this.joinApplyStatus == JoinApplyStatus.CANCELED;
     }
 
+    public void approve() {
+        this.joinApplyStatus = JoinApplyStatus.APPROVED;
+        this.approvedAt = LocalDateTime.now();
+    }
+
     public void reapply() {
         if (!isCanceled()) {
             throw new IllegalStateException("취소된 신청만 재신청할 수 있습니다.");

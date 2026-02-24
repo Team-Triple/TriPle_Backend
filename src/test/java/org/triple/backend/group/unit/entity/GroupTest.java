@@ -74,6 +74,31 @@ public class GroupTest {
     }
 
     @Test
+    @DisplayName("addCurrentMemberCount를 호출하면 현재 인원이 1 증가한다")
+    void addCurrentMemberCount를_호출하면_현재_인원이_1_증가한다() {
+        // given
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 2);
+
+        // when
+        group.addCurrentMemberCount();
+
+        // then
+        assertThat(group.getCurrentMemberCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("멤버 제한을 초과해 addCurrentMemberCount를 호출하면 IllegalArgumentException이 발생한다")
+    void 멤버_제한을_초과해_addCurrentMemberCount를_호출하면_IllegalArgumentException이_발생한다() {
+        // given
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 1);
+
+        // when & then
+        assertThatThrownBy(group::addCurrentMemberCount)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("현재 가입 멤버");
+    }
+
+    @Test
     @DisplayName("addMember에서 멤버를 추가하면 group.userGroups와 user.userGroups에 UserGroup이 함께 추가된다")
     void addMember에서_멤버를_추가하면_group과_user에_UserGroup이_함께_추가된다() {
         // given
