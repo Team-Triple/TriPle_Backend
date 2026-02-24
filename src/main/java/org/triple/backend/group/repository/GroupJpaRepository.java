@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 
@@ -36,7 +37,7 @@ public interface GroupJpaRepository extends JpaRepository<Group, Long> {
                 OR g.description LIKE CONCAT('%', :keyword, '%'))
             ORDER BY g.id DESC
             """)
-    List<Group> findFirstPageByKeyword(String keyword, Pageable pageable, GroupKind kind);
+    List<Group> findFirstPageByKeywordLike(String keyword, Pageable pageable, GroupKind kind);
 
     @Query("""
             SELECT g
@@ -47,5 +48,29 @@ public interface GroupJpaRepository extends JpaRepository<Group, Long> {
                 OR g.description LIKE CONCAT('%', :keyword, '%'))
             ORDER BY g.id DESC
             """)
-    List<Group> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable, GroupKind kind);
+    List<Group> findNextPageByKeywordLike(String keyword, Long cursor, Pageable pageable, GroupKind kind);
+
+    @Query(value = """
+            SELECT g.*
+            FROM travel_group g
+            WHERE g.group_kind = :kind
+              AND MATCH(g.name, g.description) AGAINST(:booleanQuery IN BOOLEAN MODE)
+            ORDER BY g.group_id DESC
+            """, nativeQuery = true)
+    List<Group> findFirstPageByKeywordFullText(@Param("booleanQuery") String booleanQuery,
+                                               @Param("kind") String kind,
+                                               Pageable pageable);
+
+    @Query(value = """
+            SELECT g.*
+            FROM travel_group g
+            WHERE g.group_id < :cursor
+              AND g.group_kind = :kind
+              AND MATCH(g.name, g.description) AGAINST(:booleanQuery IN BOOLEAN MODE)
+            ORDER BY g.group_id DESC
+            """, nativeQuery = true)
+    List<Group> findNextPageByKeywordFullText(@Param("booleanQuery") String booleanQuery,
+                                              @Param("cursor") Long cursor,
+                                              @Param("kind") String kind,
+                                              Pageable pageable);
 }
