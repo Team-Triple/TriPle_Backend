@@ -147,6 +147,11 @@ public class S3BucketImpl implements S3Bucket {
         }
     }
 
+    @Override
+    public String concatUploadPrefix(String uploadedKey) {
+        return s3BucketProp.getPrefix().getGetUrlPrefix() + uploadedKey;
+    }
+
     private PutObjectPresignRequest makePutObjectPresignedRequest(String key, String mimeType) {
         PutObjectRequest putObjectRequest = makePutObjectRequest(key, mimeType);
         return makePutObjectPresignRequest(putObjectRequest);

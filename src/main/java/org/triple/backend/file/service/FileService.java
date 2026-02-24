@@ -89,6 +89,10 @@ public class FileService {
         }
     }
 
+    public String concatPrefix(String uploadedKey) {
+        return s3Bucket.concatUploadPrefix(uploadedKey);
+    }
+
     private void deleteUploadedObject(String uploadedKey, RuntimeException originalException) {
         try {
             s3Bucket.deleteObject(uploadedKey);

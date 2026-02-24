@@ -97,20 +97,20 @@ class FileControllerTest extends ControllerTest {
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         requestFields(
-                                fieldWithPath("presignedUrlRequestDtos").description("Presigned URL 발급 요청 목록"),
-                                fieldWithPath("presignedUrlRequestDtos[].fileName").description("원본 파일명"),
-                                fieldWithPath("presignedUrlRequestDtos[].mimeType").description("MIME 타입")
+                                fieldWithPath("presignedUrlRequestDtos").description("presign issue request list"),
+                                fieldWithPath("presignedUrlRequestDtos[].fileName").description("original file name"),
+                                fieldWithPath("presignedUrlRequestDtos[].mimeType").description("mime type")
                         ),
                         responseFields(
-                                fieldWithPath("presignedUrlResponseDtos").description("Presigned URL 발급 결과 목록"),
-                                fieldWithPath("presignedUrlResponseDtos[].fileName").description("원본 파일명"),
-                                fieldWithPath("presignedUrlResponseDtos[].mimeType").description("MIME 타입"),
-                                fieldWithPath("presignedUrlResponseDtos[].key").description("업로드 대상 key").optional(),
-                                fieldWithPath("presignedUrlResponseDtos[].presignedUrl").description("S3 PUT Presigned URL").optional(),
-                                fieldWithPath("presignedUrlResponseDtos[].expiresAt").description("Presigned URL 만료 시각(UTC)").optional(),
-                                fieldWithPath("presignedUrlResponseDtos[].success").description("성공 여부"),
-                                fieldWithPath("presignedUrlResponseDtos[].errorCode").description("실패 코드").optional(),
-                                fieldWithPath("presignedUrlResponseDtos[].message").description("실패 메시지").optional()
+                                fieldWithPath("presignedUrlResponseDtos").description("presign issue response list"),
+                                fieldWithPath("presignedUrlResponseDtos[].fileName").description("original file name"),
+                                fieldWithPath("presignedUrlResponseDtos[].mimeType").description("mime type"),
+                                fieldWithPath("presignedUrlResponseDtos[].key").description("upload target key").optional(),
+                                fieldWithPath("presignedUrlResponseDtos[].presignedUrl").description("S3 PUT presigned URL").optional(),
+                                fieldWithPath("presignedUrlResponseDtos[].expiresAt").description("presigned URL expires at").optional(),
+                                fieldWithPath("presignedUrlResponseDtos[].success").description("success flag"),
+                                fieldWithPath("presignedUrlResponseDtos[].errorCode").description("error code").optional(),
+                                fieldWithPath("presignedUrlResponseDtos[].message").description("error message").optional()
                         )
                 ));
 
@@ -125,7 +125,8 @@ class FileControllerTest extends ControllerTest {
         FileUploadCompleteResponsesDto response = new FileUploadCompleteResponsesDto(
                 List.of(UploadResult.success(
                         "uploads/pending/1/test.jpg",
-                        "uploads/uploaded/1/test.jpg"
+                        "uploads/uploaded/1/test.jpg",
+                        "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg"
                 ))
         );
 
@@ -149,6 +150,7 @@ class FileControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.uploadResults[0].pendingKey").value("uploads/pending/1/test.jpg"))
                 .andExpect(jsonPath("$.uploadResults[0].uploadedKey").value("uploads/uploaded/1/test.jpg"))
+                .andExpect(jsonPath("$.uploadResults[0].uploadedUrl").value("https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg"))
                 .andExpect(jsonPath("$.uploadResults[0].success").value(true))
                 .andDo(document("files/upload-complete",
                         preprocessRequest(prettyPrint()),
@@ -157,12 +159,13 @@ class FileControllerTest extends ControllerTest {
                                 fieldWithPath("keys").description("업로드 완료 처리할 pending key 목록")
                         ),
                         responseFields(
-                                fieldWithPath("uploadResults").description("업로드 완료 처리 결과 목록"),
-                                fieldWithPath("uploadResults[].pendingKey").description("요청한 pending key"),
-                                fieldWithPath("uploadResults[].uploadedKey").description("업로드 완료된 key").optional(),
-                                fieldWithPath("uploadResults[].success").description("성공 여부"),
-                                fieldWithPath("uploadResults[].httpStatus").description("실패 HTTP 상태").optional(),
-                                fieldWithPath("uploadResults[].message").description("실패 메시지").optional()
+                                fieldWithPath("uploadResults").description("upload completion result list"),
+                                fieldWithPath("uploadResults[].pendingKey").description("requested pending key"),
+                                fieldWithPath("uploadResults[].uploadedKey").description("uploaded key").optional(),
+                                fieldWithPath("uploadResults[].uploadedUrl").description("public URL for uploaded key").optional(),
+                                fieldWithPath("uploadResults[].success").description("success flag"),
+                                fieldWithPath("uploadResults[].httpStatus").description("failed HTTP status").optional(),
+                                fieldWithPath("uploadResults[].message").description("failed message").optional()
                         )
                 ));
 
