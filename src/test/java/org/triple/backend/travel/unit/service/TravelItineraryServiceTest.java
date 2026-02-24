@@ -252,6 +252,83 @@ class TravelItineraryServiceTest {
         .containsExactly("test", savedTravelItinerary.getStartAt(), savedTravelItinerary.getEndAt(), savedTravelItinerary.getDescription(), savedTravelItinerary.getThumbnailUrl(), savedTravelItinerary.getMemberLimit());
     }
 
+    @Test
+    @DisplayName("삭제 대상 여행 일정이 없으면 예외를 던진다.")
+    void 삭제_대상_여행_일정_없음_예외() {
+        Assertions.assertThatThrownBy(() -> travelItineraryService.deleteTravel(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(TravelItineraryErrorCode.TRAVEL_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("유저-여행 일정 매핑이 없으면 예외를 던진다.")
+    void 유저_여행일정_매핑_없음_예외() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                1,
+                false));
+        User user = userJpaRepository.save(createUser());
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.deleteTravel(savedTravelItinerary.getId(), user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("리더가 아니면 삭제 권한 예외를 던진다.")
+    void 리더_아님_삭제권한_예외() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                1,
+                false));
+        User user = userJpaRepository.save(createUser());
+        userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.MEMBER));
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.deleteTravel(savedTravelItinerary.getId(), user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserTravelItineraryErrorCode.DELETE_UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("여행 일정 삭제 시 삭제 상태로 변경된다.")
+    void 여행_일정_삭제_성공() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                1,
+                false));
+        User user = userJpaRepository.save(createUser());
+        userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.LEADER));
+
+        travelItineraryService.deleteTravel(savedTravelItinerary.getId(), user.getId());
+
+        TravelItinerary deletedTravel = travelItineraryJpaRepository.findById(savedTravelItinerary.getId()).orElseThrow();
+        Assertions.assertThat(deletedTravel.isDeleted()).isTrue();
+    }
+
     private static Group createGroup() {
         return Group.create(GroupKind.PUBLIC, "모임", "설명", "http://thumb", 10);
     }
