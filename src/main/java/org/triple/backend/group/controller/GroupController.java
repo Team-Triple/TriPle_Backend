@@ -48,4 +48,10 @@ public class GroupController {
     public GroupDetailResponseDto detail(@PathVariable Long groupId, @LoginUser final Long userId) {
         return groupService.detail(groupId, userId);
     }
+
+    @LoginRequired
+    @PatchMapping("/{groupId}/owner/{targetUserId}")
+    public void transferOwner(@PathVariable Long groupId, @PathVariable Long targetUserId, @LoginUser final Long userId) {
+        groupService.ownerTransfer(groupId, targetUserId, userId);
+    }
 }
