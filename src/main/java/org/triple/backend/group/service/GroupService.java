@@ -174,15 +174,7 @@ public class GroupService {
                 ? findFirstPageByKeyword(normalizedKeyword, pageable)
                 : findNextPageByKeyword(normalizedKeyword, cursor, pageable);
 
-        boolean hasNext = rows.size() > pageSize;
-
-        if(hasNext) {
-            rows = rows.subList(0, pageSize);
-        }
-
-        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
-
-        return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
+        return toCursorResponse(rows, pageSize);
     }
 
     private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
