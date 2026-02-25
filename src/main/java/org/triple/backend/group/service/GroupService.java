@@ -148,7 +148,7 @@ public class GroupService {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
 
-        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_JOINED_MEMBER));
         if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
