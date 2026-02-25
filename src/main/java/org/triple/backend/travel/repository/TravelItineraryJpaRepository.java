@@ -1,10 +1,12 @@
 package org.triple.backend.travel.repository;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.triple.backend.travel.entity.TravelItinerary;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface TravelItineraryJpaRepository extends JpaRepository<TravelItinerary, Long> {
@@ -12,4 +14,25 @@ public interface TravelItineraryJpaRepository extends JpaRepository<TravelItiner
 
     @Query("select t from TravelItinerary t where t.id = :travelId and t.isDeleted = false")
     Optional<TravelItinerary> findByIdAndIsDeletedFalse(@Param("travelId") Long travelId);
+
+    @Query("""
+        SELECT t FROM TravelItinerary t
+        WHERE t.group.id = :groupId
+            AND t.isDeleted = false
+        ORDER BY t.id DESC
+    """)
+    List<TravelItinerary> findGroupTravelsFirstPage(@Param("groupId") Long groupId, Pageable pageable);
+
+    @Query("""
+        SELECT t FROM TravelItinerary t
+        WHERE t.group.id = :groupId
+            AND t.isDeleted = false
+            AND t.id < :cursor
+        ORDER BY t.id DESC
+    """)
+    List<TravelItinerary> findGroupTravelsNextPage(
+            @Param("groupId") Long groupId,
+            @Param("cursor") Long cursor,
+            Pageable pageable
+    );
 }
