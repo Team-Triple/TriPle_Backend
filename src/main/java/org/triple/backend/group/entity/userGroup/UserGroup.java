@@ -61,14 +61,15 @@ public class UserGroup {
         this.leftAt = null;
     }
 
-    public void transferRole(Role role) {
-        if(this.joinStatus != JoinStatus.JOINED) {
+    public void transferRole(final Role role) {
+        if (this.joinStatus != JoinStatus.JOINED) {
             throw new IllegalStateException("그룹에 가입된 사용자만 역할을 변경할 수 있습니다.");
         }
         this.role = role;
-      
+    }
+
     public void leave() {
-        if(this.joinStatus != JoinStatus.JOINED) {
+        if (this.joinStatus != JoinStatus.JOINED) {
             throw new IllegalStateException("가입된 그룹만 탈퇴할 수 있습니다.");
         }
         this.joinStatus = JoinStatus.LEFTED;
