@@ -143,6 +143,8 @@ public class GroupService {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
         }
         if(userGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_JOINED_MEMBER);
+        }
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
 
