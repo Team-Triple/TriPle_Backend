@@ -3,11 +3,9 @@ package org.triple.backend.group.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
-import org.triple.backend.user.entity.User;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +19,7 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
 
     boolean existsByGroupIdAndUserIdAndJoinStatus(Long groupId, Long userId, JoinStatus joinStatus);
 
+    @Query("SELECT ug FROM UserGroup ug join fetch ug.group WHERE ug.group.id = :groupId AND ug.user.id = :userId")
     Optional<UserGroup> findByGroupIdAndUserId(Long groupId, Long userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
