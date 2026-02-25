@@ -337,9 +337,9 @@ public class GroupServiceTest {
         assertThat(response.users()).hasSize(1);
         assertThat(response.users().get(0).name()).isEqualTo("상윤");
         assertThat(response.users().get(0).isOwner()).isTrue();
-        assertThat(response.photos()).isEmpty();
-        assertThat(response.travels()).isEmpty();
-        assertThat(response.reviews()).isEmpty();
+        assertThat(response.recentPhotos()).isEmpty();
+        assertThat(response.recentTravels()).isEmpty();
+        assertThat(response.recentReviews()).isEmpty();
     }
 
     @Test
@@ -406,9 +406,9 @@ public class GroupServiceTest {
                 .containsExactlyInAnyOrder("상윤", "민규");
         assertThat(response.users().stream().filter(GroupDetailResponseDto.UserDto::isOwner).count()).isEqualTo(1);
         assertThat(response.isOwner()).isFalse();
-        assertThat(response.photos()).isEmpty();
-        assertThat(response.travels()).isEmpty();
-        assertThat(response.reviews()).isEmpty();
+        assertThat(response.recentPhotos()).isEmpty();
+        assertThat(response.recentTravels()).isEmpty();
+        assertThat(response.recentReviews()).isEmpty();
     }
 
     @Test
