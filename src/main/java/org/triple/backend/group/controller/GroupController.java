@@ -57,6 +57,7 @@ public class GroupController {
         groupService.leave(groupId, userId);
     }
 
+    @LoginRequired
     @GetMapping("/me")
     public GroupCursorResponseDto myGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size, @LoginUser final Long userId) {
         return groupService.myGroups(cursor, size, userId);
