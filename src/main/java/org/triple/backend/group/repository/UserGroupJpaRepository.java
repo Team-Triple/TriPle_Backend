@@ -8,6 +8,7 @@ import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
+import org.triple.backend.user.entity.User;
 
 import java.util.List;
 import java.util.Optional;
@@ -49,4 +50,14 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
         ORDER BY g.id desc
     """)
     List<Group> findMyGroupsFirstPage(Long userId, JoinStatus joinStatus, Pageable pageable);
+
+
+    @Query("""
+        SELECT COUNT(ug)
+        FROM UserGroup ug
+        WHERE ug.group.id = :groupId
+         AND ug.joinStatus = :joinStatus
+         AND ug.user.id IN :userIds
+    """)
+    long countJoinedUsersInGroup(Long groupId, JoinStatus joinStatus, List<Long> userIds);
 }
