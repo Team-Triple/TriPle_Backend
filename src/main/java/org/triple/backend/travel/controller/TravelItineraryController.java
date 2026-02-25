@@ -7,6 +7,7 @@ import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
 import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
+import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
 import org.triple.backend.travel.service.TravelItineraryService;
 
@@ -42,6 +43,17 @@ public class TravelItineraryController {
             @LoginUser Long userId
     ) {
         travelItineraryService.deleteTravel(travelId, userId);
+    }
+
+    @LoginRequired
+    @GetMapping
+    public TravelItineraryCursorResponseDto browseTravels(
+            @RequestParam Long groupId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "10") int size,
+            @LoginUser Long userId
+    ) {
+        return travelItineraryService.browseTravels(groupId, cursor, size, userId);
     }
 
 }
