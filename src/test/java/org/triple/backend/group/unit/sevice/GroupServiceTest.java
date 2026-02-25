@@ -493,4 +493,131 @@ public class GroupServiceTest {
                 });
     }
 
+    @Test
+    @DisplayName("그룹 소유권 이전 시 대상은 OWNER가 되고 기존 소유자는 MEMBER가 된다")
+    void 그룹_소유권_이전_시_대상은_OWNER가_되고_기존_소유자는_MEMBER가_된다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-transfer")
+                .nickname("상윤")
+                .email("owner-transfer@test.com")
+                .profileUrl("http://img")
+                .build());
+        User target = userJpaRepository.save(User.builder()
+                .providerId("kakao-target-transfer")
+                .nickname("민규")
+                .email("target-transfer@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(target, Role.MEMBER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when
+        groupService.ownerTransfer(savedGroup.getId(), target.getId(), owner.getId());
+
+        // then
+        UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), owner.getId()).orElseThrow();
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), target.getId()).orElseThrow();
+
+        assertThat(ownerUserGroup.getRole()).isEqualTo(Role.MEMBER);
+        assertThat(targetUserGroup.getRole()).isEqualTo(Role.OWNER);
+        assertThat(ownerUserGroup.getJoinStatus()).isEqualTo(JoinStatus.JOINED);
+        assertThat(targetUserGroup.getJoinStatus()).isEqualTo(JoinStatus.JOINED);
+    }
+
+    @Test
+    @DisplayName("그룹 소유자가 자기 자신에게 소유권을 이전하면 CANNOT_OWNER_DEMOTE_SELF 예외가 발생한다")
+    void 그룹_소유자가_자기_자신에게_소유권을_이전하면_CANNOT_OWNER_DEMOTE_SELF_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-self-transfer")
+                .nickname("상윤")
+                .email("owner-self-transfer@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), owner.getId(), owner.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.CANNOT_OWNER_DEMOTE_SELF);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 소유자가 아닌 사용자가 소유권 이전을 요청하면 NOT_GROUP_OWNER 예외가 발생한다")
+    void 그룹_소유자가_아닌_사용자가_소유권_이전을_요청하면_NOT_GROUP_OWNER_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-transfer-auth")
+                .nickname("상윤")
+                .email("owner-transfer-auth@test.com")
+                .profileUrl("http://img")
+                .build());
+        User member = userJpaRepository.save(User.builder()
+                .providerId("kakao-member-transfer-auth")
+                .nickname("민규")
+                .email("member-transfer-auth@test.com")
+                .profileUrl("http://img2")
+                .build());
+        User target = userJpaRepository.save(User.builder()
+                .providerId("kakao-target-transfer-auth")
+                .nickname("지원")
+                .email("target-transfer-auth@test.com")
+                .profileUrl("http://img3")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addMember(target, Role.MEMBER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), target.getId(), member.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_OWNER);
+                });
+    }
+
+    @Test
+    @DisplayName("소유권 이전 대상이 그룹 멤버가 아니면 NOT_GROUP_MEMBER 예외가 발생한다")
+    void 소유권_이전_대상이_그룹_멤버가_아니면_NOT_GROUP_MEMBER_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-transfer-target")
+                .nickname("상윤")
+                .email("owner-transfer-target@test.com")
+                .profileUrl("http://img")
+                .build());
+        User outsider = userJpaRepository.save(User.builder()
+                .providerId("kakao-outsider-transfer-target")
+                .nickname("민규")
+                .email("outsider-transfer-target@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), outsider.getId(), owner.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+                });
+    }
+
 }
