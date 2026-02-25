@@ -24,6 +24,11 @@ include::{snippets}/groups/delete/path-parameters.adoc[]
 include::{snippets}/groups/delete/http-request.adoc[]
 include::{snippets}/groups/delete/http-response.adoc[]
 
+== 그룹 멤버 추방
+include::{snippets}/groups/kick/path-parameters.adoc[]
+include::{snippets}/groups/kick/http-request.adoc[]
+include::{snippets}/groups/kick/http-response.adoc[]
+
 == 그룹 수정
 include::{snippets}/groups/update/path-parameters.adoc[]
 include::{snippets}/groups/update/http-request.adoc[]
