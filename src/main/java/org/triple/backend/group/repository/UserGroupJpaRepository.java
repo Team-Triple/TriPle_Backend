@@ -26,4 +26,14 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM UserGroup ug WHERE ug.group.id = :groupId")
     void bulkDeleteByGroupId(Long groupId);
+
+
+    @Query("""
+        SELECT COUNT(ug)
+        FROM UserGroup ug
+        WHERE ug.group.id = :groupId
+         AND ug.joinStatus = :joinStatus
+         AND ug.user.id IN :userIds
+    """)
+    long countJoinedUsersInGroup(Long groupId, JoinStatus joinStatus, List<Long> userIds);
 }
