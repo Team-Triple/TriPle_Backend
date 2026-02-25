@@ -81,6 +81,10 @@ public class Group extends BaseEntity {
         this.currentMemberCount = validateCurrentMember(this.currentMemberCount + 1);
     }
 
+    public void decreaseCurrentMemberCount() {
+        this.currentMemberCount = validateCurrentMember(this.currentMemberCount - 1);
+    }
+
     public void update(final GroupKind groupKind, final String name, final String description, final String thumbNailUrl, final int memberLimit) {
         this.groupKind = groupKind;
         this.name = name;
