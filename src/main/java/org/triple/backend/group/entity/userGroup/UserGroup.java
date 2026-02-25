@@ -68,4 +68,11 @@ public class UserGroup {
         this.joinedAt = LocalDateTime.now();
         this.leftAt = null;
     }
+
+    public void transferRole(Role role) {
+        if(this.joinStatus != JoinStatus.JOINED) {
+            throw new IllegalStateException("그룹에 가입된 사용자만 역할을 변경할 수 있습니다.");
+        }
+        this.role = role;
+    }
 }
