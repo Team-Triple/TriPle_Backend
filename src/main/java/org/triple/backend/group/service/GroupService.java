@@ -131,4 +131,39 @@ public class GroupService {
 
         return GroupDetailResponseDto.from(userGroups, group);
     }
+
+    @Transactional
+    public void kick(final Long groupId, final Long ownerId, final Long targetUserId) {
+        if(ownerId.equals(targetUserId)) {
+            throw new BusinessException(GroupErrorCode.CANNOT_KICK_SELF);
+        }
+
+        UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, ownerId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        if(userGroup.getRole() != Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
+        }
+        if(userGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+        if(targetUserGroup.getRole() == Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.CANNOT_KICK_OWNER);
+        }
+
+        joinApplyJpaRepository.deleteByGroupIdAndUserId(groupId, targetUserId);
+
+        Group group = userGroup.getGroup();
+        targetUserGroup.leave();
+        group.decreaseCurrentMemberCount();
+
+        try {
+            groupJpaRepository.flush();
+        } catch(OptimisticLockingFailureException e) {
+            throw new BusinessException(GroupErrorCode.CONCURRENT_GROUP_UPDATE);
+        }
+    }
 }
