@@ -493,4 +493,148 @@ public class GroupServiceTest {
                 });
     }
 
+    @Test
+    @DisplayName("그룹 소유자가 JOINED 멤버를 추방하면 대상은 LEFTED로 변경되고 그룹 인원이 감소한다")
+    void 그룹_소유자가_JOINED_멤버를_추방하면_대상은_LEFTED로_변경되고_그룹_인원이_감소한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-kick")
+                .nickname("상윤")
+                .email("owner-kick@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User member = userJpaRepository.save(User.builder()
+                .providerId("kakao-member-kick")
+                .nickname("민규")
+                .email("member-kick@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        JoinApply joinApply = JoinApply.create(member, savedGroup);
+        joinApplyJpaRepository.saveAndFlush(joinApply);
+
+        // when
+        groupService.kick(savedGroup.getId(), owner.getId(), member.getId());
+
+        // then
+        UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), owner.getId()).orElseThrow();
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+
+        assertThat(ownerUserGroup.getJoinStatus()).isEqualTo(JoinStatus.JOINED);
+        assertThat(targetUserGroup.getJoinStatus()).isEqualTo(JoinStatus.LEFTED);
+        assertThat(targetUserGroup.getLeftAt()).isNotNull();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(1);
+        assertThat(joinApplyJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("그룹 소유자가 아니면 멤버 추방 시 NOT_GROUP_OWNER 예외가 발생한다")
+    void 그룹_소유자가_아니면_멤버_추방_시_NOT_GROUP_OWNER_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-kick-auth")
+                .nickname("상윤")
+                .email("owner-kick-auth@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User member = userJpaRepository.save(User.builder()
+                .providerId("kakao-member-kick-auth")
+                .nickname("민규")
+                .email("member-kick-auth@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        User other = userJpaRepository.save(User.builder()
+                .providerId("kakao-other-kick-auth")
+                .nickname("지원")
+                .email("other-kick-auth@test.com")
+                .profileUrl("http://img3")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addMember(other, Role.MEMBER);
+        group.addCurrentMemberCount();
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), member.getId(), other.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_OWNER);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 소유자가 자기 자신을 추방하려고 하면 CANNOT_KICK_SELF 예외가 발생한다")
+    void 그룹_소유자가_자기_자신을_추방하려고_하면_CANNOT_KICK_SELF_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-kick-self")
+                .nickname("상윤")
+                .email("owner-kick-self@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), owner.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.CANNOT_KICK_SELF);
+                });
+    }
+
+    @Test
+    @DisplayName("추방 대상이 OWNER이면 CANNOT_KICK_OWNER 예외가 발생한다")
+    void 추방_대상이_OWNER이면_CANNOT_KICK_OWNER_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-kick-owner")
+                .nickname("상윤")
+                .email("owner-kick-owner@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User otherOwner = userJpaRepository.save(User.builder()
+                .providerId("kakao-other-owner-kick-owner")
+                .nickname("민규")
+                .email("other-owner-kick-owner@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        UserGroup secondOwner = UserGroup.create(otherOwner, savedGroup, Role.OWNER);
+        userGroupJpaRepository.saveAndFlush(secondOwner);
+        savedGroup.addCurrentMemberCount();
+        groupJpaRepository.flush();
+
+        // when & then
+        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), otherOwner.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.CANNOT_KICK_OWNER);
+                });
+    }
+
 }
