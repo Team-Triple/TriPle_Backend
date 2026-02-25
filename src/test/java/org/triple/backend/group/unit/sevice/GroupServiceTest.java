@@ -620,4 +620,101 @@ public class GroupServiceTest {
                 });
     }
 
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("동일한 그룹 소유권 이전 요청이 동시에 들어오면 하나만 성공하고 나머지는 NOT_GROUP_OWNER가 발생한다")
+    void 동일한_그룹_소유권_이전_요청이_동시에_들어오면_하나만_성공하고_나머지는_NOT_GROUP_OWNER가_발생한다() throws InterruptedException {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-transfer-concurrency")
+                .nickname("상윤")
+                .email("owner-transfer-concurrency@test.com")
+                .profileUrl("http://img")
+                .build());
+        User target1 = userJpaRepository.save(User.builder()
+                .providerId("kakao-target1-transfer-concurrency")
+                .nickname("민규")
+                .email("target1-transfer-concurrency@test.com")
+                .profileUrl("http://img2")
+                .build());
+        User target2 = userJpaRepository.save(User.builder()
+                .providerId("kakao-target2-transfer-concurrency")
+                .nickname("지원")
+                .email("target2-transfer-concurrency@test.com")
+                .profileUrl("http://img3")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(target1, Role.MEMBER);
+        group.addMember(target2, Role.MEMBER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        int threadCount = 2;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch ready = new CountDownLatch(threadCount);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threadCount);
+        AtomicInteger successCount = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        Runnable transferToTarget1 = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                groupService.ownerTransfer(savedGroup.getId(), target1.getId(), owner.getId());
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        Runnable transferToTarget2 = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                groupService.ownerTransfer(savedGroup.getId(), target2.getId(), owner.getId());
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        try {
+            executorService.submit(transferToTarget1);
+            executorService.submit(transferToTarget2);
+
+            assertThat(ready.await(3, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+
+            long notGroupOwnerCount = failures.stream()
+                    .filter(BusinessException.class::isInstance)
+                    .map(BusinessException.class::cast)
+                    .filter(e -> e.getErrorCode() == GroupErrorCode.NOT_GROUP_OWNER)
+                    .count();
+
+            UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), owner.getId()).orElseThrow();
+            UserGroup target1UserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), target1.getId()).orElseThrow();
+            UserGroup target2UserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), target2.getId()).orElseThrow();
+
+            assertThat(successCount.get()).isEqualTo(1);
+            assertThat(failures).hasSize(1);
+            assertThat(notGroupOwnerCount).isEqualTo(1);
+            assertThat(ownerUserGroup.getRole()).isEqualTo(Role.MEMBER);
+            assertThat(List.of(target1UserGroup.getRole(), target2UserGroup.getRole()))
+                    .containsExactlyInAnyOrder(Role.OWNER, Role.MEMBER);
+        } finally {
+            executorService.shutdownNow();
+            joinApplyJpaRepository.deleteAllInBatch();
+            userGroupJpaRepository.deleteAllInBatch();
+            groupJpaRepository.deleteAllInBatch();
+            userJpaRepository.deleteAllInBatch();
+        }
+    }
+
 }
