@@ -9,7 +9,8 @@ public enum GroupErrorCode implements ErrorCode {
     NOT_GROUP_OWNER(HttpStatus.FORBIDDEN, "그룹 수정/삭제 권한이 없습니다."),
     CONCURRENT_GROUP_UPDATE(HttpStatus.CONFLICT, "동시에 그룹 정보가 변경되었습니다. 다시 시도해주세요."),
     EXCEEDED_JOIN_NUMBER(HttpStatus.CONFLICT, "그룹 정원이 가득 찼습니다."),
-    NOT_GROUP_MEMBER(HttpStatus.FORBIDDEN, "해당 그룹을 조회할 권한이 없습니다.");
+    NOT_GROUP_MEMBER(HttpStatus.FORBIDDEN, "해당 그룹을 조회할 권한이 없습니다."),
+    INVALID_SEARCH_KEYWORD_LENGTH(HttpStatus.BAD_REQUEST, "검색어는 최대 20자까지 입력할 수 있습니다.");
 
     private HttpStatus status;
     private String message;

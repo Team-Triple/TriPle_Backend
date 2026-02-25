@@ -15,15 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(
-        name = "user_group",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_user_group_group_user",
-                        columnNames = {"group_id", "user_id"}
-                )
-        }
-)
+@Table(name = "user_group")
 public class UserGroup {
 
     @Id

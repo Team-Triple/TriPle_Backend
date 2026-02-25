@@ -387,6 +387,17 @@ public class GroupIntegrationTest {
     }
 
     @Test
+    @DisplayName("키워드 길이가 20자를 초과하면 400을 반환한다")
+    void 키워드_길이가_20자를_초과하면_400을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("keyword", "aaaaaaaaaaaaaaaaaaaaa")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
+    }
+
+    @Test
     @DisplayName("비공개 그룹 상세 조회 시 멤버는 200을 반환한다")
     void 비공개_그룹_상세_조회_시_멤버는_200을_반환한다() throws Exception {
         // given
