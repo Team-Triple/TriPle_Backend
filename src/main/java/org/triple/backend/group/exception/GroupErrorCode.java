@@ -12,7 +12,10 @@ public enum GroupErrorCode implements ErrorCode {
     NOT_GROUP_MEMBER(HttpStatus.FORBIDDEN, "해당 그룹을 조회할 권한이 없습니다."),
     NOT_JOINED_MEMBER(HttpStatus.FORBIDDEN, "그룹 멤버가 아니거나 유효한 가입 상태가 아닙니다."),
     CANNOT_KICK_OWNER(HttpStatus.FORBIDDEN, "그룹 주인은 추방할 수 없습니다."),
-    CANNOT_KICK_SELF(HttpStatus.FORBIDDEN, "자기 자신은 추방할 수 없습니다.");
+    CANNOT_KICK_SELF(HttpStatus.FORBIDDEN, "자기 자신은 추방할 수 없습니다."),
+    ALREADY_LEAVE_GROUP(HttpStatus.FORBIDDEN, "이미 탈퇴한 그룹입니다."),
+    GROUP_OWNER_NOT_LEAVE(HttpStatus.FORBIDDEN, "그룹 주인은 탈퇴할 수 없습니다."),
+    INVALID_SEARCH_KEYWORD_LENGTH(HttpStatus.BAD_REQUEST, "검색어는 최대 20자까지 입력할 수 있습니다.");
 
     private HttpStatus status;
     private String message;

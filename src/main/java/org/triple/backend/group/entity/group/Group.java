@@ -109,7 +109,7 @@ public class Group extends BaseEntity {
     }
 
     private int validateCurrentMember(int memberCount) {
-        if(memberCount > memberLimit) throw new IllegalArgumentException("현재 가입 멤버는 멤버 제한 인원보다 많을 수 없습니다.");
+        if(memberCount > memberLimit || memberCount <= 0) throw new IllegalArgumentException("가입 멤버 수가 범위를 벗어났습니다.");
         return memberCount;
     }
 

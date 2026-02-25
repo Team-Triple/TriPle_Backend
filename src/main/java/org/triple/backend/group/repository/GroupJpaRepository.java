@@ -1,11 +1,11 @@
 package org.triple.backend.group.repository;
 
 import jakarta.persistence.LockModeType;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 
@@ -27,4 +27,28 @@ public interface GroupJpaRepository extends JpaRepository<Group, Long> {
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("SELECT g FROM Group g WHERE g.id = :groupId")
     Optional<Group> findByIdForRead(Long groupId);
+
+    @Query(value = """
+            SELECT g.*
+            FROM travel_group g
+            WHERE g.group_kind = :kind
+              AND MATCH(g.name, g.description) AGAINST(:booleanQuery IN BOOLEAN MODE)
+            ORDER BY g.group_id DESC
+            """, nativeQuery = true)
+    List<Group> findFirstPageByKeywordFullText(@Param("booleanQuery") String booleanQuery,
+                                               @Param("kind") String kind,
+                                               Pageable pageable);
+
+    @Query(value = """
+            SELECT g.*
+            FROM travel_group g
+            WHERE g.group_id < :cursor
+              AND g.group_kind = :kind
+              AND MATCH(g.name, g.description) AGAINST(:booleanQuery IN BOOLEAN MODE)
+            ORDER BY g.group_id DESC
+            """, nativeQuery = true)
+    List<Group> findNextPageByKeywordFullText(@Param("booleanQuery") String booleanQuery,
+                                              @Param("cursor") Long cursor,
+                                              @Param("kind") String kind,
+                                              Pageable pageable);
 }

@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.common.ControllerTest;
+import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.controller.GroupController;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
@@ -16,6 +17,7 @@ import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupDetailResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.GroupKind;
+import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.service.GroupService;
 import org.triple.backend.auth.session.CsrfTokenManager;
 
@@ -108,7 +110,7 @@ public class GroupControllerTest extends ControllerTest {
                 true
         );
 
-        given(groupService.browsePublicGroups(eq(null), eq(10)))
+        given(groupService.search(eq(null), eq(null), eq(10)))
                 .willReturn(response);
 
         // when & then
@@ -129,6 +131,7 @@ public class GroupControllerTest extends ControllerTest {
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         queryParameters(
+                                parameterWithName("keyword").optional().description("검색 키워드(없으면 전체 공개 그룹 조회)"),
                                 parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
                                 parameterWithName("size").optional().description("페이지 크기(기본 10)")
                         ),
@@ -144,6 +147,129 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
+
+        verify(groupService, times(1)).search(null, null, 10);
+    }
+
+    @Test
+    @DisplayName("키워드가 있으면 공개 그룹 키워드 검색을 수행한다.")
+    void 키워드가_있으면_공개_그룹_키워드_검색을_수행한다() throws Exception {
+        // given
+        GroupCursorResponseDto response = new GroupCursorResponseDto(
+                List.of(
+                        new GroupCursorResponseDto.GroupSummaryDto(
+                                20L,
+                                "제주여행",
+                                "맛집 탐방",
+                                1,
+                                10,
+                                "https://example.com/thumb.png"
+                        )
+                ),
+                null,
+                false
+        );
+
+        given(groupService.search(eq("제주"), eq(null), eq(10)))
+                .willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("keyword", "제주")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].name").value("제주여행"));
+
+        verify(groupService, times(1)).search("제주", null, 10);
+    }
+
+    @Test
+    @DisplayName("키워드 길이가 20자를 초과하면 400을 반환한다.")
+    void 키워드_길이가_20자를_초과하면_400을_반환한다() throws Exception {
+        // given
+        String keyword = "aaaaaaaaaaaaaaaaaaaaa";
+        given(groupService.search(eq(keyword), eq(null), eq(10)))
+                .willThrow(new BusinessException(GroupErrorCode.INVALID_SEARCH_KEYWORD_LENGTH));
+
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("keyword", keyword)
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
+
+        verify(groupService, times(1)).search(keyword, null, 10);
+    }
+
+    @Test
+    @DisplayName("로그인 사용자는 내가 속한 그룹 목록을 조회할 수 있다.")
+    void 로그인_사용자는_내가_속한_그룹_목록을_조회할_수_있다() throws Exception {
+        // given
+        GroupCursorResponseDto response = new GroupCursorResponseDto(
+                List.of(
+                        new GroupCursorResponseDto.GroupSummaryDto(
+                                30L,
+                                "제주모임",
+                                "제주도 여행",
+                                3,
+                                10,
+                                "https://example.com/jeju.png"
+                        )
+                ),
+                30L,
+                true
+        );
+
+        given(groupService.myGroups(eq(null), eq(10), eq(1L)))
+                .willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups/me")
+                        .with(loginSessionAndCsrf())
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].groupId").value(30L))
+                .andExpect(jsonPath("$.items[0].name").value("제주모임"))
+                .andExpect(jsonPath("$.items[0].description").value("제주도 여행"))
+                .andExpect(jsonPath("$.items[0].currentMemberCount").value(3))
+                .andExpect(jsonPath("$.items[0].memberLimit").value(10))
+                .andExpect(jsonPath("$.items[0].thumbNailUrl").value("https://example.com/jeju.png"))
+                .andExpect(jsonPath("$.nextCursor").value(30L))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andDo(document("groups/my-groups",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        queryParameters(
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("items").description("내가 속한 그룹 목록"),
+                                fieldWithPath("items[].groupId").description("그룹 ID"),
+                                fieldWithPath("items[].name").description("그룹 이름"),
+                                fieldWithPath("items[].description").description("그룹 설명").optional(),
+                                fieldWithPath("items[].thumbNailUrl").description("썸네일 URL").optional(),
+                                fieldWithPath("items[].currentMemberCount").description("현재 인원").optional(),
+                                fieldWithPath("items[].memberLimit").description("최대 인원").optional(),
+                                fieldWithPath("nextCursor").description("다음 페이지 커서 (없으면 null)").optional(),
+                                fieldWithPath("hasNext").description("다음 페이지 존재 여부")
+                        )
+                ));
+
+        verify(groupService, times(1)).myGroups(eq(null), eq(10), eq(1L));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 내 그룹 목록을 조회하면 401을 반환한다.")
+    void 비로그인_사용자가_내_그룹_목록을_조회하면_401을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups/me"))
+                .andExpect(status().isUnauthorized());
+
+        verify(groupService, never()).myGroups(any(), anyInt(), any());
     }
 
     @Test
@@ -204,7 +330,6 @@ public class GroupControllerTest extends ControllerTest {
 
         verify(groupService, times(1)).detail(groupId, 1L);
     }
-
 
     @Test
     @DisplayName("그룹을 삭제합니다.")
@@ -328,6 +453,29 @@ public class GroupControllerTest extends ControllerTest {
                 ));
 
         verify(groupService, times(1)).kick(groupId, ownerId, targetUserId);
+    }
+  
+    @DisplayName("그룹 탈퇴를 수행한다.")
+    void 그룹_탈퇴를_수행한다() throws Exception {
+        // given
+        Long groupId = 1L;
+        Long userId = 1L;
+        doNothing().when(groupService).leave(groupId, userId);
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("groups/leave",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("탈퇴할 그룹 ID")
+                        )
+                ));
+
+        verify(groupService, times(1)).leave(groupId, userId);
         verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
     }
 
