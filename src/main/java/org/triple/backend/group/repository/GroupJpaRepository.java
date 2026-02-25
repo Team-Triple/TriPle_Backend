@@ -1,7 +1,6 @@
 package org.triple.backend.group.repository;
 
 import jakarta.persistence.LockModeType;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
