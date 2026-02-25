@@ -27,8 +27,10 @@ public class GroupController {
     }
 
     @GetMapping
-    public GroupCursorResponseDto browsePublicGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size) {
-        return groupService.browsePublicGroups(cursor, size);
+    public GroupCursorResponseDto browsePublicGroups(@RequestParam(required = false) String keyword,
+                                                     @RequestParam(required = false) Long cursor,
+                                                     @RequestParam(defaultValue = "10") int size) {
+        return groupService.search(keyword, cursor, size);
     }
 
     @LoginRequired

@@ -26,12 +26,14 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GroupService {
 
+    private static final int KEYWORD_MAX_LENGTH = 20;
     private static final int MIN_PAGE_SIZE = 1;
     private static final int MAX_PAGE_SIZE = 10;
 
@@ -151,5 +153,53 @@ public class GroupService {
 
         Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
         return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
+    }
+
+    @Transactional(readOnly = true)
+    public GroupCursorResponseDto search(final String keyword, final Long cursor, final int size) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+
+        if (normalizedKeyword.isBlank()) {
+            return browsePublicGroups(cursor, size);
+        }
+
+        if(normalizedKeyword.length() > KEYWORD_MAX_LENGTH) {
+            throw new BusinessException(GroupErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
+        }
+
+        int pageSize = Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+        Pageable pageable = PageRequest.of(0, pageSize + 1);
+
+        List<Group> rows = cursor == null
+                ? findFirstPageByKeyword(normalizedKeyword, pageable)
+                : findNextPageByKeyword(normalizedKeyword, cursor, pageable);
+
+        return toCursorResponse(rows, pageSize);
+    }
+
+    private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        return groupJpaRepository.findFirstPageByKeywordFullText(booleanQuery, GroupKind.PUBLIC.name(), pageable);
+    }
+
+    private List<Group> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable) {
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        return groupJpaRepository.findNextPageByKeywordFullText(booleanQuery, cursor, GroupKind.PUBLIC.name(), pageable);
+    }
+
+    private String toBooleanModeQuery(String keyword) {
+        return Arrays.stream(keyword.trim().split("[^\\p{L}\\p{N}]+"))
+                .filter(token -> !token.isBlank())
+                .map(token -> "+" + token + "*")
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
     }
 }
