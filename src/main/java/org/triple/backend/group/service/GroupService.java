@@ -134,6 +134,7 @@ public class GroupService {
 
     @Transactional
     public void leave(final Long groupId, final Long userId) {
+        if (!userJpaRepository.existsById(userId)) { throw new BusinessException(UserErrorCode.USER_NOT_FOUND); }
         UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, userId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
 
         if(userGroup.getRole() == Role.OWNER) {
