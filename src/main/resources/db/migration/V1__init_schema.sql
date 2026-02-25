@@ -147,3 +147,40 @@ CREATE TABLE IF NOT EXISTS payment (
     updated_at DATETIME(6),
     PRIMARY KEY (payment_id)
 );
+
+-- Add FULLTEXT index for group keyword search on name + description.
+SET @fulltext_idx_exists := (
+    SELECT COUNT(1)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'travel_group'
+      AND index_name = 'idx_travel_group_name_description'
+);
+
+SET @fulltext_ddl := IF(
+    @fulltext_idx_exists = 0,
+    'ALTER TABLE travel_group ADD FULLTEXT INDEX idx_travel_group_name_description (name, description)',
+    'SELECT 1'
+);
+
+PREPARE stmt FROM @fulltext_ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @user_group_idx_exists := (
+    SELECT COUNT(1)
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'user_group'
+      AND index_name = 'uk_user_group_group_user'
+);
+
+SET @user_group_ddl := IF(
+    @user_group_idx_exists = 0,
+    'ALTER TABLE user_group ADD CONSTRAINT uk_user_group_group_user UNIQUE (group_id, user_id)',
+    'SELECT 1'
+);
+
+PREPARE stmt FROM @user_group_ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
