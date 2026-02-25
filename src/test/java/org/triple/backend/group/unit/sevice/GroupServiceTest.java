@@ -632,4 +632,135 @@ public class GroupServiceTest {
                 });
     }
 
+    @Test
+    @DisplayName("그룹 멤버 탈퇴 시 LEFTED로 변경되고 그룹 인원이 감소하며 JoinApply가 삭제된다")
+    void 그룹_멤버_탈퇴_시_LEFTED로_변경되고_그룹_인원이_감소하며_JoinApply가_삭제된다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-leave")
+                .nickname("상윤")
+                .email("owner-leave@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User member = userJpaRepository.save(User.builder()
+                .providerId("kakao-member-leave")
+                .nickname("민규")
+                .email("member-leave@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        JoinApply approvedApply = JoinApply.create(member, savedGroup);
+        approvedApply.approve();
+        joinApplyJpaRepository.saveAndFlush(approvedApply);
+
+        // when
+        groupService.leave(savedGroup.getId(), member.getId());
+
+        // then
+        UserGroup leftUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+
+        assertThat(leftUserGroup.getJoinStatus()).isEqualTo(JoinStatus.LEFTED);
+        assertThat(leftUserGroup.getLeftAt()).isNotNull();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(1);
+        assertThat(joinApplyJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("그룹 소유자는 탈퇴할 수 없어 GROUP_OWNER_NOT_LEAVE 예외가 발생한다")
+    void 그룹_소유자는_탈퇴할_수_없어_GROUP_OWNER_NOT_LEAVE_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-cannot-leave")
+                .nickname("상윤")
+                .email("owner-cannot-leave@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.leave(savedGroup.getId(), owner.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.GROUP_OWNER_NOT_LEAVE);
+                });
+    }
+
+    @Test
+    @DisplayName("이미 탈퇴한 멤버가 다시 탈퇴 요청하면 ALREADY_LEAVE_GROUP 예외가 발생한다")
+    void 이미_탈퇴한_멤버가_다시_탈퇴_요청하면_ALREADY_LEAVE_GROUP_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-already-left")
+                .nickname("상윤")
+                .email("owner-already-left@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User member = userJpaRepository.save(User.builder()
+                .providerId("kakao-member-already-left")
+                .nickname("민규")
+                .email("member-already-left@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        groupService.leave(savedGroup.getId(), member.getId());
+
+        // when & then
+        assertThatThrownBy(() -> groupService.leave(savedGroup.getId(), member.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.ALREADY_LEAVE_GROUP);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아닌 사용자가 탈퇴 요청하면 NOT_GROUP_MEMBER 예외가 발생한다")
+    void 그룹_멤버가_아닌_사용자가_탈퇴_요청하면_NOT_GROUP_MEMBER_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-not-member-leave")
+                .nickname("상윤")
+                .email("owner-not-member-leave@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User outsider = userJpaRepository.save(User.builder()
+                .providerId("kakao-outsider-not-member-leave")
+                .nickname("민규")
+                .email("outsider-not-member-leave@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.leave(savedGroup.getId(), outsider.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+                });
+    }
+
 }

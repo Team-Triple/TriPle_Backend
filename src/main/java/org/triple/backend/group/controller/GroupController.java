@@ -52,6 +52,12 @@ public class GroupController {
     }
 
     @LoginRequired
+    @DeleteMapping("/{groupId}/users/me")
+    public void leave(@PathVariable Long groupId, @LoginUser final Long userId) {
+        groupService.leave(groupId, userId);
+    }
+
+    @LoginRequired
     @GetMapping("/me")
     public GroupCursorResponseDto myGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size, @LoginUser final Long userId) {
         return groupService.myGroups(cursor, size, userId);

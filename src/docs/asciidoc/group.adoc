@@ -29,6 +29,11 @@ include::{snippets}/groups/delete/path-parameters.adoc[]
 include::{snippets}/groups/delete/http-request.adoc[]
 include::{snippets}/groups/delete/http-response.adoc[]
 
+== 그룹 탈퇴
+include::{snippets}/groups/leave/path-parameters.adoc[]
+include::{snippets}/groups/leave/http-request.adoc[]
+include::{snippets}/groups/leave/http-response.adoc[]
+
 == 그룹 수정
 include::{snippets}/groups/update/path-parameters.adoc[]
 include::{snippets}/groups/update/http-request.adoc[]
