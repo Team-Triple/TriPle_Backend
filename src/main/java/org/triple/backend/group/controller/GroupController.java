@@ -27,8 +27,10 @@ public class GroupController {
     }
 
     @GetMapping
-    public GroupCursorResponseDto browsePublicGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size) {
-        return groupService.browsePublicGroups(cursor, size);
+    public GroupCursorResponseDto browsePublicGroups(@RequestParam(required = false) String keyword,
+                                                     @RequestParam(required = false) Long cursor,
+                                                     @RequestParam(defaultValue = "10") int size) {
+        return groupService.search(keyword, cursor, size);
     }
 
     @LoginRequired
@@ -53,5 +55,9 @@ public class GroupController {
     @DeleteMapping("/{groupId}/users/me")
     public void leave(@PathVariable Long groupId, @LoginUser final Long userId) {
         groupService.leave(groupId, userId);
+
+    @GetMapping("/me")
+    public GroupCursorResponseDto myGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size, @LoginUser final Long userId) {
+        return groupService.myGroups(cursor, size, userId);
     }
 }

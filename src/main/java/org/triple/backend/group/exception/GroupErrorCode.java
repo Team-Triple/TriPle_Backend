@@ -11,7 +11,8 @@ public enum GroupErrorCode implements ErrorCode {
     EXCEEDED_JOIN_NUMBER(HttpStatus.CONFLICT, "그룹 정원이 가득 찼습니다."),
     NOT_GROUP_MEMBER(HttpStatus.FORBIDDEN, "해당 그룹을 조회할 권한이 없습니다."),
     ALREADY_LEAVE_GROUP(HttpStatus.FORBIDDEN, "이미 탈퇴한 그룹입니다."),
-    GROUP_OWNER_NOT_LEAVE(HttpStatus.FORBIDDEN, "그룹 주인은 탈퇴할 수 없습니다.");
+    GROUP_OWNER_NOT_LEAVE(HttpStatus.FORBIDDEN, "그룹 주인은 탈퇴할 수 없습니다."),
+    INVALID_SEARCH_KEYWORD_LENGTH(HttpStatus.BAD_REQUEST, "검색어는 최대 20자까지 입력할 수 있습니다.");
 
     private HttpStatus status;
     private String message;

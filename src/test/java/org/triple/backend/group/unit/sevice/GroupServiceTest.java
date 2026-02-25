@@ -26,6 +26,7 @@ import org.triple.backend.group.repository.JoinApplyJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.group.service.GroupService;
 import org.triple.backend.user.entity.User;
+import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.util.List;
@@ -160,6 +161,144 @@ public class GroupServiceTest {
 
         GroupCursorResponseDto r2 = groupService.browsePublicGroups(null, 999);
         assertThat(r2.items()).hasSize(10);
+    }
+
+    @Test
+    @DisplayName("내 그룹 첫 페이지 조회 시 JOINED 상태의 그룹만 size만큼 반환하고 hasNext와 nextCursor가 설정된다")
+    void 내_그룹_첫_페이지_조회_시_JOINED_상태의_그룹만_size만큼_반환하고_hasNext와_nextCursor가_설정된다() {
+        // given
+        User me = userJpaRepository.save(User.builder()
+                .providerId("kakao-my-groups-owner")
+                .nickname("상윤")
+                .email("my-groups-owner@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        for (int i = 1; i <= 12; i++) {
+            Group group = groupJpaRepository.save(publicGroup("my-group-" + i));
+            userGroupJpaRepository.save(UserGroup.create(me, group, Role.MEMBER));
+        }
+
+        // when
+        GroupCursorResponseDto response = groupService.myGroups(null, 10, me.getId());
+
+        // then
+        assertThat(response.items()).hasSize(10);
+        assertThat(response.hasNext()).isTrue();
+        assertThat(response.nextCursor()).isNotNull();
+        assertThat(response.items())
+                .allSatisfy(item -> assertThat(item.name()).startsWith("my-group-"));
+
+        List<Long> ids = response.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
+        assertThat(ids).isSortedAccordingTo((a, b) -> Long.compare(b, a));
+        assertThat(response.nextCursor()).isEqualTo(ids.get(ids.size() - 1));
+    }
+
+    @Test
+    @DisplayName("내 그룹 다음 페이지 조회 시 cursor 기준으로 중복 없이 이어진다")
+    void 내_그룹_다음_페이지_조회_시_cursor_기준으로_중복_없이_이어진다() {
+        // given
+        User me = userJpaRepository.save(User.builder()
+                .providerId("kakao-my-groups-next")
+                .nickname("상윤")
+                .email("my-groups-next@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        for (int i = 1; i <= 12; i++) {
+            Group group = groupJpaRepository.save(publicGroup("my-group-next-" + i));
+            userGroupJpaRepository.save(UserGroup.create(me, group, Role.MEMBER));
+        }
+
+        // when
+        GroupCursorResponseDto first = groupService.myGroups(null, 5, me.getId());
+        GroupCursorResponseDto second = groupService.myGroups(first.nextCursor(), 5, me.getId());
+
+        // then
+        assertThat(first.items()).hasSize(5);
+        assertThat(first.hasNext()).isTrue();
+        assertThat(first.nextCursor()).isNotNull();
+
+        assertThat(second.items()).hasSize(5);
+        assertThat(second.hasNext()).isTrue();
+        assertThat(second.nextCursor()).isNotNull();
+        assertThat(second.items())
+                .allSatisfy(item -> assertThat(item.groupId()).isLessThan(first.nextCursor()));
+
+        List<Long> firstIds = first.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
+        List<Long> secondIds = second.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
+        assertThat(secondIds).doesNotContainAnyElementsOf(firstIds);
+    }
+
+    @Test
+    @DisplayName("내 그룹 조회 시 존재하지 않는 사용자면 USER_NOT_FOUND 예외가 발생한다")
+    void 내_그룹_조회_시_존재하지_않는_사용자면_USER_NOT_FOUND_예외가_발생한다() {
+        // when & then
+        assertThatThrownBy(() -> groupService.myGroups(null, 10, 999999L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                });
+    }
+
+    @Test
+    @DisplayName("내 그룹 조회 시 size는 1 이상 10 이하로 보정된다")
+    void 내_그룹_조회_시_size는_일_이상_십_이하로_보정된다() {
+        // given
+        User me = userJpaRepository.save(User.builder()
+                .providerId("kakao-my-groups-size")
+                .nickname("상윤")
+                .email("my-groups-size@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        for (int i = 1; i <= 20; i++) {
+            Group group = groupJpaRepository.save(publicGroup("my-group-size-" + i));
+            userGroupJpaRepository.save(UserGroup.create(me, group, Role.MEMBER));
+        }
+
+        // when
+        GroupCursorResponseDto minSize = groupService.myGroups(null, 0, me.getId());
+        GroupCursorResponseDto maxSize = groupService.myGroups(null, 999, me.getId());
+
+        // then
+        assertThat(minSize.items()).hasSize(1);
+        assertThat(maxSize.items()).hasSize(10);
+    }
+
+    @Test
+    @DisplayName("내 그룹 조회 시 PUBLIC과 PRIVATE 그룹을 모두 조회한다")
+    void 내_그룹_조회_시_PUBLIC과_PRIVATE_그룹을_모두_조회한다() {
+        // given
+        User me = userJpaRepository.save(User.builder()
+                .providerId("kakao-my-groups-kind")
+                .nickname("상윤")
+                .email("my-groups-kind@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group publicGroup = groupJpaRepository.save(Group.create(
+                GroupKind.PUBLIC, "public-my-group", "설명", "thumb", 10
+        ));
+        Group privateGroup = groupJpaRepository.save(Group.create(
+                GroupKind.PRIVATE, "private-my-group", "설명", "thumb", 10
+        ));
+        userGroupJpaRepository.save(UserGroup.create(me, publicGroup, Role.MEMBER));
+        userGroupJpaRepository.save(UserGroup.create(me, privateGroup, Role.MEMBER));
+
+        // when
+        GroupCursorResponseDto response = groupService.myGroups(null, 10, me.getId());
+
+        // then
+        assertThat(response.items()).hasSize(2);
+        assertThat(response.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::name).toList())
+                .containsExactlyInAnyOrder("public-my-group", "private-my-group");
+
+        List<Long> ids = response.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
+        List<Group> groups = groupJpaRepository.findAllById(ids);
+        assertThat(groups).extracting(Group::getGroupKind)
+                .containsExactlyInAnyOrder(GroupKind.PUBLIC, GroupKind.PRIVATE);
     }
 
     @Test

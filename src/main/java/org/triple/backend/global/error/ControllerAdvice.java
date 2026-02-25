@@ -1,10 +1,17 @@
 package org.triple.backend.global.error;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.triple.backend.global.error.dto.ErrorResponse;
+
+import java.util.Objects;
 
 @Slf4j
 @RestControllerAdvice
@@ -26,5 +33,49 @@ public class ControllerAdvice {
         return ResponseEntity
                 .badRequest()
                 .body(new ErrorResponse(e.getMessage()));
+    }
+
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<ErrorResponse> handleBindException(BindException e) {
+        String message = extractFirstBindingMessage(e);
+        log.warn("요청 바인딩/검증 실패: {}", message);
+        return ResponseEntity
+                .badRequest()
+                .body(new ErrorResponse(message));
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleHandlerMethodValidationException(HandlerMethodValidationException e) {
+        String message = e.getParameterValidationResults().stream()
+                .flatMap(result -> result.getResolvableErrors().stream())
+                .map(error -> Objects.toString(error.getDefaultMessage(), null))
+                .filter(msg -> msg != null && !msg.isBlank())
+                .findFirst()
+                .orElse("요청 값이 올바르지 않습니다.");
+        log.warn("메서드 파라미터 검증 실패: {}", message);
+        return ResponseEntity
+                .badRequest()
+                .body(new ErrorResponse(message));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException e) {
+        String message = e.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .filter(msg -> msg != null && !msg.isBlank())
+                .findFirst()
+                .orElse("요청 값이 올바르지 않습니다.");
+        log.warn("제약 조건 검증 실패: {}", message);
+        return ResponseEntity
+                .badRequest()
+                .body(new ErrorResponse(message));
+    }
+
+    private String extractFirstBindingMessage(BindException e) {
+        return e.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .filter(msg -> msg != null && !msg.isBlank())
+                .findFirst()
+                .orElse("요청 값이 올바르지 않습니다.");
     }
 }
