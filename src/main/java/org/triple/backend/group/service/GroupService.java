@@ -145,14 +145,10 @@ public class GroupService {
         if(userGroup.getJoinStatus() != JoinStatus.JOINED) {
             throw new BusinessException(GroupErrorCode.NOT_JOINED_MEMBER);
         }
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
-        }
 
         UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_JOINED_MEMBER));
         if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
-        if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
             throw new BusinessException(GroupErrorCode.NOT_JOINED_MEMBER);
-        }
         }
         if(targetUserGroup.getRole() == Role.OWNER) {
             throw new BusinessException(GroupErrorCode.CANNOT_KICK_OWNER);
