@@ -15,6 +15,7 @@ import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.repository.GroupJpaRepository;
+import org.triple.backend.group.repository.JoinApplyJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.user.entity.User;
@@ -52,6 +53,9 @@ public class GroupIntegrationTest {
 
     @Autowired
     private UserGroupJpaRepository userGroupJpaRepository;
+
+    @Autowired
+    private JoinApplyJpaRepository joinApplyJpaRepository;
 
     @Autowired
     private DbCleaner dbCleaner;
@@ -170,6 +174,150 @@ public class GroupIntegrationTest {
     }
 
     @Test
+    @DisplayName("로그인 사용자는 내가 속한 그룹 목록을 조회할 수 있다")
+    void 로그인_사용자는_내가_속한_그룹_목록을_조회할_수_있다() throws Exception {
+        // given
+        User me = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-my-groups")
+                        .nickname("상윤")
+                        .email("my-groups@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User other = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-my-groups-other")
+                        .nickname("민규")
+                        .email("my-groups-other@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        for (int i = 1; i <= 12; i++) {
+            Group group = groupJpaRepository.saveAndFlush(Group.create(GroupKind.PUBLIC, "my-group-" + i, "설명", "thumb", 10));
+            userGroupJpaRepository.saveAndFlush(UserGroup.create(me, group, Role.MEMBER));
+        }
+
+        Group otherGroup = groupJpaRepository.saveAndFlush(Group.create(GroupKind.PUBLIC, "other-group", "설명", "thumb", 10));
+        userGroupJpaRepository.saveAndFlush(UserGroup.create(other, otherGroup, Role.MEMBER));
+
+        // when & then
+        mockMvc.perform(get("/groups/me")
+                        .param("size", "10")
+                        .sessionAttr(USER_SESSION_KEY, me.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(10)))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.nextCursor").isNumber())
+                .andExpect(jsonPath("$.items[*].name", everyItem(startsWith("my-group-"))))
+                .andExpect(jsonPath("$.items[*].name", not(hasItem("other-group"))));
+    }
+
+    @Test
+    @DisplayName("내 그룹 조회 시 PUBLIC과 PRIVATE 그룹이 모두 반환된다")
+    void 내_그룹_조회_시_PUBLIC과_PRIVATE_그룹이_모두_반환된다() throws Exception {
+        // given
+        User me = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-my-groups-kind")
+                        .nickname("상윤")
+                        .email("my-groups-kind@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group publicGroup = groupJpaRepository.saveAndFlush(
+                Group.create(GroupKind.PUBLIC, "public-my-group", "설명", "thumb", 10)
+        );
+        Group privateGroup = groupJpaRepository.saveAndFlush(
+                Group.create(GroupKind.PRIVATE, "private-my-group", "설명", "thumb", 10)
+        );
+        userGroupJpaRepository.saveAndFlush(UserGroup.create(me, publicGroup, Role.MEMBER));
+        userGroupJpaRepository.saveAndFlush(UserGroup.create(me, privateGroup, Role.MEMBER));
+
+        // when
+        String json = mockMvc.perform(get("/groups/me")
+                        .param("size", "10")
+                        .sessionAttr(USER_SESSION_KEY, me.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andExpect(jsonPath("$.items[*].name", containsInAnyOrder("public-my-group", "private-my-group")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // then
+        GroupCursorResponseDto response = objectMapper.readValue(json, GroupCursorResponseDto.class);
+        List<Long> ids = response.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
+        List<Group> groups = groupJpaRepository.findAllById(ids);
+
+        assertThat(groups).extracting(Group::getGroupKind)
+                .containsExactlyInAnyOrder(GroupKind.PUBLIC, GroupKind.PRIVATE);
+    }
+
+    @Test
+    @DisplayName("내 그룹 목록 다음 페이지는 cursor 기준으로 중복 없이 이어진다")
+    void 내_그룹_목록_다음_페이지는_cursor_기준으로_중복_없이_이어진다() throws Exception {
+        // given
+        User me = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-my-groups-next")
+                        .nickname("상윤")
+                        .email("my-groups-next@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        for (int i = 1; i <= 12; i++) {
+            Group group = groupJpaRepository.saveAndFlush(Group.create(GroupKind.PUBLIC, "my-next-" + i, "설명", "thumb", 10));
+            userGroupJpaRepository.saveAndFlush(UserGroup.create(me, group, Role.MEMBER));
+        }
+
+        // when
+        String firstJson = mockMvc.perform(get("/groups/me")
+                        .param("size", "5")
+                        .sessionAttr(USER_SESSION_KEY, me.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(5)))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        GroupCursorResponseDto first = objectMapper.readValue(firstJson, GroupCursorResponseDto.class);
+        Long firstNextCursor = first.nextCursor();
+        List<Long> firstIds = first.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
+
+        String secondJson = mockMvc.perform(get("/groups/me")
+                        .param("cursor", String.valueOf(firstNextCursor))
+                        .param("size", "5")
+                        .sessionAttr(USER_SESSION_KEY, me.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(5)))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        GroupCursorResponseDto second = objectMapper.readValue(secondJson, GroupCursorResponseDto.class);
+        List<Long> secondIds = second.items().stream().map(GroupCursorResponseDto.GroupSummaryDto::groupId).toList();
+
+        // then
+        assertThat(secondIds).allSatisfy(id -> assertThat(id).isLessThan(firstNextCursor));
+        assertThat(secondIds).doesNotContainAnyElementsOf(firstIds);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 내 그룹 목록을 조회하면 401을 반환한다")
+    void 비로그인_사용자가_내_그룹_목록을_조회하면_401을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("로그인한 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
     void 로그인한_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
         // given
@@ -244,6 +392,17 @@ public class GroupIntegrationTest {
     }
 
     @Test
+    @DisplayName("키워드 길이가 20자를 초과하면 400을 반환한다")
+    void 키워드_길이가_20자를_초과하면_400을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups")
+                        .param("keyword", "aaaaaaaaaaaaaaaaaaaaa")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
+    }
+
+    @Test
     @DisplayName("비공개 그룹 상세 조회 시 멤버는 200을 반환한다")
     void 비공개_그룹_상세_조회_시_멤버는_200을_반환한다() throws Exception {
         // given
@@ -312,6 +471,158 @@ public class GroupIntegrationTest {
         // then
         assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
         assertThat(userGroupJpaRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("로그인한 멤버는 그룹을 탈퇴할 수 있다")
+    void 로그인한_멤버는_그룹을_탈퇴할_수_있다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-leave")
+                        .nickname("상윤")
+                        .email("owner-leave@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-leave")
+                        .nickname("민규")
+                        .email("member-leave@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        JoinApply approvedApply = JoinApply.create(member, savedGroup);
+        approvedApply.approve();
+        joinApplyJpaRepository.saveAndFlush(approvedApply);
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        UserGroup leftUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+
+        assertThat(leftUserGroup.getJoinStatus()).isEqualTo(JoinStatus.LEFTED);
+        assertThat(leftUserGroup.getLeftAt()).isNotNull();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(1);
+        assertThat(joinApplyJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("그룹 주인이 탈퇴를 요청하면 403을 반환한다")
+    void 그룹_주인이_탈퇴를_요청하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-cannot-leave")
+                        .nickname("상윤")
+                        .email("owner-cannot-leave@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 주인은 탈퇴할 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("이미 탈퇴한 사용자가 탈퇴를 다시 요청하면 403을 반환한다")
+    void 이미_탈퇴한_사용자가_탈퇴를_다시_요청하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-already-left")
+                        .nickname("상윤")
+                        .email("owner-already-left@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-already-left")
+                        .nickname("민규")
+                        .email("member-already-left@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("이미 탈퇴한 그룹입니다."));
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아닌 사용자가 탈퇴를 요청하면 403을 반환한다")
+    void 그룹_멤버가_아닌_사용자가_탈퇴를_요청하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-not-member-leave")
+                        .nickname("상윤")
+                        .email("owner-not-member-leave@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User outsider = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-outsider-not-member-leave")
+                        .nickname("민규")
+                        .email("outsider-not-member-leave@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
     }
 
     @Test

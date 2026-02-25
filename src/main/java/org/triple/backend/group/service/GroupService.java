@@ -26,12 +26,14 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GroupService {
 
+    private static final int KEYWORD_MAX_LENGTH = 20;
     private static final int MIN_PAGE_SIZE = 1;
     private static final int MAX_PAGE_SIZE = 10;
 
@@ -55,21 +57,13 @@ public class GroupService {
 
     @Transactional(readOnly = true)
     public GroupCursorResponseDto browsePublicGroups(final Long cursor, final int size) {
-        int pageSize = Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+        int pageSize = normalizePageSize(size);
         Pageable pageable = PageRequest.of(0, pageSize + 1);
 
         List<Group> rows = (cursor == null) ? groupJpaRepository.findPublicFirstPage(GroupKind.PUBLIC, pageable)
                 : groupJpaRepository.findPublicNextPage(GroupKind.PUBLIC, cursor, pageable);
 
-        boolean hasNext = rows.size() > pageSize;
-
-        if(hasNext) {
-            rows = rows.subList(0, pageSize);
-        }
-
-        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
-
-        return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
+        return toCursorResponse(rows, pageSize);
     }
 
     @Transactional

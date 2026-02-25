@@ -15,15 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(
-        name = "user_group",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_user_group_group_user",
-                        columnNames = {"group_id", "user_id"}
-                )
-        }
-)
+@Table(name = "user_group")
 public class UserGroup {
 
     @Id
@@ -74,5 +66,12 @@ public class UserGroup {
             throw new IllegalStateException("그룹에 가입된 사용자만 역할을 변경할 수 있습니다.");
         }
         this.role = role;
+      
+    public void leave() {
+        if(this.joinStatus != JoinStatus.JOINED) {
+            throw new IllegalStateException("가입된 그룹만 탈퇴할 수 있습니다.");
+        }
+        this.joinStatus = JoinStatus.LEFTED;
+        this.leftAt = LocalDateTime.now();
     }
 }
