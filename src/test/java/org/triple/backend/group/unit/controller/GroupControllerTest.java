@@ -21,6 +21,7 @@ import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.service.GroupService;
 import org.triple.backend.auth.session.CsrfTokenManager;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -287,7 +288,20 @@ public class GroupControllerTest extends ControllerTest {
                 GroupKind.PRIVATE,
                 "https://example.com/thumb.png",
                 2,
-                10
+                10,
+                true,
+                List.of(new GroupDetailResponseDto.RecentPhotoDto(100L, "https://example.com/review-image-1.png")),
+                List.of(new GroupDetailResponseDto.RecentTravelDto(
+                        200L,
+                        "벚꽃여행",
+                        "https://example.com/travel-thumb-1.png",
+                        "교토 벚꽃 시즌 여행",
+                        2,
+                        5,
+                        LocalDateTime.of(2026, 3, 20, 9, 0),
+                        LocalDateTime.of(2026, 3, 22, 18, 0)
+                )),
+                List.of(new GroupDetailResponseDto.RecentReviewDto(300L, "즐거운 여행이었어요", "민규"))
         );
 
         given(groupService.detail(eq(groupId), eq(1L)))
@@ -307,6 +321,18 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
                 .andExpect(jsonPath("$.currentMemberCount").value(2))
                 .andExpect(jsonPath("$.memberLimit").value(10))
+                .andExpect(jsonPath("$.isOwner").value(true))
+                .andExpect(jsonPath("$.recentPhotos.length()").value(1))
+                .andExpect(jsonPath("$.recentTravels.length()").value(1))
+                .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(200))
+                .andExpect(jsonPath("$.recentTravels[0].title").value("벚꽃여행"))
+                .andExpect(jsonPath("$.recentTravels[0].thumbnailUrl").value("https://example.com/travel-thumb-1.png"))
+                .andExpect(jsonPath("$.recentTravels[0].description").value("교토 벚꽃 시즌 여행"))
+                .andExpect(jsonPath("$.recentTravels[0].memberCount").value(2))
+                .andExpect(jsonPath("$.recentTravels[0].memberLimit").value(5))
+                .andExpect(jsonPath("$.recentTravels[0].startAt").value("2026-03-20T09:00:00"))
+                .andExpect(jsonPath("$.recentTravels[0].endAt").value("2026-03-22T18:00:00"))
+                .andExpect(jsonPath("$.recentReviews.length()").value(1))
                 .andDo(document("groups/detail",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
@@ -324,7 +350,24 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("groupKind").description("그룹 종류"),
                                 fieldWithPath("thumbNailUrl").description("그룹 썸네일 URL").optional(),
                                 fieldWithPath("currentMemberCount").description("현재 인원"),
-                                fieldWithPath("memberLimit").description("최대 인원")
+                                fieldWithPath("memberLimit").description("최대 인원"),
+                                fieldWithPath("isOwner").description("요청한 사용자의 그룹장 여부"),
+                                fieldWithPath("recentPhotos").description("최근 사진 최대 4개"),
+                                fieldWithPath("recentPhotos[].imageId").description("사진 ID"),
+                                fieldWithPath("recentPhotos[].imageUrl").description("사진 URL"),
+                                fieldWithPath("recentTravels").description("최근 여행 일정 최대 4개"),
+                                fieldWithPath("recentTravels[].travelItineraryId").description("여행 일정 ID"),
+                                fieldWithPath("recentTravels[].title").description("여행 일정 제목"),
+                                fieldWithPath("recentTravels[].thumbnailUrl").description("여행 일정 썸네일 URL").optional(),
+                                fieldWithPath("recentTravels[].description").description("여행 일정 설명").optional(),
+                                fieldWithPath("recentTravels[].memberCount").description("현재 참여 인원"),
+                                fieldWithPath("recentTravels[].memberLimit").description("최대 참여 인원"),
+                                fieldWithPath("recentTravels[].startAt").description("여행 시작 일시"),
+                                fieldWithPath("recentTravels[].endAt").description("여행 종료 일시"),
+                                fieldWithPath("recentReviews").description("최근 여행 후기 최대 4개"),
+                                fieldWithPath("recentReviews[].reviewId").description("여행 후기 ID"),
+                                fieldWithPath("recentReviews[].content").description("여행 후기 내용"),
+                                fieldWithPath("recentReviews[].writerNickname").description("작성자 닉네임")
                         )
                 ));
 
