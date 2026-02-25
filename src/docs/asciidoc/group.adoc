@@ -44,6 +44,11 @@ include::{snippets}/groups/update/path-parameters.adoc[]
 include::{snippets}/groups/update/http-request.adoc[]
 include::{snippets}/groups/update/http-response.adoc[]
 
+== 그룹 소유권 이전
+include::{snippets}/groups/owner-transfer/path-parameters.adoc[]
+include::{snippets}/groups/owner-transfer/http-request.adoc[]
+include::{snippets}/groups/owner-transfer/http-response.adoc[]
+
 
 == 그룹 가입 신청
 include::{snippets}/groups/join-apply/path-parameters.adoc[]

@@ -429,53 +429,29 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("그룹 소유자가 그룹 멤버를 추방한다.")
-    void 그룹_소유자가_그룹_멤버를_추방한다() throws Exception {
+    @DisplayName("그룹 소유권을 이전한다.")
+    void 그룹_소유권을_이전한다() throws Exception {
         // given
         Long groupId = 1L;
-        Long targetUserId = 2L;
         Long ownerId = 1L;
-
-        doNothing().when(groupService).kick(groupId, ownerId, targetUserId);
+        Long targetUserId = 2L;
+        doNothing().when(groupService).ownerTransfer(groupId, targetUserId, ownerId);
         mockCsrfValid();
 
         // when & then
-        mockMvc.perform(delete("/groups/{groupId}/users/{targetUserId}", groupId, targetUserId)
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", groupId, targetUserId)
                         .with(loginSessionAndCsrf()))
                 .andExpect(status().isOk())
-                .andDo(document("groups/kick",
+                .andDo(document("groups/owner-transfer",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         pathParameters(
-                                parameterWithName("groupId").description("멤버를 추방할 그룹 ID"),
-                                parameterWithName("targetUserId").description("추방 대상 사용자 ID")
+                                parameterWithName("groupId").description("소유권을 이전할 그룹 ID"),
+                                parameterWithName("targetUserId").description("새로운 소유자가 될 사용자 ID")
                         )
                 ));
 
-        verify(groupService, times(1)).kick(groupId, ownerId, targetUserId);
-    }
-  
-    @DisplayName("그룹 탈퇴를 수행한다.")
-    void 그룹_탈퇴를_수행한다() throws Exception {
-        // given
-        Long groupId = 1L;
-        Long userId = 1L;
-        doNothing().when(groupService).leave(groupId, userId);
-        mockCsrfValid();
-
-        // when & then
-        mockMvc.perform(delete("/groups/{groupId}/users/me", groupId)
-                        .with(loginSessionAndCsrf()))
-                .andExpect(status().isOk())
-                .andDo(document("groups/leave",
-                        preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint()),
-                        pathParameters(
-                                parameterWithName("groupId").description("탈퇴할 그룹 ID")
-                        )
-                ));
-
-        verify(groupService, times(1)).leave(groupId, userId);
+        verify(groupService, times(1)).ownerTransfer(groupId, targetUserId, ownerId);
         verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
     }
 

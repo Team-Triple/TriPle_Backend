@@ -52,6 +52,10 @@ public class GroupController {
     }
 
     @LoginRequired
+    @PatchMapping("/{groupId}/owner/{targetUserId}")
+    public void transferOwner(@PathVariable Long groupId, @PathVariable Long targetUserId, @LoginUser final Long userId) {
+        groupService.ownerTransfer(groupId, targetUserId, userId);
+
     @DeleteMapping("/{groupId}/users/{targetUserId}")
     public void kick(@PathVariable Long groupId, @PathVariable Long targetUserId, @LoginUser final Long userId) {
         groupService.kick(groupId, userId, targetUserId);

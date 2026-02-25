@@ -633,82 +633,95 @@ public class GroupServiceTest {
     }
 
     @Test
-    @DisplayName("그룹 소유자가 JOINED 멤버를 추방하면 대상은 LEFTED로 변경되고 그룹 인원이 감소한다")
-    void 그룹_소유자가_JOINED_멤버를_추방하면_대상은_LEFTED로_변경되고_그룹_인원이_감소한다() {
+    @DisplayName("그룹 소유권 이전 시 대상은 OWNER가 되고 기존 소유자는 MEMBER가 된다")
+    void 그룹_소유권_이전_시_대상은_OWNER가_되고_기존_소유자는_MEMBER가_된다() {
         // given
         User owner = userJpaRepository.save(User.builder()
-                .providerId("kakao-owner-kick")
+                .providerId("kakao-owner-transfer")
                 .nickname("상윤")
-                .email("owner-kick@test.com")
+                .email("owner-transfer@test.com")
                 .profileUrl("http://img")
                 .build());
-
-        User member = userJpaRepository.save(User.builder()
-                .providerId("kakao-member-kick")
+        User target = userJpaRepository.save(User.builder()
+                .providerId("kakao-target-transfer")
                 .nickname("민규")
-                .email("member-kick@test.com")
+                .email("target-transfer@test.com")
                 .profileUrl("http://img2")
                 .build());
 
         Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
         group.addMember(owner, Role.OWNER);
-        group.addMember(member, Role.MEMBER);
-        group.addCurrentMemberCount();
+        group.addMember(target, Role.MEMBER);
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
-        JoinApply joinApply = JoinApply.create(member, savedGroup);
-        joinApplyJpaRepository.saveAndFlush(joinApply);
-
         // when
-        groupService.kick(savedGroup.getId(), owner.getId(), member.getId());
+        groupService.ownerTransfer(savedGroup.getId(), target.getId(), owner.getId());
 
         // then
         UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), owner.getId()).orElseThrow();
-        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId()).orElseThrow();
-        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), target.getId()).orElseThrow();
 
+        assertThat(ownerUserGroup.getRole()).isEqualTo(Role.MEMBER);
+        assertThat(targetUserGroup.getRole()).isEqualTo(Role.OWNER);
         assertThat(ownerUserGroup.getJoinStatus()).isEqualTo(JoinStatus.JOINED);
-        assertThat(targetUserGroup.getJoinStatus()).isEqualTo(JoinStatus.LEFTED);
-        assertThat(targetUserGroup.getLeftAt()).isNotNull();
-        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(1);
-        assertThat(joinApplyJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId())).isEmpty();
+        assertThat(targetUserGroup.getJoinStatus()).isEqualTo(JoinStatus.JOINED);
     }
 
     @Test
-    @DisplayName("그룹 소유자가 아니면 멤버 추방 시 NOT_GROUP_OWNER 예외가 발생한다")
-    void 그룹_소유자가_아니면_멤버_추방_시_NOT_GROUP_OWNER_예외가_발생한다() {
+    @DisplayName("그룹 소유자가 자기 자신에게 소유권을 이전하면 CANNOT_OWNER_DEMOTE_SELF 예외가 발생한다")
+    void 그룹_소유자가_자기_자신에게_소유권을_이전하면_CANNOT_OWNER_DEMOTE_SELF_예외가_발생한다() {
         // given
         User owner = userJpaRepository.save(User.builder()
-                .providerId("kakao-owner-kick-auth")
+                .providerId("kakao-owner-self-transfer")
                 .nickname("상윤")
-                .email("owner-kick-auth@test.com")
+                .email("owner-self-transfer@test.com")
                 .profileUrl("http://img")
                 .build());
 
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), owner.getId(), owner.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.CANNOT_OWNER_DEMOTE_SELF);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 소유자가 아닌 사용자가 소유권 이전을 요청하면 NOT_GROUP_OWNER 예외가 발생한다")
+    void 그룹_소유자가_아닌_사용자가_소유권_이전을_요청하면_NOT_GROUP_OWNER_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-transfer-auth")
+                .nickname("상윤")
+                .email("owner-transfer-auth@test.com")
+                .profileUrl("http://img")
+                .build());
         User member = userJpaRepository.save(User.builder()
-                .providerId("kakao-member-kick-auth")
+                .providerId("kakao-member-transfer-auth")
                 .nickname("민규")
-                .email("member-kick-auth@test.com")
+                .email("member-transfer-auth@test.com")
                 .profileUrl("http://img2")
                 .build());
-
-        User other = userJpaRepository.save(User.builder()
-                .providerId("kakao-other-kick-auth")
+        User target = userJpaRepository.save(User.builder()
+                .providerId("kakao-target-transfer-auth")
                 .nickname("지원")
-                .email("other-kick-auth@test.com")
+                .email("target-transfer-auth@test.com")
                 .profileUrl("http://img3")
                 .build());
 
         Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
         group.addMember(owner, Role.OWNER);
         group.addMember(member, Role.MEMBER);
-        group.addMember(other, Role.MEMBER);
-        group.addCurrentMemberCount();
-        group.addCurrentMemberCount();
+        group.addMember(target, Role.MEMBER);
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), member.getId(), other.getId()))
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), target.getId(), member.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -717,44 +730,19 @@ public class GroupServiceTest {
     }
 
     @Test
-    @DisplayName("그룹 소유자가 자기 자신을 추방하려고 하면 CANNOT_KICK_SELF 예외가 발생한다")
-    void 그룹_소유자가_자기_자신을_추방하려고_하면_CANNOT_KICK_SELF_예외가_발생한다() {
+    @DisplayName("소유권 이전 대상이 그룹 멤버가 아니면 NOT_GROUP_MEMBER 예외가 발생한다")
+    void 소유권_이전_대상이_그룹_멤버가_아니면_NOT_GROUP_MEMBER_예외가_발생한다() {
         // given
         User owner = userJpaRepository.save(User.builder()
-                .providerId("kakao-owner-kick-self")
+                .providerId("kakao-owner-transfer-target")
                 .nickname("상윤")
-                .email("owner-kick-self@test.com")
+                .email("owner-transfer-target@test.com")
                 .profileUrl("http://img")
                 .build());
-
-        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
-        group.addMember(owner, Role.OWNER);
-        Group savedGroup = groupJpaRepository.saveAndFlush(group);
-
-        // when & then
-        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), owner.getId()))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> {
-                    BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.CANNOT_KICK_SELF);
-                });
-    }
-
-    @Test
-    @DisplayName("추방 대상이 OWNER이면 CANNOT_KICK_OWNER 예외가 발생한다")
-    void 추방_대상이_OWNER이면_CANNOT_KICK_OWNER_예외가_발생한다() {
-        // given
-        User owner = userJpaRepository.save(User.builder()
-                .providerId("kakao-owner-kick-owner")
-                .nickname("상윤")
-                .email("owner-kick-owner@test.com")
-                .profileUrl("http://img")
-                .build());
-
-        User otherOwner = userJpaRepository.save(User.builder()
-                .providerId("kakao-other-owner-kick-owner")
+        User outsider = userJpaRepository.save(User.builder()
+                .providerId("kakao-outsider-transfer-target")
                 .nickname("민규")
-                .email("other-owner-kick-owner@test.com")
+                .email("outsider-transfer-target@test.com")
                 .profileUrl("http://img2")
                 .build());
 
@@ -762,18 +750,110 @@ public class GroupServiceTest {
         group.addMember(owner, Role.OWNER);
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
-        UserGroup secondOwner = UserGroup.create(otherOwner, savedGroup, Role.OWNER);
-        userGroupJpaRepository.saveAndFlush(secondOwner);
-        savedGroup.addCurrentMemberCount();
-        groupJpaRepository.flush();
-
         // when & then
-        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), otherOwner.getId()))
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), outsider.getId(), owner.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.CANNOT_KICK_OWNER);
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
                 });
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("동일한 그룹 소유권 이전 요청이 동시에 들어오면 하나만 성공하고 나머지는 NOT_GROUP_OWNER가 발생한다")
+    void 동일한_그룹_소유권_이전_요청이_동시에_들어오면_하나만_성공하고_나머지는_NOT_GROUP_OWNER가_발생한다() throws InterruptedException {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-transfer-concurrency")
+                .nickname("상윤")
+                .email("owner-transfer-concurrency@test.com")
+                .profileUrl("http://img")
+                .build());
+        User target1 = userJpaRepository.save(User.builder()
+                .providerId("kakao-target1-transfer-concurrency")
+                .nickname("민규")
+                .email("target1-transfer-concurrency@test.com")
+                .profileUrl("http://img2")
+                .build());
+        User target2 = userJpaRepository.save(User.builder()
+                .providerId("kakao-target2-transfer-concurrency")
+                .nickname("지원")
+                .email("target2-transfer-concurrency@test.com")
+                .profileUrl("http://img3")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(target1, Role.MEMBER);
+        group.addMember(target2, Role.MEMBER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        int threadCount = 2;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch ready = new CountDownLatch(threadCount);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threadCount);
+        AtomicInteger successCount = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        Runnable transferToTarget1 = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                groupService.ownerTransfer(savedGroup.getId(), target1.getId(), owner.getId());
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        Runnable transferToTarget2 = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                groupService.ownerTransfer(savedGroup.getId(), target2.getId(), owner.getId());
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        try {
+            executorService.submit(transferToTarget1);
+            executorService.submit(transferToTarget2);
+
+            assertThat(ready.await(3, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+
+            long notGroupOwnerCount = failures.stream()
+                    .filter(BusinessException.class::isInstance)
+                    .map(BusinessException.class::cast)
+                    .filter(e -> e.getErrorCode() == GroupErrorCode.NOT_GROUP_OWNER)
+                    .count();
+
+            UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), owner.getId()).orElseThrow();
+            UserGroup target1UserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), target1.getId()).orElseThrow();
+            UserGroup target2UserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), target2.getId()).orElseThrow();
+
+            assertThat(successCount.get()).isEqualTo(1);
+            assertThat(failures).hasSize(1);
+            assertThat(notGroupOwnerCount).isEqualTo(1);
+            assertThat(ownerUserGroup.getRole()).isEqualTo(Role.MEMBER);
+            assertThat(List.of(target1UserGroup.getRole(), target2UserGroup.getRole()))
+                    .containsExactlyInAnyOrder(Role.OWNER, Role.MEMBER);
+        } finally {
+            executorService.shutdownNow();
+            joinApplyJpaRepository.deleteAllInBatch();
+            userGroupJpaRepository.deleteAllInBatch();
+            groupJpaRepository.deleteAllInBatch();
+            userJpaRepository.deleteAllInBatch();
+        }
     }
 
 }
