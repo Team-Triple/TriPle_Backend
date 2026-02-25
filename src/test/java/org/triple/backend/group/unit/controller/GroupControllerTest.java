@@ -304,6 +304,34 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("그룹 소유자가 그룹 멤버를 추방한다.")
+    void 그룹_소유자가_그룹_멤버를_추방한다() throws Exception {
+        // given
+        Long groupId = 1L;
+        Long targetUserId = 2L;
+        Long ownerId = 1L;
+
+        doNothing().when(groupService).kick(groupId, ownerId, targetUserId);
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/{targetUserId}", groupId, targetUserId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("groups/kick",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("멤버를 추방할 그룹 ID"),
+                                parameterWithName("targetUserId").description("추방 대상 사용자 ID")
+                        )
+                ));
+
+        verify(groupService, times(1)).kick(groupId, ownerId, targetUserId);
+        verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
     @DisplayName("그룹 수정 요청 본문이 유효하지 않으면 400을 반환한다.")
     void 그룹_수정_요청_본문이_유효하지_않으면_400을_반환한다() throws Exception {
         // given
