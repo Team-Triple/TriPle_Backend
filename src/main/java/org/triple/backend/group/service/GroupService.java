@@ -131,4 +131,33 @@ public class GroupService {
 
         return GroupDetailResponseDto.from(userGroups, group);
     }
+
+    @Transactional
+    public void ownerTransfer(final Long groupId, final Long targetUserId, final Long ownerId) {
+
+        if(ownerId.equals(targetUserId)) {
+            throw new BusinessException(GroupErrorCode.CANNOT_OWNER_DEMOTE_SELF);
+        }
+
+        groupJpaRepository.findByIdForUpdate(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
+        UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, ownerId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        if(ownerUserGroup.getRole() != Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
+        }
+
+        if(ownerUserGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        targetUserGroup.transferRole(Role.OWNER);
+        ownerUserGroup.transferRole(Role.MEMBER);
+    }
 }
