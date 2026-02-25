@@ -127,6 +127,41 @@ public class GroupService {
     }
 
     @Transactional
+    public void kick(final Long groupId, final Long ownerId, final Long targetUserId) {
+        if(ownerId.equals(targetUserId)) {
+            throw new BusinessException(GroupErrorCode.CANNOT_KICK_SELF);
+        }
+
+        UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, ownerId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        if(userGroup.getRole() != Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
+        }
+        if(userGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+        if(targetUserGroup.getRole() == Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.CANNOT_KICK_OWNER);
+        }
+
+        joinApplyJpaRepository.deleteByGroupIdAndUserId(groupId, targetUserId);
+
+        Group group = userGroup.getGroup();
+        targetUserGroup.leave();
+        group.decreaseCurrentMemberCount();
+
+        try {
+            groupJpaRepository.flush();
+        } catch(OptimisticLockingFailureException e) {
+            throw new BusinessException(GroupErrorCode.CONCURRENT_GROUP_UPDATE);
+        }
+    }
+
+    @Transactional
     public void leave(final Long groupId, final Long userId) {
         if (!userJpaRepository.existsById(userId)) { throw new BusinessException(UserErrorCode.USER_NOT_FOUND); }
         UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, userId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
@@ -151,7 +186,6 @@ public class GroupService {
             throw new BusinessException(GroupErrorCode.CONCURRENT_GROUP_UPDATE);
         }
     }
-  
   
     @Transactional(readOnly = true)
     public GroupCursorResponseDto myGroups(final Long cursor, final int size, final Long userId) {
