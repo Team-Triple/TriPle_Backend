@@ -8,7 +8,6 @@ import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
-import org.triple.backend.user.entity.User;
 
 import java.util.List;
 import java.util.Optional;

@@ -28,7 +28,6 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
@@ -454,6 +453,7 @@ public class GroupControllerTest extends ControllerTest {
 
         verify(groupService, times(1)).detail(groupId, null);
     }
+
 
     @Test
     @DisplayName("그룹을 삭제합니다.")

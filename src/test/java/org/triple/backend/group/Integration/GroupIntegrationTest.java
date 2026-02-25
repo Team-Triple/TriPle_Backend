@@ -469,6 +469,15 @@ public class GroupIntegrationTest {
                         .build()
         );
 
+        User outsider = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-outsider-private-detail")
+                        .nickname("민규")
+                        .email("outsider-private-detail@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
         Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "https://example.com/thumb.png", 10);
         group.addMember(owner, Role.OWNER);
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
