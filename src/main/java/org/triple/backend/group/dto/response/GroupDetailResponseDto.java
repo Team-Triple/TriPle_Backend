@@ -17,9 +17,9 @@ public record GroupDetailResponseDto(
         int currentMemberCount,
         int memberLimit,
         Boolean isOwner,
-        List<RecentPhotoDto> photos,
-        List<RecentTravelDto> travels,
-        List<RecentReviewDto> reviews
+        List<RecentPhotoDto> recentPhotos,
+        List<RecentTravelDto> recentTravels,
+        List<RecentReviewDto> recentReviews
 ) {
 
     public record UserDto(
