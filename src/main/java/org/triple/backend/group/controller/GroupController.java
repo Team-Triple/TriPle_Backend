@@ -48,4 +48,10 @@ public class GroupController {
     public GroupDetailResponseDto detail(@PathVariable Long groupId, @LoginUser final Long userId) {
         return groupService.detail(groupId, userId);
     }
+
+    @LoginRequired
+    @DeleteMapping("/{groupId}/users/me")
+    public void leave(@PathVariable Long groupId, @LoginUser final Long userId) {
+        groupService.leave(groupId, userId);
+    }
 }
