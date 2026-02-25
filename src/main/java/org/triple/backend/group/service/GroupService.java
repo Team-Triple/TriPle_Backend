@@ -138,7 +138,7 @@ public class GroupService {
             throw new BusinessException(GroupErrorCode.CANNOT_KICK_SELF);
         }
 
-        UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, ownerId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, ownerId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_JOINED_MEMBER));
         if(userGroup.getRole() != Role.OWNER) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
         }
