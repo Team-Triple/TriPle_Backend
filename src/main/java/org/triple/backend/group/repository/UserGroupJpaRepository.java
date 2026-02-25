@@ -21,7 +21,7 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
 
     boolean existsByGroupIdAndUserIdAndJoinStatus(Long groupId, Long userId, JoinStatus joinStatus);
 
-    @Query("SELECT ug FROM UserGroup ug join fetch ug.group WHERE ug.group.id = :groupId AND ug.user.id = :userId")
+    @Query("SELECT ug FROM UserGroup ug WHERE ug.group.id = :groupId AND ug.user.id = :userId")
     Optional<UserGroup> findByGroupIdAndUserId(Long groupId, Long userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
