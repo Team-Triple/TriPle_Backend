@@ -46,14 +46,13 @@ public class TravelItineraryController {
     }
 
     @LoginRequired
-    @GetMapping
+    @GetMapping("/{groupId}")
     public TravelItineraryCursorResponseDto browseTravels(
-            @RequestParam Long groupId,
+            @PathVariable Long groupId,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "10") int size,
             @LoginUser Long userId
     ) {
         return travelItineraryService.browseTravels(groupId, cursor, size, userId);
     }
-
 }
