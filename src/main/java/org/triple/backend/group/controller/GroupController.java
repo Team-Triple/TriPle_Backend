@@ -52,6 +52,12 @@ public class GroupController {
     }
 
     @LoginRequired
+    @DeleteMapping("/{groupId}/users/{targetUserId}")
+    public void kick(@PathVariable Long groupId, @PathVariable Long targetUserId, @LoginUser final Long userId) {
+        groupService.kick(groupId, userId, targetUserId);
+    }
+
+    @LoginRequired
     @DeleteMapping("/{groupId}/users/me")
     public void leave(@PathVariable Long groupId, @LoginUser final Long userId) {
         groupService.leave(groupId, userId);
