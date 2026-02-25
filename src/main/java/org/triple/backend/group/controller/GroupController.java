@@ -50,4 +50,10 @@ public class GroupController {
     public GroupDetailResponseDto detail(@PathVariable Long groupId, @LoginUser final Long userId) {
         return groupService.detail(groupId, userId);
     }
+
+    @LoginRequired
+    @GetMapping("/me")
+    public GroupCursorResponseDto myGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size, @LoginUser final Long userId) {
+        return groupService.myGroups(cursor, size, userId);
+    }
 }

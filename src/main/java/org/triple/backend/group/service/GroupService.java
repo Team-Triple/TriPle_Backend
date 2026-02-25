@@ -57,21 +57,13 @@ public class GroupService {
 
     @Transactional(readOnly = true)
     public GroupCursorResponseDto browsePublicGroups(final Long cursor, final int size) {
-        int pageSize = Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+        int pageSize = normalizePageSize(size);
         Pageable pageable = PageRequest.of(0, pageSize + 1);
 
         List<Group> rows = (cursor == null) ? groupJpaRepository.findPublicFirstPage(GroupKind.PUBLIC, pageable)
                 : groupJpaRepository.findPublicNextPage(GroupKind.PUBLIC, cursor, pageable);
 
-        boolean hasNext = rows.size() > pageSize;
-
-        if(hasNext) {
-            rows = rows.subList(0, pageSize);
-        }
-
-        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
-
-        return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
+        return toCursorResponse(rows, pageSize);
     }
 
     @Transactional
@@ -132,6 +124,35 @@ public class GroupService {
         List<UserGroup> userGroups = userGroupJpaRepository.findAllByGroupIdAndJoinStatus(groupId, JoinStatus.JOINED);
 
         return GroupDetailResponseDto.from(userGroups, group);
+    }
+
+    @Transactional(readOnly = true)
+    public GroupCursorResponseDto myGroups(final Long cursor, final int size, final Long userId) {
+        if(!userJpaRepository.existsById(userId)) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+
+        int pageSize = normalizePageSize(size);
+        Pageable pageRequest = PageRequest.of(0, pageSize + 1);
+
+        List<Group> rows = cursor == null ? userGroupJpaRepository.findMyGroupsFirstPage(userId, JoinStatus.JOINED, pageRequest)
+                : userGroupJpaRepository.findMyGroupsNextPage(userId, JoinStatus.JOINED, cursor, pageRequest);
+
+        return toCursorResponse(rows, pageSize);
+    }
+
+    private int normalizePageSize(int size) {
+        return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+    }
+
+    private GroupCursorResponseDto toCursorResponse(List<Group> rows, int pageSize) {
+        boolean hasNext = rows.size() > pageSize;
+        if(hasNext) {
+            rows = rows.subList(0, pageSize);
+        }
+
+        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
+        return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
     }
 
     @Transactional(readOnly = true)
