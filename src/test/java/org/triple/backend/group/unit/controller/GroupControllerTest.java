@@ -472,6 +472,58 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("그룹 소유자는 멤버를 추방할 수 있다.")
+    void 그룹_소유자는_멤버를_추방할_수_있다() throws Exception {
+        // given
+        Long groupId = 1L;
+        Long ownerId = 1L;
+        Long targetUserId = 2L;
+        doNothing().when(groupService).kick(groupId, ownerId, targetUserId);
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/{targetUserId}", groupId, targetUserId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("groups/kick",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("멤버를 추방할 그룹 ID"),
+                                parameterWithName("targetUserId").description("추방할 사용자 ID")
+                        )
+                ));
+
+        verify(groupService, times(1)).kick(groupId, ownerId, targetUserId);
+        verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
+    @DisplayName("로그인한 멤버는 그룹을 탈퇴할 수 있다.")
+    void 로그인한_멤버는_그룹을_탈퇴할_수_있다() throws Exception {
+        // given
+        Long groupId = 1L;
+        Long userId = 1L;
+        doNothing().when(groupService).leave(groupId, userId);
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("groups/leave",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("탈퇴할 그룹 ID")
+                        )
+                ));
+
+        verify(groupService, times(1)).leave(groupId, userId);
+        verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
     @DisplayName("그룹 소유권을 이전한다.")
     void 그룹_소유권을_이전한다() throws Exception {
         // given
