@@ -10,7 +10,7 @@ public enum GroupErrorCode implements ErrorCode {
     CONCURRENT_GROUP_UPDATE(HttpStatus.CONFLICT, "동시에 그룹 정보가 변경되었습니다. 다시 시도해주세요."),
     EXCEEDED_JOIN_NUMBER(HttpStatus.CONFLICT, "그룹 정원이 가득 찼습니다."),
     NOT_GROUP_MEMBER(HttpStatus.FORBIDDEN, "해당 그룹을 조회할 권한이 없습니다."),
-    CANNOT_OWNER_DEMOTE_SELF(HttpStatus.FORBIDDEN, "그룹 주인은 스스로를 강등시킬 수 없습니다.");
+    CANNOT_OWNER_DEMOTE_SELF(HttpStatus.FORBIDDEN, "그룹 주인은 스스로를 강등시킬 수 없습니다."),
     NOT_JOINED_MEMBER(HttpStatus.FORBIDDEN, "그룹 멤버가 아니거나 유효한 가입 상태가 아닙니다."),
     CANNOT_KICK_OWNER(HttpStatus.FORBIDDEN, "그룹 주인은 추방할 수 없습니다."),
     CANNOT_KICK_SELF(HttpStatus.FORBIDDEN, "자기 자신은 추방할 수 없습니다."),
