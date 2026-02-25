@@ -11,9 +11,12 @@ import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
+import org.triple.backend.group.entity.joinApply.JoinApply;
+import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.repository.GroupJpaRepository;
+import org.triple.backend.group.repository.JoinApplyJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.user.entity.User;
@@ -51,6 +54,9 @@ public class GroupIntegrationTest {
 
     @Autowired
     private UserGroupJpaRepository userGroupJpaRepository;
+
+    @Autowired
+    private JoinApplyJpaRepository joinApplyJpaRepository;
 
     @Autowired
     private DbCleaner dbCleaner;
@@ -466,6 +472,158 @@ public class GroupIntegrationTest {
         // then
         assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
         assertThat(userGroupJpaRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("로그인한 멤버는 그룹을 탈퇴할 수 있다")
+    void 로그인한_멤버는_그룹을_탈퇴할_수_있다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-leave")
+                        .nickname("상윤")
+                        .email("owner-leave@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-leave")
+                        .nickname("민규")
+                        .email("member-leave@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        JoinApply approvedApply = JoinApply.create(member, savedGroup);
+        approvedApply.approve();
+        joinApplyJpaRepository.saveAndFlush(approvedApply);
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        UserGroup leftUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+
+        assertThat(leftUserGroup.getJoinStatus()).isEqualTo(JoinStatus.LEFTED);
+        assertThat(leftUserGroup.getLeftAt()).isNotNull();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(1);
+        assertThat(joinApplyJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("그룹 주인이 탈퇴를 요청하면 403을 반환한다")
+    void 그룹_주인이_탈퇴를_요청하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-cannot-leave")
+                        .nickname("상윤")
+                        .email("owner-cannot-leave@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 주인은 탈퇴할 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("이미 탈퇴한 사용자가 탈퇴를 다시 요청하면 403을 반환한다")
+    void 이미_탈퇴한_사용자가_탈퇴를_다시_요청하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-already-left")
+                        .nickname("상윤")
+                        .email("owner-already-left@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-already-left")
+                        .nickname("민규")
+                        .email("member-already-left@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("이미 탈퇴한 그룹입니다."));
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아닌 사용자가 탈퇴를 요청하면 403을 반환한다")
+    void 그룹_멤버가_아닌_사용자가_탈퇴를_요청하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-not-member-leave")
+                        .nickname("상윤")
+                        .email("owner-not-member-leave@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User outsider = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-outsider-not-member-leave")
+                        .nickname("민규")
+                        .email("outsider-not-member-leave@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
     }
 
     @Test

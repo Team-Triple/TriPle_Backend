@@ -18,4 +18,6 @@ public interface JoinApplyJpaRepository extends JpaRepository<JoinApply, Long> {
 
     @Query("SELECT ja FROM JoinApply ja JOIN FETCH ja.user WHERE ja.id = :id AND ja.group.id = :groupId AND ja.joinApplyStatus = :status")
     Optional<JoinApply> findByIdAndGroupIdAndJoinApplyStatus(Long id, Long groupId, JoinApplyStatus status);
+
+    void deleteByGroupIdAndUserId(Long groupId, Long userId);
 }

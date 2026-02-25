@@ -60,4 +60,12 @@ public class UserGroup {
         this.joinedAt = LocalDateTime.now();
         this.leftAt = null;
     }
+
+    public void leave() {
+        if(this.joinStatus != JoinStatus.JOINED) {
+            throw new IllegalStateException("가입된 그룹만 탈퇴할 수 있습니다.");
+        }
+        this.joinStatus = JoinStatus.LEFTED;
+        this.leftAt = LocalDateTime.now();
+    }
 }

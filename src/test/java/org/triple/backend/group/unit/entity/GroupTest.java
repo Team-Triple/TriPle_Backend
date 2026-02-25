@@ -95,7 +95,7 @@ public class GroupTest {
         // when & then
         assertThatThrownBy(group::addCurrentMemberCount)
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("현재 가입 멤버");
+                .hasMessageContaining("가입 멤버 수가 범위를 벗어났습니다.");
     }
 
     @Test

@@ -429,6 +429,31 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("그룹 탈퇴를 수행한다.")
+    void 그룹_탈퇴를_수행한다() throws Exception {
+        // given
+        Long groupId = 1L;
+        Long userId = 1L;
+        doNothing().when(groupService).leave(groupId, userId);
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}/users/me", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("groups/leave",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("탈퇴할 그룹 ID")
+                        )
+                ));
+
+        verify(groupService, times(1)).leave(groupId, userId);
+        verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
     @DisplayName("그룹 수정 요청 본문이 유효하지 않으면 400을 반환한다.")
     void 그룹_수정_요청_본문이_유효하지_않으면_400을_반환한다() throws Exception {
         // given

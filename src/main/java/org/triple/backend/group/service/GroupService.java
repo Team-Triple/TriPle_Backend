@@ -126,6 +126,33 @@ public class GroupService {
         return GroupDetailResponseDto.from(userGroups, group);
     }
 
+    @Transactional
+    public void leave(final Long groupId, final Long userId) {
+        if (!userJpaRepository.existsById(userId)) { throw new BusinessException(UserErrorCode.USER_NOT_FOUND); }
+        UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, userId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        if(userGroup.getRole() == Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.GROUP_OWNER_NOT_LEAVE);
+        }
+
+        if(userGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.ALREADY_LEAVE_GROUP);
+        }
+
+        joinApplyJpaRepository.deleteByGroupIdAndUserId(groupId, userId);
+
+        Group group = userGroup.getGroup();
+        userGroup.leave();
+        group.decreaseCurrentMemberCount();
+
+        try {
+            groupJpaRepository.flush();
+        } catch(OptimisticLockingFailureException e) {
+            throw new BusinessException(GroupErrorCode.CONCURRENT_GROUP_UPDATE);
+        }
+    }
+  
+  
     @Transactional(readOnly = true)
     public GroupCursorResponseDto myGroups(final Long cursor, final int size, final Long userId) {
         if(!userJpaRepository.existsById(userId)) {
