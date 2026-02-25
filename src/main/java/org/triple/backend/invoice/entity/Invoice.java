@@ -1,6 +1,10 @@
 package org.triple.backend.invoice.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.payment.entity.Payment;
@@ -13,6 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Getter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class Invoice extends BaseEntity {
 
     @Id
@@ -45,4 +53,27 @@ public class Invoice extends BaseEntity {
     private BigDecimal totalAmount;
 
     private LocalDateTime dueAt;
+
+    private String description;
+
+    public static Invoice create(
+            final String title,
+            final String description,
+            final BigDecimal totalAmount,
+            final LocalDateTime dueAt,
+            final User creator,
+            final TravelItinerary travelItinerary,
+            final Group group
+    ) {
+        return Invoice.builder()
+                .title(title)
+                .description(description)
+                .totalAmount(totalAmount)
+                .dueAt(dueAt)
+                .group(group)
+                .invoiceStatus(InvoiceStatus.UNCONFIRM)
+                .creator(creator)
+                .travelItinerary(travelItinerary)
+                .build();
+    }
 }
