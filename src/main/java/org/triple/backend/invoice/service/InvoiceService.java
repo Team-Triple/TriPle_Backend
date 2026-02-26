@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
-import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
@@ -19,8 +18,11 @@ import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.travel.entity.TravelItinerary;
+import org.triple.backend.travel.entity.UserRole;
+import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
+import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
@@ -40,6 +42,7 @@ public class InvoiceService {
     private final InvoiceJpaRepository invoiceRepository;
     private final GroupJpaRepository groupJpaRepository;
     private final TravelItineraryJpaRepository travelItineraryJpaRepository;
+    private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
     private final UserJpaRepository userJpaRepository;
@@ -49,13 +52,22 @@ public class InvoiceService {
         validateTotalAmount(dto.recipients(), dto.totalAmount());
 
         Group group = groupJpaRepository.findById(dto.groupId()).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
         TravelItinerary travelItinerary = travelItineraryJpaRepository.findByIdAndGroupIdAndIsDeletedFalseForUpdate(dto.travelItineraryId(), dto.groupId()).orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
-        User owner = userGroupJpaRepository.findByGroupIdAndUserIdAndRoleAndJoinStatus(dto.groupId(), userId, Role.OWNER, JoinStatus.JOINED).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_OWNER)).getUser();
+
+        UserTravelItinerary creatorTravelMembership = userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(userId, travelItinerary.getId())
+                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
+
+        if (!creatorTravelMembership.getUserRole().equals(UserRole.LEADER)) {
+            throw new BusinessException(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+        }
+
+        User creator = creatorTravelMembership.getUser();
 
         Map<Long, RecipientAmountDto> recipientByUserId = toRecipientMap(dto.recipients());
         Map<Long, User> userById = loadRecipientUsersOrThrow(dto.groupId(), recipientByUserId);
 
-        Invoice savedInvoice = saveInvoiceOrThrow(dto, owner, travelItinerary, group);
+        Invoice savedInvoice = saveInvoiceOrThrow(dto, creator, travelItinerary, group);
         List<InvoiceUser> invoiceUsers = createInvoiceUsers(savedInvoice, recipientByUserId, userById);
         saveInvoiceUsersOrThrow(invoiceUsers);
 
