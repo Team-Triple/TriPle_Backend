@@ -1,9 +1,11 @@
 package org.triple.backend.travel.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 import org.triple.backend.user.entity.User;
 
 @Entity
+@Getter
 public class TravelReviewImage {
 
     @Id
