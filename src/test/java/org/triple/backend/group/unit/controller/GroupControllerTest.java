@@ -17,6 +17,7 @@ import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupDetailResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.GroupKind;
+import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.service.GroupService;
 import org.triple.backend.auth.session.CsrfTokenManager;
