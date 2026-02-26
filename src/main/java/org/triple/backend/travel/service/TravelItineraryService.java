@@ -94,4 +94,24 @@ public class TravelItineraryService {
             throw new BusinessException(TravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_DELETE);
         }
     }
+
+    @Transactional
+    public void leaveTravel(final Long travelItineraryId, final Long userId) {
+        travelItineraryJpaRepository.findByIdAndIsDeletedFalse(travelItineraryId)
+                .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
+
+        UserTravelItinerary userTravelItinerary = userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(userId, travelItineraryId)
+                .orElseThrow(() -> new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
+
+        if (userTravelItinerary.getUserRole().equals(UserRole.LEADER)) {
+            throw new BusinessException(UserTravelItineraryErrorCode.LEAVE_UNAUTHORIZED);
+        }
+
+        try {
+            userTravelItineraryJpaRepository.delete(userTravelItinerary);
+            userTravelItineraryJpaRepository.flush();
+        } catch (OptimisticLockingFailureException e) {
+            throw new BusinessException(UserTravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_LEAVE);
+        }
+    }
 }
