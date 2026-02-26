@@ -19,7 +19,8 @@ class FileJpaRepositoryTest {
     @DisplayName("파일 엔티티를 저장할 수 있다.")
     void 파일_엔티티_저장() {
         // given
-        File file = File.of(1L, "uploads/uploaded/1/test.jpg");
+        String uploadedUrl = "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg";
+        File file = File.of(1L, uploadedUrl);
 
         // when
         File savedFile = fileJpaRepository.save(file);
@@ -27,7 +28,7 @@ class FileJpaRepositoryTest {
 
         // then
         assertThat(foundedFile)
-                .extracting(File::getId,File::getKey,File::getOwnerId)
-                        .containsExactly(savedFile.getId(), "uploads/uploaded/1/test.jpg", 1L);
+                .extracting(File::getId,File::getUploadedUrl,File::getOwnerId)
+                        .containsExactly(savedFile.getId(), uploadedUrl, 1L);
     }
 }

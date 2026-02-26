@@ -23,39 +23,36 @@ public class File extends BaseEntity {
 
     private Long ownerId;
 
-    @Column(name = "file_key")
-    private String key;
+    @Column(name = "uploaded_url")
+    private String uploadedUrl;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private File(
-            Long ownerId,
-            String key
-    ) {
+    private File(Long ownerId, String uploadedUrl) {
         this.ownerId = validateOwnerId(ownerId);
-        this.key = validateKey(key);
+        this.uploadedUrl = validateUploadedUrl(uploadedUrl);
     }
 
     private static Long validateOwnerId(final Long ownerId) {
         if (ownerId == null || ownerId <= 0) {
-            throw new IllegalArgumentException("ownerId는 0보다 커야 합니다.");
+            throw new IllegalArgumentException("ownerId must be greater than 0.");
         }
         return ownerId;
     }
 
-    private static String validateKey(final String key) {
-        if (key == null || key.isBlank()) {
-            throw new IllegalArgumentException("key는 null이거나 공백일 수 없습니다.");
+    private static String validateUploadedUrl(final String uploadedUrl) {
+        if (uploadedUrl == null || uploadedUrl.isBlank()) {
+            throw new IllegalArgumentException("uploadedUrl must not be null or blank.");
         }
-        if (key.length() > 255) {
-            throw new IllegalArgumentException("key 길이는 255자를 초과할 수 없습니다.");
+        if (uploadedUrl.length() > 255) {
+            throw new IllegalArgumentException("uploadedUrl length must be 255 or less.");
         }
-        return key;
+        return uploadedUrl;
     }
 
-    public static File of(Long userId, String uploadedKey) {
+    public static File of(Long userId, String uploadedUrl) {
         return File.builder()
                 .ownerId(userId)
-                .key(uploadedKey)
+                .uploadedUrl(uploadedUrl)
                 .build();
     }
 }

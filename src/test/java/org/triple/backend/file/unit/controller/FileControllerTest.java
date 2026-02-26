@@ -13,9 +13,9 @@ import org.triple.backend.file.controller.FileController;
 import org.triple.backend.file.dto.request.PresignedUrlRequestDtos;
 import org.triple.backend.file.dto.request.UploadedKeysRequestDto;
 import org.triple.backend.file.dto.response.FileUploadCompleteResponsesDto;
-import org.triple.backend.file.dto.response.PresignedUrlResponseDto;
 import org.triple.backend.file.dto.response.PresignedUrlResponsesDto;
-import org.triple.backend.file.dto.response.UploadResult;
+import org.triple.backend.file.dto.response.PresignedUrlSuccessDto;
+import org.triple.backend.file.dto.response.UploadSuccess;
 import org.triple.backend.file.service.FileServiceFacade;
 
 import java.time.Instant;
@@ -31,6 +31,9 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
+import static org.springframework.restdocs.payload.JsonFieldType.ARRAY;
+import static org.springframework.restdocs.payload.JsonFieldType.NUMBER;
+import static org.springframework.restdocs.payload.JsonFieldType.STRING;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
@@ -51,19 +54,15 @@ class FileControllerTest extends ControllerTest {
     private CsrfTokenManager csrfTokenManager;
 
     @Test
-    @DisplayName("업로드 Presigned URL 발급 요청 시 발급 결과 목록을 반환한다.")
-    void 업로드_Presigned_URL_발급_요청_시_발급_결과_목록을_반환한다() throws Exception {
-        // given
+    @DisplayName("upload presigned urls returns list")
+    void issuePutPresignedUrls() throws Exception {
         PresignedUrlResponsesDto response = new PresignedUrlResponsesDto(
-                List.of(new PresignedUrlResponseDto(
+                List.of(new PresignedUrlSuccessDto(
                         "test.jpg",
                         "image/jpeg",
                         "uploads/pending/1/test.jpg",
                         "https://example.com/upload",
-                        Instant.parse("2030-01-01T00:00:00Z"),
-                        true,
-                        null,
-                        null
+                        Instant.parse("2030-01-01T00:00:00Z")
                 ))
         );
 
@@ -82,35 +81,32 @@ class FileControllerTest extends ControllerTest {
                 }
                 """;
 
-        // when & then
         mockMvc.perform(post("/files/upload-presign")
                         .with(loginSessionAndCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.presignedUrlResponseDtos[0].fileName").value("test.jpg"))
-                .andExpect(jsonPath("$.presignedUrlResponseDtos[0].mimeType").value("image/jpeg"))
-                .andExpect(jsonPath("$.presignedUrlResponseDtos[0].key").value("uploads/pending/1/test.jpg"))
-                .andExpect(jsonPath("$.presignedUrlResponseDtos[0].presignedUrl").value("https://example.com/upload"))
-                .andExpect(jsonPath("$.presignedUrlResponseDtos[0].success").value(true))
+                .andExpect(jsonPath("$.presignedUrlResponses[0].fileName").value("test.jpg"))
+                .andExpect(jsonPath("$.presignedUrlResponses[0].mimeType").value("image/jpeg"))
+                .andExpect(jsonPath("$.presignedUrlResponses[0].key").value("uploads/pending/1/test.jpg"))
+                .andExpect(jsonPath("$.presignedUrlResponses[0].presignedUrl").value("https://example.com/upload"))
                 .andDo(document("files/upload-presign",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         requestFields(
-                                fieldWithPath("presignedUrlRequestDtos").description("presign issue request list"),
-                                fieldWithPath("presignedUrlRequestDtos[].fileName").description("original file name"),
-                                fieldWithPath("presignedUrlRequestDtos[].mimeType").description("mime type")
+                                fieldWithPath("presignedUrlRequestDtos").type(ARRAY).description("presign issue request list"),
+                                fieldWithPath("presignedUrlRequestDtos[].fileName").type(STRING).description("original file name"),
+                                fieldWithPath("presignedUrlRequestDtos[].mimeType").type(STRING).description("mime type")
                         ),
                         responseFields(
-                                fieldWithPath("presignedUrlResponseDtos").description("presign issue response list"),
-                                fieldWithPath("presignedUrlResponseDtos[].fileName").description("original file name"),
-                                fieldWithPath("presignedUrlResponseDtos[].mimeType").description("mime type"),
-                                fieldWithPath("presignedUrlResponseDtos[].key").description("upload target key").optional(),
-                                fieldWithPath("presignedUrlResponseDtos[].presignedUrl").description("S3 PUT presigned URL").optional(),
-                                fieldWithPath("presignedUrlResponseDtos[].expiresAt").description("presigned URL expires at").optional(),
-                                fieldWithPath("presignedUrlResponseDtos[].success").description("success flag"),
-                                fieldWithPath("presignedUrlResponseDtos[].errorCode").description("error code").optional(),
-                                fieldWithPath("presignedUrlResponseDtos[].message").description("error message").optional()
+                                fieldWithPath("presignedUrlResponses").type(ARRAY).description("presign issue response list"),
+                                fieldWithPath("presignedUrlResponses[].fileName").type(STRING).description("original file name"),
+                                fieldWithPath("presignedUrlResponses[].mimeType").type(STRING).description("mime type"),
+                                fieldWithPath("presignedUrlResponses[].key").type(STRING).description("upload target key").optional(),
+                                fieldWithPath("presignedUrlResponses[].presignedUrl").type(STRING).description("S3 PUT presigned URL").optional(),
+                                fieldWithPath("presignedUrlResponses[].expiresAt").type(STRING).description("presigned URL expires at").optional(),
+                                fieldWithPath("presignedUrlResponses[].errorCode").type(NUMBER).description("error code").optional(),
+                                fieldWithPath("presignedUrlResponses[].message").type(STRING).description("error message").optional()
                         )
                 ));
 
@@ -119,11 +115,10 @@ class FileControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("업로드 완료 요청 시 키별 완료 결과 목록을 반환한다.")
-    void 업로드_완료_요청_시_키별_완료_결과_목록을_반환한다() throws Exception {
-        // given
+    @DisplayName("complete upload returns per-key result")
+    void completeUpload() throws Exception {
         FileUploadCompleteResponsesDto response = new FileUploadCompleteResponsesDto(
-                List.of(UploadResult.success(
+                List.of(new UploadSuccess(
                         "uploads/pending/1/test.jpg",
                         "uploads/uploaded/1/test.jpg",
                         "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg"
@@ -142,7 +137,6 @@ class FileControllerTest extends ControllerTest {
                 }
                 """;
 
-        // when & then
         mockMvc.perform(post("/files/upload-complete")
                         .with(loginSessionAndCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -151,21 +145,19 @@ class FileControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.uploadResults[0].pendingKey").value("uploads/pending/1/test.jpg"))
                 .andExpect(jsonPath("$.uploadResults[0].uploadedKey").value("uploads/uploaded/1/test.jpg"))
                 .andExpect(jsonPath("$.uploadResults[0].uploadedUrl").value("https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg"))
-                .andExpect(jsonPath("$.uploadResults[0].success").value(true))
                 .andDo(document("files/upload-complete",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         requestFields(
-                                fieldWithPath("keys").description("업로드 완료 처리할 pending key 목록")
+                                fieldWithPath("keys").type(ARRAY).description("pending key list")
                         ),
                         responseFields(
-                                fieldWithPath("uploadResults").description("upload completion result list"),
-                                fieldWithPath("uploadResults[].pendingKey").description("requested pending key"),
-                                fieldWithPath("uploadResults[].uploadedKey").description("uploaded key").optional(),
-                                fieldWithPath("uploadResults[].uploadedUrl").description("public URL for uploaded key").optional(),
-                                fieldWithPath("uploadResults[].success").description("success flag"),
-                                fieldWithPath("uploadResults[].httpStatus").description("failed HTTP status").optional(),
-                                fieldWithPath("uploadResults[].message").description("failed message").optional()
+                                fieldWithPath("uploadResults").type(ARRAY).description("upload completion result list"),
+                                fieldWithPath("uploadResults[].pendingKey").type(STRING).description("requested pending key"),
+                                fieldWithPath("uploadResults[].uploadedKey").type(STRING).description("uploaded key").optional(),
+                                fieldWithPath("uploadResults[].uploadedUrl").type(STRING).description("public URL for uploaded key").optional(),
+                                fieldWithPath("uploadResults[].httpStatus").type(STRING).description("failed HTTP status").optional(),
+                                fieldWithPath("uploadResults[].message").type(STRING).description("failed message").optional()
                         )
                 ));
 

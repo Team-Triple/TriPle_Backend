@@ -6,7 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.triple.backend.file.dto.request.PresignedUrlRequestDto;
-import org.triple.backend.file.dto.response.PresignedUrlResponseDto;
+import org.triple.backend.file.dto.response.PresignedUrlFailedDto;
+import org.triple.backend.file.dto.response.PresignedUrlResponse;
+import org.triple.backend.file.dto.response.PresignedUrlSuccessDto;
 import org.triple.backend.file.entity.File;
 import org.triple.backend.file.infra.BucketKeyPublisher;
 import org.triple.backend.file.infra.PresignedUrl;
@@ -15,11 +17,6 @@ import org.triple.backend.file.infra.exception.FinalizeUploadException;
 import org.triple.backend.file.infra.exception.InvalidKeyException;
 import org.triple.backend.file.repository.FileJpaRepository;
 
-/**
- * DB, S3Bucket 에서 발생할 수 있는 예외들을 처리
- * 디테일한 예외의 경계는 여기까지이다.
- * 모든 예외를 추상화 단계가 가장 높은 FinalizeUploadException으로 전환
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -28,17 +25,21 @@ public class FileService {
     private final BucketKeyPublisher bucketKeyPublisher;
     private final FileJpaRepository fileJpaRepository;
 
-    public PresignedUrlResponseDto issuePutPresignedUrl(PresignedUrlRequestDto requestDto, Long userId) {
-        log.debug("요청 받은 파일명={}, 파일타입={}", requestDto.fileName(), requestDto.mimeType());
+    public PresignedUrlResponse issuePutPresignedUrl(PresignedUrlRequestDto requestDto, Long userId) {
+        log.debug("request fileName={}, mimeType={}", requestDto.fileName(), requestDto.mimeType());
         try {
             s3Bucket.validateContentType(requestDto.mimeType());
             String pendingKey = bucketKeyPublisher.publishPendingKey(requestDto.fileName(), userId);
-            log.debug("pendingKey={}", pendingKey);
             PresignedUrl presignedUrl = s3Bucket.issuePresignedUrl(pendingKey, requestDto.mimeType());
-            return PresignedUrlResponseDto.success(requestDto, presignedUrl);
+            return PresignedUrlSuccessDto.of(requestDto, presignedUrl);
         } catch (RuntimeException e) {
-            log.warn("Presigned URL 발급에 실패했습니다. request={}", requestDto, e);
-            return PresignedUrlResponseDto.fail(requestDto, resolveHttpStatus(e), resolveMessage(e));
+            log.warn("failed to issue presigned url. request={}", requestDto, e);
+            return PresignedUrlFailedDto.of(
+                    requestDto.fileName(),
+                    requestDto.mimeType(),
+                    resolveHttpStatus(e),
+                    resolveMessage(e)
+            );
         }
     }
 
@@ -49,9 +50,11 @@ public class FileService {
         } catch (FinalizeUploadException e) {
             throw e;
         } catch (RuntimeException e) {
-            throw new FinalizeUploadException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "업로드 완료 검증에 실패했습니다.",
-                    e);
+            throw new FinalizeUploadException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to validate upload completion.",
+                    e
+            );
         }
     }
 
@@ -66,26 +69,30 @@ public class FileService {
         } catch (IllegalArgumentException e) {
             throw new InvalidKeyException(e.getMessage(), e);
         } catch (RuntimeException e) {
-            throw new FinalizeUploadException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "업로드 완료 처리에 실패했습니다.",
-                    e);
+            throw new FinalizeUploadException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to finalize upload.",
+                    e
+            );
         }
     }
 
     @Transactional
-    public void saveFile(String uploadedKey, Long userId) {
+    public void saveFile(String uploadedKey, String uploadedUrl, Long userId) {
         try {
-            File file = File.of(userId, uploadedKey);
+            File file = File.of(userId, uploadedUrl);
             fileJpaRepository.save(file);
             fileJpaRepository.flush();
-            log.debug("DB 저장 성공 = {}", file);
+            log.debug("saved file metadata uploadedUrl={}", uploadedUrl);
         } catch (IllegalArgumentException e) {
             throw new InvalidKeyException(e.getMessage(), e);
         } catch (RuntimeException e) {
-            deleteUploadedObject(uploadedKey, e);   //보상
-            throw new FinalizeUploadException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "파일 메타데이터 DB 저장에 실패했습니다.",
-                    e);
+            deleteUploadedObject(uploadedKey, e);
+            throw new FinalizeUploadException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to save file metadata.",
+                    e
+            );
         }
     }
 
@@ -97,7 +104,7 @@ public class FileService {
         try {
             s3Bucket.deleteObject(uploadedKey);
         } catch (RuntimeException e) {
-            log.error("DB 저장 실패 후 S3 파일 삭제에 실패했습니다. uploadedKey={}", uploadedKey, e);
+            log.error("failed to compensate uploaded object deletion. uploadedKey={}", uploadedKey, e);
             originalException.addSuppressed(e);
         }
     }
@@ -113,6 +120,6 @@ public class FileService {
     }
 
     private String resolveMessage(RuntimeException e) {
-        return e.getMessage() == null ? "요청 처리에 실패했습니다." : e.getMessage();
+        return e.getMessage() == null ? "Request processing failed." : e.getMessage();
     }
 }
