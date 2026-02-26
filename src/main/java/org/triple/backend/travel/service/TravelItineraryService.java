@@ -56,6 +56,34 @@ public class TravelItineraryService {
     }
 
     @Transactional
+    public void joinTravel(final Long travelItineraryId, final Long userId) {
+        User user = userJpaRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.findByIdAndIsDeletedFalseForUpdate(travelItineraryId)
+                .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
+
+        Long groupId = travelItinerary.getGroup().getId();
+        if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)) {
+            throw new BusinessException(TravelItineraryErrorCode.JOIN_FORBIDDEN);
+        }
+
+        if (userTravelItineraryJpaRepository.existsByUserIdAndTravelItineraryId(userId, travelItineraryId)) {
+            throw new BusinessException(UserTravelItineraryErrorCode.ALREADY_JOINED_TRAVEL);
+        }
+
+        try {
+            travelItinerary.increaseMemberCount();
+            userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.MEMBER));
+            travelItineraryJpaRepository.flush();
+        } catch (IllegalStateException e) {
+            throw new BusinessException(TravelItineraryErrorCode.TRAVEL_MEMBER_LIMIT_EXCEEDED);
+        } catch (OptimisticLockingFailureException e) {
+            throw new BusinessException(TravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_JOIN);
+        }
+    }
+
+    @Transactional
     public void updateTravel(TravelItineraryUpdateRequestDto travelItineraryUpdateRequestDto, Long travelItineraryId, Long userId) {
         TravelItinerary travelItinerary = travelItineraryJpaRepository.findByIdAndIsDeletedFalse(travelItineraryId)
                 .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
