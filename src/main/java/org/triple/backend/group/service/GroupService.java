@@ -127,9 +127,6 @@ public class GroupService {
     public GroupDetailResponseDto detail(final Long groupId, final Long userId) {
 
         Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
-        if(!userJpaRepository.existsById(userId)) {
-            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
-        }
 
         UserGroup myUserGroup = userGroupJpaRepository.findByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)
                 .orElse(null);
