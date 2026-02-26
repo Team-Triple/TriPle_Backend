@@ -451,9 +451,8 @@ public class GroupControllerTest extends ControllerTest {
                         )
                 ));
 
-        verify(groupService, times(1)).detail(groupId, null);
+        verify(groupService, times(1)).detail(groupId, 1L);
     }
-
 
     @Test
     @DisplayName("그룹을 삭제합니다.")

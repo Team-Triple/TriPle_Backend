@@ -533,6 +533,7 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.name").value("비공개모임"))
                 .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
                 .andExpect(jsonPath("$.role").value("MEMBER"))
+                .andExpect(jsonPath("$.isOwner").value(false))
                 .andExpect(jsonPath("$.users", hasSize(2)))
                 .andExpect(jsonPath("$.users[*].name", containsInAnyOrder("상윤", "민규")))
                 .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)))
@@ -647,6 +648,129 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.recentReviews[*].content", not(hasItem("삭제된 후기"))))
                 .andExpect(jsonPath("$.recentReviews[*].imageUrl", not(hasItem("https://img/other-group.png"))))
                 .andExpect(jsonPath("$.recentReviews[*].imageUrl", not(hasItem("https://img/deleted.png"))))
+                .andExpect(jsonPath("$.recentPhotos", hasSize(2)))
+                .andExpect(jsonPath("$.recentPhotos[*].imageId", containsInAnyOrder(ownerImage.getId().intValue(), memberImage.getId().intValue())))
+                .andExpect(jsonPath("$.recentPhotos[*].imageUrl", containsInAnyOrder("https://img/owner.png", "https://img/member.png")))
+                .andExpect(jsonPath("$.recentPhotos[*].imageUrl", not(hasItem("https://img/other-group.png"))))
+                .andExpect(jsonPath("$.recentPhotos[*].imageUrl", not(hasItem("https://img/deleted.png"))));
+                .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)))
+                .andExpect(jsonPath("$.recentPhotos", hasSize(0)))
+                .andExpect(jsonPath("$.recentTravels", hasSize(0)))
+                .andExpect(jsonPath("$.recentReviews", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("그룹 상세 조회 시 최근 여행/리뷰/사진 세부 항목이 함께 반환된다")
+    void 그룹_상세_조회_시_최근_여행_리뷰_사진_세부_항목이_함께_반환된다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-detail-items")
+                        .nickname("상윤")
+                        .email("owner-detail-items@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-detail-items")
+                        .nickname("민규")
+                        .email("member-detail-items@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+        User outsider = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-outsider-detail-items")
+                        .nickname("지원")
+                        .email("outsider-detail-items@test.com")
+                        .profileUrl("http://img3")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "상세모임", "상세설명", "https://example.com/detail-thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        TravelItinerary itinerary = travelItineraryJpaRepository.saveAndFlush(
+                new TravelItinerary(
+                        "봄 제주 여행",
+                        LocalDateTime.of(2026, 4, 10, 10, 0),
+                        LocalDateTime.of(2026, 4, 12, 18, 0),
+                        savedGroup,
+                        "일정 설명",
+                        "https://img/travel.png",
+                        5,
+                        1,
+                        false
+                )
+        );
+
+        Group otherGroup = Group.create(GroupKind.PUBLIC, "다른모임", "다른설명", "https://example.com/other-thumb.png", 10);
+        otherGroup.addMember(member, Role.OWNER);
+        Group savedOtherGroup = groupJpaRepository.saveAndFlush(otherGroup);
+
+        TravelItinerary otherGroupItinerary = travelItineraryJpaRepository.saveAndFlush(
+                new TravelItinerary(
+                        "부산 여행",
+                        LocalDateTime.of(2026, 5, 1, 10, 0),
+                        LocalDateTime.of(2026, 5, 2, 18, 0),
+                        savedOtherGroup,
+                        "다른 그룹 일정",
+                        "https://img/other-travel.png",
+                        6,
+                        1,
+                        false
+                )
+        );
+
+        TravelReview ownerReview = travelReviewJpaRepository.saveAndFlush(
+                createTravelReview(owner, itinerary, "오너 후기", false)
+        );
+        TravelReview memberReview = travelReviewJpaRepository.saveAndFlush(
+                createTravelReview(member, itinerary, "멤버 후기", false)
+        );
+        TravelReview memberOtherGroupReview = travelReviewJpaRepository.saveAndFlush(
+                createTravelReview(member, otherGroupItinerary, "타 그룹 후기", false)
+        );
+        TravelReview deletedReview = travelReviewJpaRepository.saveAndFlush(
+                createTravelReview(member, itinerary, "삭제된 후기", true)
+        );
+
+        TravelReviewImage ownerImage = travelReviewImageJpaRepository.saveAndFlush(
+                createTravelReviewImage(owner, ownerReview, "https://img/owner.png")
+        );
+        TravelReviewImage memberImage = travelReviewImageJpaRepository.saveAndFlush(
+                createTravelReviewImage(member, memberReview, "https://img/member.png")
+        );
+        travelReviewImageJpaRepository.saveAndFlush(
+                createTravelReviewImage(member, memberOtherGroupReview, "https://img/other-group.png")
+        );
+        travelReviewImageJpaRepository.saveAndFlush(
+                createTravelReviewImage(member, deletedReview, "https://img/deleted.png")
+        );
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recentTravels", hasSize(1)))
+                .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(itinerary.getId().intValue()))
+                .andExpect(jsonPath("$.recentTravels[0].title").value("봄 제주 여행"))
+                .andExpect(jsonPath("$.recentTravels[0].thumbnailUrl").value("https://img/travel.png"))
+                .andExpect(jsonPath("$.recentTravels[0].description").value("일정 설명"))
+                .andExpect(jsonPath("$.recentTravels[0].memberCount").value(1))
+                .andExpect(jsonPath("$.recentTravels[0].memberLimit").value(5))
+                .andExpect(jsonPath("$.recentTravels[0].startAt").value("2026-04-10T10:00:00"))
+                .andExpect(jsonPath("$.recentTravels[0].endAt").value("2026-04-12T18:00:00"))
+                .andExpect(jsonPath("$.recentReviews", hasSize(2)))
+                .andExpect(jsonPath("$.recentReviews[*].reviewId", containsInAnyOrder(ownerReview.getId().intValue(), memberReview.getId().intValue())))
+                .andExpect(jsonPath("$.recentReviews[*].content", containsInAnyOrder("오너 후기", "멤버 후기")))
+                .andExpect(jsonPath("$.recentReviews[*].writerNickname", containsInAnyOrder("상윤", "민규")))
+                .andExpect(jsonPath("$.recentReviews[*].content", not(hasItem("타 그룹 후기"))))
+                .andExpect(jsonPath("$.recentReviews[*].content", not(hasItem("삭제된 후기"))))
                 .andExpect(jsonPath("$.recentPhotos", hasSize(2)))
                 .andExpect(jsonPath("$.recentPhotos[*].imageId", containsInAnyOrder(ownerImage.getId().intValue(), memberImage.getId().intValue())))
                 .andExpect(jsonPath("$.recentPhotos[*].imageUrl", containsInAnyOrder("https://img/owner.png", "https://img/member.png")))
@@ -980,7 +1104,7 @@ public class GroupIntegrationTest {
         User target = userJpaRepository.save(
                 User.builder()
                         .providerId("kakao-target-transfer-forbidden")
-                        .nickname("지호")
+                        .nickname("지원")
                         .email("target-transfer-forbidden@test.com")
                         .profileUrl("http://img3")
                         .build()
