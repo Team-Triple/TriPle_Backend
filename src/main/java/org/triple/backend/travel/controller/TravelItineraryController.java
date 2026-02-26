@@ -34,4 +34,14 @@ public class TravelItineraryController {
     ) {
         travelItineraryService.updateTravel(travelItineraryUpdateRequestDto, travelId, userId);
     }
+
+    @LoginRequired
+    @DeleteMapping("/{travelId}")
+    public void deleteTravel(
+            @PathVariable Long travelId,
+            @LoginUser Long userId
+    ) {
+        travelItineraryService.deleteTravel(travelId, userId);
+    }
+
 }

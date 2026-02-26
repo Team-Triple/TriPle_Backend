@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class UserTravelItineraryTest {
 
     @Test
-    @DisplayName("UserTravelItinerary는 user, travelItinerary, role을 저장한다.")
+    @DisplayName("유저 여행 일정 엔티티는 유저, 여행 일정, 역할을 저장한다.")
     void 생성_성공() {
         UserTravelItinerary link = UserTravelItinerary.of(
                 new User(),
