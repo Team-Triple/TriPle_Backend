@@ -338,7 +338,7 @@ class TravelItineraryServiceTest {
         Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, 1L))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
-                .isEqualTo(UserErrorCode.USER_NOT_FOUND);
+                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
     }
 
     @Test
@@ -349,7 +349,7 @@ class TravelItineraryServiceTest {
         Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, user.getId()))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.GROUP_NOT_FOUND);
+                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
     }
 
     @Test
