@@ -193,9 +193,8 @@ class TravelIntegrationTest {
                 false
         ));
 
-        mockMvc.perform(get("/travels")
+        mockMvc.perform(get("/travels/{groupId}", group.getId())
                         .sessionAttr(USER_SESSION_KEY, user.getId())
-                        .param("groupId", String.valueOf(group.getId()))
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
