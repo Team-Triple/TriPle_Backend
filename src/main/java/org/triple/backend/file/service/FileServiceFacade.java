@@ -6,9 +6,11 @@ import org.springframework.stereotype.Service;
 import org.triple.backend.file.dto.request.PresignedUrlRequestDtos;
 import org.triple.backend.file.dto.request.UploadedKeysRequestDto;
 import org.triple.backend.file.dto.response.FileUploadCompleteResponsesDto;
-import org.triple.backend.file.dto.response.PresignedUrlResponseDto;
+import org.triple.backend.file.dto.response.PresignedUrlResponse;
 import org.triple.backend.file.dto.response.PresignedUrlResponsesDto;
+import org.triple.backend.file.dto.response.UploadFailed;
 import org.triple.backend.file.dto.response.UploadResult;
+import org.triple.backend.file.dto.response.UploadSuccess;
 import org.triple.backend.file.infra.exception.FinalizeUploadException;
 
 import java.util.List;
@@ -20,11 +22,11 @@ public class FileServiceFacade {
     private final FileService fileService;
 
     public PresignedUrlResponsesDto issuePutPresignedUrls(final PresignedUrlRequestDtos requestDtos, final Long userId) {
-        List<PresignedUrlResponseDto> presignedUrlResponseDtos = requestDtos.presignedUrlRequestDtos().stream()
+        List<PresignedUrlResponse> presignedUrlResponses = requestDtos.presignedUrlRequestDtos().stream()
                 .map(requestDto -> fileService.issuePutPresignedUrl(requestDto, userId))
                 .toList();
 
-        return new PresignedUrlResponsesDto(presignedUrlResponseDtos);
+        return new PresignedUrlResponsesDto(presignedUrlResponses);
     }
 
     public FileUploadCompleteResponsesDto completeUploads(final UploadedKeysRequestDto request, final Long userId) {
@@ -42,11 +44,11 @@ public class FileServiceFacade {
         try {
             fileService.validateFinalizeUpload(pendingKey, userId);
             String uploadedKey = fileService.finalizeUpload(pendingKey);
-            fileService.saveFile(uploadedKey, userId);
             String uploadedUrl = fileService.concatPrefix(uploadedKey);
-            return UploadResult.success(pendingKey, uploadedKey, uploadedUrl);
+            fileService.saveFile(uploadedKey, uploadedUrl, userId);
+            return new UploadSuccess(pendingKey, uploadedKey, uploadedUrl);
         } catch (FinalizeUploadException e) {
-            return UploadResult.fail(pendingKey, e.getHttpStatus(), e.getMessage());
+            return new UploadFailed(pendingKey, e.getHttpStatus(), e.getMessage());
         }
     }
 }

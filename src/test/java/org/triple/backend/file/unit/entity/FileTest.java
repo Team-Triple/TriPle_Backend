@@ -9,17 +9,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class FileTest {
     @Test
-    @DisplayName("유효한 ownerId와 key로 파일 엔티티를 생성한다.")
+    @DisplayName("유효한 ownerId와 UploadedUrl로 파일 엔티티를 생성한다.")
     void 파일_엔티티를_생성() {
         // given
         Long userId = 1L;
-        String key = "uploads/uploaded/1/test.jpg";
+        String uploadedUrl = "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg";
 
         // when
-        File file = File.of(userId, key);
+        File file = File.of(userId, uploadedUrl);
 
         // then
-        assertThat(file).extracting("ownerId", "key").containsExactly(userId, key);
+        assertThat(file).extracting("ownerId", "uploadedUrl").containsExactly(userId, uploadedUrl);
     }
 
     @Test
@@ -27,9 +27,9 @@ class FileTest {
     void ownerId_null_0_예외() {
         assertThatThrownBy(() -> File.of(null, "uploads/uploaded/1/test.jpg"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> File.of(0L, "uploads/uploaded/1/test.jpg"))
+        assertThatThrownBy(() -> File.of(0L, "https://example.com/a.jpg"))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> File.of(-1L, "uploads/uploaded/1/test.jpg"))
+        assertThatThrownBy(() -> File.of(-1L, "https://example.com/a.jpg"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -37,21 +37,21 @@ class FileTest {
     @DisplayName("key가 null 또는 공백이면 예외를 던진다.")
     void key가_null_공백_예외() {
         assertThatThrownBy(() -> File.of(1L, null))
-                .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> File.of(1L, ""))
-                .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> File.of(1L, "   "))
-                .isInstanceOf(IllegalArgumentException.class);
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @DisplayName("key 길이가 255자를 초과하면 예외를 던진다.")
     void key_길이가_예외() {
         // given
-        String tooLongKey = "a".repeat(256);
+        String tooLongUrl = "a".repeat(256);
 
         // when & then
-        assertThatThrownBy(() -> File.of(1L, tooLongKey))
+        assertThatThrownBy(() -> File.of(1L, tooLongUrl))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

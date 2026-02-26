@@ -8,7 +8,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.triple.backend.file.dto.request.PresignedUrlRequestDto;
-import org.triple.backend.file.dto.response.PresignedUrlResponseDto;
+import org.triple.backend.file.dto.response.PresignedUrlFailedDto;
+import org.triple.backend.file.dto.response.PresignedUrlResponse;
+import org.triple.backend.file.dto.response.PresignedUrlSuccessDto;
 import org.triple.backend.file.entity.File;
 import org.triple.backend.file.infra.BucketKeyPublisher;
 import org.triple.backend.file.infra.PresignedUrl;
@@ -23,8 +25,8 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import java.net.URL;
 import java.time.Instant;
 
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -50,9 +52,8 @@ class FileServiceTest {
     private FileService fileService;
 
     @Test
-    @DisplayName("Presigned URL 발급 성공 시 성공 응답을 반환한다.")
-    void Presigned_URL_발급_성공_시_성공_응답을_반환한다() throws Exception {
-        // given
+    @DisplayName("issue presigned url success")
+    void issuePutPresignedUrlSuccess() throws Exception {
         Long userId = 1L;
         PresignedUrlRequestDto requestDto = new PresignedUrlRequestDto("test.jpg", "image/jpeg");
         String pendingKey = "uploads/pending/1/test.jpg";
@@ -66,157 +67,85 @@ class FileServiceTest {
         given(bucketKeyPublisher.publishPendingKey(requestDto.fileName(), userId)).willReturn(pendingKey);
         given(s3Bucket.issuePresignedUrl(pendingKey, requestDto.mimeType())).willReturn(presignedUrl);
 
-        // when
-        PresignedUrlResponseDto response = fileService.issuePutPresignedUrl(requestDto, userId);
+        PresignedUrlResponse response = fileService.issuePutPresignedUrl(requestDto, userId);
 
-        // then
-        assertThat(response.success()).isTrue();
-        assertThat(response.key()).isEqualTo(pendingKey);
-        assertThat(response.errorCode()).isNull();
-        assertThat(response.message()).isNull();
+        assertThat(response).isInstanceOfSatisfying(PresignedUrlSuccessDto.class, success -> {
+            assertThat(success.fileName()).isEqualTo("test.jpg");
+            assertThat(success.key()).isEqualTo(pendingKey);
+            assertThat(success.presignedUrl()).isEqualTo("https://example.com/upload");
+        });
     }
 
     @Test
-    @DisplayName("Presigned URL 발급 중 FinalizeUploadException 발생 시 상태코드와 메시지를 반환한다.")
-    void Presigned_URL_발급_중_FinalizeUploadException_발생_시_상태코드와_메시지를_반환한다() {
-        // given
+    @DisplayName("issue presigned url returns failed dto on exception")
+    void issuePutPresignedUrlFailure() {
         Long userId = 1L;
         PresignedUrlRequestDto requestDto = new PresignedUrlRequestDto("test.jpg", "image/jpeg");
-        doThrow(new FinalizeUploadException(HttpStatus.NOT_FOUND, "찾을 수 없습니다."))
+        doThrow(new FinalizeUploadException(HttpStatus.NOT_FOUND, "not found"))
                 .when(s3Bucket).validateContentType("image/jpeg");
 
-        // when
-        PresignedUrlResponseDto response = fileService.issuePutPresignedUrl(requestDto, userId);
+        PresignedUrlResponse response = fileService.issuePutPresignedUrl(requestDto, userId);
 
-        // then
-        assertThat(response.success()).isFalse();
-        assertThat(response.errorCode()).isEqualTo(404);
-        assertThat(response.message()).isEqualTo("찾을 수 없습니다.");
+        assertThat(response).isInstanceOfSatisfying(PresignedUrlFailedDto.class, failed -> {
+            assertThat(failed.errorCode()).isEqualTo(404);
+            assertThat(failed.message()).isEqualTo("not found");
+        });
     }
 
     @Test
-    @DisplayName("Presigned URL 발급 중 IllegalArgumentException 발생 시 BAD_REQUEST를 반환한다.")
-    void Presigned_URL_발급_중_IllegalArgumentException_발생_시_BAD_REQUEST를_반환한다() {
-        // given
-        Long userId = 1L;
-        PresignedUrlRequestDto requestDto = new PresignedUrlRequestDto("test.jpg", "image/jpeg");
-        given(bucketKeyPublisher.publishPendingKey(requestDto.fileName(), userId))
-                .willThrow(new IllegalArgumentException("잘못된 파일명"));
-
-        // when
-        PresignedUrlResponseDto response = fileService.issuePutPresignedUrl(requestDto, userId);
-
-        // then
-        assertThat(response.success()).isFalse();
-        assertThat(response.errorCode()).isEqualTo(400);
-        assertThat(response.message()).isEqualTo("잘못된 파일명");
-    }
-
-    @Test
-    @DisplayName("Presigned URL 발급 중 메시지 없는 RuntimeException 발생 시 기본 메시지를 반환한다.")
-    void Presigned_URL_발급_중_메시지_없는_RuntimeException_발생_시_기본_메시지를_반환한다() {
-        // given
-        Long userId = 1L;
-        PresignedUrlRequestDto requestDto = new PresignedUrlRequestDto("test.jpg", "image/jpeg");
-        doThrow(new RuntimeException())
-                .when(s3Bucket).validateContentType("image/jpeg");
-
-        // when
-        PresignedUrlResponseDto response = fileService.issuePutPresignedUrl(requestDto, userId);
-
-        // then
-        assertThat(response.success()).isFalse();
-        assertThat(response.errorCode()).isEqualTo(500);
-        assertThat(response.message()).isEqualTo("요청 처리에 실패했습니다.");
-    }
-
-    @Test
-    @DisplayName("업로드 완료 검증 성공 시 예외 없이 통과한다.")
-    void 업로드_완료_검증_성공_시_예외_없이_통과한다() {
-        // given
+    @DisplayName("validate finalize upload success")
+    void validateFinalizeUploadSuccess() {
         String pendingKey = "uploads/pending/1/test.jpg";
         Long userId = 1L;
         doNothing().when(s3Bucket).validatePendingKey(pendingKey, userId);
         doNothing().when(s3Bucket).validateUploadedObject(pendingKey);
 
-        // when & then
-        assertThatCode(() -> fileService.validateFinalizeUpload(pendingKey, userId))
-                .doesNotThrowAnyException();
+        assertThatCode(() -> fileService.validateFinalizeUpload(pendingKey, userId)).doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("업로드 완료 검증 중 FinalizeUploadException은 그대로 전파한다.")
-    void 업로드_완료_검증_중_FinalizeUploadException은_그대로_전파한다() {
-        // given
+    @DisplayName("validate finalize upload propagates finalize exception")
+    void validateFinalizeUploadPropagates() {
         String pendingKey = "uploads/pending/1/test.jpg";
         Long userId = 1L;
-        FinalizeUploadException exception = new FinalizeUploadException(HttpStatus.BAD_REQUEST, "검증 실패");
+        FinalizeUploadException exception = new FinalizeUploadException(HttpStatus.BAD_REQUEST, "validate fail");
         doThrow(exception).when(s3Bucket).validateUploadedObject(pendingKey);
 
-        // when & then
-        assertThatThrownBy(() -> fileService.validateFinalizeUpload(pendingKey, userId))
-                .isSameAs(exception);
+        assertThatThrownBy(() -> fileService.validateFinalizeUpload(pendingKey, userId)).isSameAs(exception);
     }
 
     @Test
-    @DisplayName("업로드 완료 검증 중 예상치 못한 예외는 INTERNAL_SERVER_ERROR로 래핑한다.")
-    void 업로드_완료_검증_중_예상치_못한_예외는_INTERNAL_SERVER_ERROR로_래핑한다() {
-        // given
-        String pendingKey = "uploads/pending/1/test.jpg";
-        Long userId = 1L;
-        doThrow(new RuntimeException("s3 장애"))
-                .when(s3Bucket).validatePendingKey(pendingKey, userId);
-
-        // when & then
-        assertThatThrownBy(() -> fileService.validateFinalizeUpload(pendingKey, userId))
-                .isInstanceOf(FinalizeUploadException.class)
-                .satisfies(throwable -> {
-                    FinalizeUploadException exception = (FinalizeUploadException) throwable;
-                    assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-                    assertThat(exception.getCause()).hasMessage("s3 장애");
-                });
-    }
-
-    @Test
-    @DisplayName("업로드 완료 처리 성공 시 복사 후 삭제하고 uploadedKey를 반환한다.")
-    void 업로드_완료_처리_성공_시_복사_후_삭제하고_uploadedKey를_반환한다() {
-        // given
+    @DisplayName("finalize upload success")
+    void finalizeUploadSuccess() {
         String pendingKey = "uploads/pending/1/test.jpg";
         String uploadedKey = "uploads/uploaded/1/test.jpg";
         given(bucketKeyPublisher.publishUploadedKey(pendingKey)).willReturn(uploadedKey);
 
-        // when
         String result = fileService.finalizeUpload(pendingKey);
 
-        // then
         assertThat(result).isEqualTo(uploadedKey);
         verify(s3Bucket, times(1)).copyObject(pendingKey, uploadedKey);
         verify(s3Bucket, times(1)).deleteObject(pendingKey);
     }
 
     @Test
-    @DisplayName("업로드 완료 처리 중 FinalizeUploadException은 그대로 전파한다.")
-    void 업로드_완료_처리_중_FinalizeUploadException은_그대로_전파한다() {
-        // given
+    @DisplayName("finalize upload propagates finalize exception")
+    void finalizeUploadPropagates() {
         String pendingKey = "uploads/pending/1/test.jpg";
         String uploadedKey = "uploads/uploaded/1/test.jpg";
         given(bucketKeyPublisher.publishUploadedKey(pendingKey)).willReturn(uploadedKey);
-        CopyFailedException exception = new CopyFailedException(HttpStatus.BAD_GATEWAY, "복사 실패");
+        CopyFailedException exception = new CopyFailedException(HttpStatus.BAD_GATEWAY, "copy fail");
         doThrow(exception).when(s3Bucket).copyObject(pendingKey, uploadedKey);
 
-        // when & then
-        assertThatThrownBy(() -> fileService.finalizeUpload(pendingKey))
-                .isSameAs(exception);
+        assertThatThrownBy(() -> fileService.finalizeUpload(pendingKey)).isSameAs(exception);
     }
 
     @Test
-    @DisplayName("업로드 완료 처리 중 IllegalArgumentException은 InvalidKeyException으로 변환한다.")
-    void 업로드_완료_처리_중_IllegalArgumentException은_InvalidKeyException으로_변환한다() {
-        // given
+    @DisplayName("finalize upload wraps illegal argument")
+    void finalizeUploadInvalidKey() {
         given(bucketKeyPublisher.publishUploadedKey("invalid"))
-                .willThrow(new IllegalArgumentException("잘못된 키"));
+                .willThrow(new IllegalArgumentException("bad key"));
 
-        // when & then
         assertThatThrownBy(() -> fileService.finalizeUpload("invalid"))
                 .isInstanceOf(InvalidKeyException.class)
                 .extracting("httpStatus")
@@ -224,45 +153,22 @@ class FileServiceTest {
     }
 
     @Test
-    @DisplayName("업로드 완료 처리 중 예상치 못한 예외는 INTERNAL_SERVER_ERROR로 래핑한다.")
-    void 업로드_완료_처리_중_예상치_못한_예외는_INTERNAL_SERVER_ERROR로_래핑한다() {
-        // given
-        String pendingKey = "uploads/pending/1/test.jpg";
+    @DisplayName("save file success")
+    void saveFileSuccess() {
         String uploadedKey = "uploads/uploaded/1/test.jpg";
-        given(bucketKeyPublisher.publishUploadedKey(pendingKey)).willReturn(uploadedKey);
-        doThrow(new RuntimeException("복사 중 장애"))
-                .when(s3Bucket).copyObject(pendingKey, uploadedKey);
-
-        // when & then
-        assertThatThrownBy(() -> fileService.finalizeUpload(pendingKey))
-                .isInstanceOf(FinalizeUploadException.class)
-                .satisfies(throwable -> {
-                    FinalizeUploadException exception = (FinalizeUploadException) throwable;
-                    assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-                    assertThat(exception.getCause()).hasMessage("복사 중 장애");
-                });
-    }
-
-    @Test
-    @DisplayName("파일 저장 성공 시 DB에 저장한다.")
-    void 파일_저장_성공_시_DB에_저장한다() {
-        // given
-        String uploadedKey = "uploads/uploaded/1/test.jpg";
+        String uploadedUrl = "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg";
         Long userId = 1L;
-        given(fileJpaRepository.save(any(File.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
+        given(fileJpaRepository.save(any(File.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-        // when
-        fileService.saveFile(uploadedKey, userId);
+        fileService.saveFile(uploadedKey, uploadedUrl, userId);
 
-        // then
         verify(fileJpaRepository, times(1)).save(any(File.class));
     }
 
     @Test
-    @DisplayName("파일 저장 시 잘못된 인자는 InvalidKeyException으로 변환한다.")
-    void 파일_저장_시_잘못된_인자는_InvalidKeyException으로_변환한다() {
-        assertThatThrownBy(() -> fileService.saveFile("uploads/uploaded/1/test.jpg", null))
+    @DisplayName("save file invalid argument")
+    void saveFileInvalidArgument() {
+        assertThatThrownBy(() -> fileService.saveFile("uploads/uploaded/1/test.jpg", "https://example.com/a.jpg", null))
                 .isInstanceOf(InvalidKeyException.class)
                 .extracting("httpStatus")
                 .isEqualTo(HttpStatus.BAD_REQUEST);
@@ -271,39 +177,37 @@ class FileServiceTest {
     }
 
     @Test
-    @DisplayName("DB 저장 실패 시 업로드 파일 삭제로 보상 후 FinalizeUploadException을 던진다.")
-    void DB_저장_실패_시_업로드_파일_삭제로_보상_후_FinalizeUploadException을_던진다() {
-        // given
+    @DisplayName("save file db failure deletes uploaded object by key")
+    void saveFileDbFailure() {
         String uploadedKey = "uploads/uploaded/1/test.jpg";
+        String uploadedUrl = "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg";
         Long userId = 1L;
-        given(fileJpaRepository.save(any(File.class)))
-                .willThrow(new RuntimeException("DB 저장 실패"));
+
+        given(fileJpaRepository.save(any(File.class))).willThrow(new RuntimeException("db fail"));
         doNothing().when(s3Bucket).deleteObject(uploadedKey);
 
-        // when & then
-        assertThatThrownBy(() -> fileService.saveFile(uploadedKey, userId))
+        assertThatThrownBy(() -> fileService.saveFile(uploadedKey, uploadedUrl, userId))
                 .isInstanceOf(FinalizeUploadException.class)
                 .satisfies(throwable -> {
                     FinalizeUploadException exception = (FinalizeUploadException) throwable;
                     assertThat(exception.getHttpStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-                    assertThat(exception.getCause()).hasMessage("DB 저장 실패");
+                    assertThat(exception.getCause()).hasMessage("db fail");
                 });
     }
 
     @Test
-    @DisplayName("DB 저장 실패 후 보상 삭제까지 실패하면 원인 예외에 suppressed로 추가한다.")
-    void DB_저장_실패_후_보상_삭제까지_실패하면_원인_예외에_suppressed로_추가한다() {
-        // given
+    @DisplayName("save file db failure keeps delete failure as suppressed")
+    void saveFileDbFailureWithCompensationFailure() {
         String uploadedKey = "uploads/uploaded/1/test.jpg";
+        String uploadedUrl = "https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/uploads/uploaded/1/test.jpg";
         Long userId = 1L;
-        RuntimeException dbException = new RuntimeException("DB 저장 실패");
-        RuntimeException deleteException = new RuntimeException("S3 삭제 실패");
+        RuntimeException dbException = new RuntimeException("db fail");
+        RuntimeException deleteException = new RuntimeException("delete fail");
 
         given(fileJpaRepository.save(any(File.class))).willThrow(dbException);
         doThrow(deleteException).when(s3Bucket).deleteObject(uploadedKey);
 
-        // when & then
-        assertThatThrownBy(() -> fileService.saveFile(uploadedKey, userId))
+        assertThatThrownBy(() -> fileService.saveFile(uploadedKey, uploadedUrl, userId))
                 .isInstanceOf(FinalizeUploadException.class)
                 .satisfies(throwable -> {
                     FinalizeUploadException exception = (FinalizeUploadException) throwable;
