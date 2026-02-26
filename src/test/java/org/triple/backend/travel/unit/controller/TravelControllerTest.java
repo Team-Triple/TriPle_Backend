@@ -179,6 +179,27 @@ class TravelControllerTest extends ControllerTest {
                 ));
     }
 
+    @Test
+    @DisplayName("여행 참가 요청 성공 시 200을 반환한다.")
+    void 여행_참가_요청_성공() throws Exception {
+        Long travelId = 1L;
+        given(sessionManager.getUserId(any())).willReturn(1L);
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(csrfTokenManager.isValid(any(), any())).willReturn(true);
+        doNothing().when(travelItineraryService).joinTravel(travelId, 1L);
+
+        mockMvc.perform(post("/travels/{travelId}/users/me", travelId)
+                        .requestAttr("LOGIN_USER_ID", 1L))
+                .andExpect(status().isOk())
+                .andDo(document("travels/join",
+                        pathParameters(
+                                parameterWithName("travelId").description("참가할 여행 일정 ID")
+                        )
+                ));
+
+        verify(travelItineraryService, times(1)).joinTravel(travelId, 1L);
+    }
+
     private String buildTravelSaveRequestBody(Object... values) {
         String answer =
                 """
