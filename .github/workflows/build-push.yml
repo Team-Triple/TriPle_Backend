@@ -2,7 +2,7 @@ name: Build and Push
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "develop", "main" ]
   workflow_dispatch:
 
 concurrency:
