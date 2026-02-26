@@ -21,3 +21,8 @@ include::{snippets}/travels/update/http-response.adoc[]
 include::{snippets}/travels/delete/path-parameters.adoc[]
 include::{snippets}/travels/delete/http-request.adoc[]
 include::{snippets}/travels/delete/http-response.adoc[]
+
+== 여행 일정 탈퇴
+include::{snippets}/travels/leave/path-parameters.adoc[]
+include::{snippets}/travels/leave/http-request.adoc[]
+include::{snippets}/travels/leave/http-response.adoc[]
