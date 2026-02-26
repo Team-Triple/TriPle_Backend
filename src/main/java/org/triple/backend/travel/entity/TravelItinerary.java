@@ -27,7 +27,7 @@ public class TravelItinerary extends BaseEntity {
 
     private LocalDateTime endAt;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     private Group group;
 
