@@ -336,6 +336,92 @@ public class GroupIntegrationTest {
     }
 
     @Test
+    @DisplayName("비로그인 사용자는 공개 그룹 메뉴 정보를 조회할 수 있다")
+    void 비로그인_사용자는_공개_그룹_메뉴_정보를_조회할_수_있다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-menu-public")
+                        .nickname("상윤")
+                        .email("owner-menu-public@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "즐거운 여행단", "MBTI P들의 모임입니다. 맛집 탐방!", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/menu", savedGroup.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("즐거운 여행단"))
+                .andExpect(jsonPath("$.description").value("MBTI P들의 모임입니다. 맛집 탐방!"))
+                .andExpect(jsonPath("$.currentMemberCount").value(1))
+                .andExpect(jsonPath("$.memberLimit").value(10))
+                .andExpect(jsonPath("$.role").value(Role.GUEST.toString()));
+    }
+
+    @Test
+    @DisplayName("로그인한 JOINED 멤버는 그룹 메뉴 조회 시 자신의 역할을 반환받는다")
+    void 로그인한_JOINED_멤버는_그룹_메뉴_조회_시_자신의_역할을_반환받는다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-menu-private")
+                        .nickname("상윤")
+                        .email("owner-menu-private@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-menu-private")
+                        .nickname("민규")
+                        .email("member-menu-private@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/menu", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("비공개모임"))
+                .andExpect(jsonPath("$.currentMemberCount").value(2))
+                .andExpect(jsonPath("$.role").value(Role.MEMBER.toString()));
+    }
+
+    @Test
+    @DisplayName("비공개 그룹 메뉴 조회 시 멤버가 아니면 403을 반환한다")
+    void 비공개_그룹_메뉴_조회_시_멤버가_아니면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-menu-private-forbidden")
+                        .nickname("상윤")
+                        .email("owner-menu-private-forbidden@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/menu", savedGroup.getId()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
+    }
+
+    @Test
     @DisplayName("비로그인 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
     void 비로그인_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
         // given
