@@ -1,6 +1,7 @@
 package org.triple.backend.auth.session;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
@@ -30,6 +31,16 @@ public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver 
             @Nullable WebDataBinderFactory binderFactory) {
 
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-        return (Long) request.getAttribute(LOGIN_USER_ID);
+        Long userId = (Long) request.getAttribute(LOGIN_USER_ID);
+        if (userId != null) {
+            return userId;
+        }
+
+        HttpSession session = request.getSession(false);
+        if (session == null) {
+            return null;
+        }
+
+        return (Long) session.getAttribute(SessionManager.SESSION_KEY);
     }
 }
