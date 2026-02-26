@@ -28,8 +28,6 @@ public class TravelReview extends BaseEntity {
     @OneToMany(mappedBy = "travelReview", fetch = FetchType.LAZY)
     private List<TravelReviewImage> images = new ArrayList<>();
 
-    private String title;
-
     private String content;
 
     private boolean isDeleted;
