@@ -13,6 +13,7 @@ import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.dto.response.GroupDetailResponseDto;
+import org.triple.backend.group.dto.response.GroupMenuResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
@@ -402,6 +403,107 @@ public class GroupServiceTest {
         assertThat(response.recentPhotos()).isEmpty();
         assertThat(response.recentTravels()).isEmpty();
         assertThat(response.recentReviews()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 공개 그룹 메뉴 조회 시 GUEST 역할로 조회된다")
+    void 비로그인_사용자는_공개_그룹_메뉴_조회_시_GUEST_역할로_조회된다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-menu-guest")
+                .nickname("상윤")
+                .email("owner-menu-guest@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "즐거운 여행단", "MBTI P들의 모임입니다. 맛집 탐방!", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.save(group);
+
+        // when
+        GroupMenuResponseDto response = groupService.menu(null, savedGroup.getId());
+
+        // then
+        assertThat(response.name()).isEqualTo("즐거운 여행단");
+        assertThat(response.description()).isEqualTo("MBTI P들의 모임입니다. 맛집 탐방!");
+        assertThat(response.currentMemberCount()).isEqualTo(1);
+        assertThat(response.memberLimit()).isEqualTo(10);
+        assertThat(response.role()).isEqualTo(Role.GUEST);
+    }
+
+    @Test
+    @DisplayName("그룹 JOINED 멤버는 그룹 메뉴 조회 시 자신의 역할을 조회한다")
+    void 그룹_JOINED_멤버는_그룹_메뉴_조회_시_자신의_역할을_조회한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-menu-member")
+                .nickname("상윤")
+                .email("owner-menu-member@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User member = userJpaRepository.save(User.builder()
+                .providerId("kakao-member-menu-member")
+                .nickname("민규")
+                .email("member-menu-member@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.save(group);
+
+        // when
+        GroupMenuResponseDto response = groupService.menu(member.getId(), savedGroup.getId());
+
+        // then
+        assertThat(response.role()).isEqualTo(Role.MEMBER);
+        assertThat(response.currentMemberCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("비공개 그룹 메뉴 조회 시 JOINED 멤버가 아니면 NOT_GROUP_MEMBER 예외가 발생한다")
+    void 비공개_그룹_메뉴_조회_시_JOINED_멤버가_아니면_NOT_GROUP_MEMBER_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-menu-private")
+                .nickname("상윤")
+                .email("owner-menu-private@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User outsider = userJpaRepository.save(User.builder()
+                .providerId("kakao-outsider-menu-private")
+                .nickname("민규")
+                .email("outsider-menu-private@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.save(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.menu(outsider.getId(), savedGroup.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 메뉴 조회 시 그룹이 없으면 GROUP_NOT_FOUND 예외가 발생한다")
+    void 그룹_메뉴_조회_시_그룹이_없으면_GROUP_NOT_FOUND_예외가_발생한다() {
+        // when & then
+        assertThatThrownBy(() -> groupService.menu(1L, 999999L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.GROUP_NOT_FOUND);
+                });
     }
 
     @Test
