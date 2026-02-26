@@ -1,0 +1,12 @@
+= Invoice API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== 청구서 생성
+include::{snippets}/invoices/create/http-request.adoc[]
+include::{snippets}/invoices/create/request-fields.adoc[]
+include::{snippets}/invoices/create/http-response.adoc[]
+include::{snippets}/invoices/create/response-fields.adoc[]
