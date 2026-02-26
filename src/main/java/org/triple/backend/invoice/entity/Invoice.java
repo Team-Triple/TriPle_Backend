@@ -40,9 +40,11 @@ public class Invoice extends BaseEntity {
     @JoinColumn(name = "travel_itinerary_id", foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     private TravelItinerary travelItinerary;
 
+    @Builder.Default
     @OneToMany(mappedBy = "invoice")
     private List<InvoiceUser> invoiceUsers = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "invoice")
     private List<Payment> payments = new ArrayList<>();
 
