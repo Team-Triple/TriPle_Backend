@@ -336,8 +336,8 @@ public class GroupIntegrationTest {
     }
 
     @Test
-    @DisplayName("로그인한 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
-    void 로그인한_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
+    @DisplayName("비로그인 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
+    void 비로그인_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
         // given
         User owner = userJpaRepository.save(
                 User.builder()
@@ -348,22 +348,12 @@ public class GroupIntegrationTest {
                         .build()
         );
 
-        User viewer = userJpaRepository.save(
-                User.builder()
-                        .providerId("kakao-viewer-detail")
-                        .nickname("민규")
-                        .email("viewer-detail@test.com")
-                        .profileUrl("http://img2")
-                        .build()
-        );
-
         Group group = Group.create(GroupKind.PUBLIC, "여행모임", "3월 일본 여행", "https://example.com/thumb.png", 10);
         group.addMember(owner, Role.OWNER);
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, viewer.getId()))
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("여행모임"))
                 .andExpect(jsonPath("$.description").value("3월 일본 여행"))
@@ -371,7 +361,7 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
                 .andExpect(jsonPath("$.currentMemberCount").value(1))
                 .andExpect(jsonPath("$.memberLimit").value(10))
-                .andExpect(jsonPath("$.isOwner").value(false))
+                .andExpect(jsonPath("$.role").value(Role.GUEST.toString()))
                 .andExpect(jsonPath("$.users", hasSize(1)))
                 .andExpect(jsonPath("$.users[0].name").value("상윤"))
                 .andExpect(jsonPath("$.users[0].isOwner").value(true))
@@ -393,22 +383,12 @@ public class GroupIntegrationTest {
                         .build()
         );
 
-        User outsider = userJpaRepository.save(
-                User.builder()
-                        .providerId("kakao-outsider-private-detail")
-                        .nickname("민규")
-                        .email("outsider-private-detail@test.com")
-                        .profileUrl("http://img2")
-                        .build()
-        );
-
         Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "https://example.com/thumb.png", 10);
         group.addMember(owner, Role.OWNER);
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getId()))
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
     }
@@ -457,7 +437,7 @@ public class GroupIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("비공개모임"))
                 .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
-                .andExpect(jsonPath("$.isOwner").value(false))
+                .andExpect(jsonPath("$.role").value("MEMBER"))
                 .andExpect(jsonPath("$.users", hasSize(2)))
                 .andExpect(jsonPath("$.users[*].name", containsInAnyOrder("상윤", "민규")))
                 .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)))
@@ -486,15 +466,6 @@ public class GroupIntegrationTest {
                         .profileUrl("http://img2")
                         .build()
         );
-        User outsider = userJpaRepository.save(
-                User.builder()
-                        .providerId("kakao-outsider-detail-items")
-                        .nickname("지원")
-                        .email("outsider-detail-items@test.com")
-                        .profileUrl("http://img3")
-                        .build()
-        );
-
         Group group = Group.create(GroupKind.PUBLIC, "상세모임", "상세설명", "https://example.com/detail-thumb.png", 10);
         group.addMember(owner, Role.OWNER);
         group.addMember(member, Role.MEMBER);
@@ -560,8 +531,7 @@ public class GroupIntegrationTest {
         );
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getId()))
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recentTravels", hasSize(1)))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(itinerary.getId().intValue()))
@@ -574,10 +544,14 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.recentTravels[0].endAt").value("2026-04-12T18:00:00"))
                 .andExpect(jsonPath("$.recentReviews", hasSize(2)))
                 .andExpect(jsonPath("$.recentReviews[*].reviewId", containsInAnyOrder(ownerReview.getId().intValue(), memberReview.getId().intValue())))
+                .andExpect(jsonPath("$.recentReviews[*].travelItineraryName", everyItem(is("봄 제주 여행"))))
                 .andExpect(jsonPath("$.recentReviews[*].content", containsInAnyOrder("오너 후기", "멤버 후기")))
                 .andExpect(jsonPath("$.recentReviews[*].writerNickname", containsInAnyOrder("상윤", "민규")))
+                .andExpect(jsonPath("$.recentReviews[*].imageUrl", containsInAnyOrder("https://img/owner.png", "https://img/member.png")))
                 .andExpect(jsonPath("$.recentReviews[*].content", not(hasItem("타 그룹 후기"))))
                 .andExpect(jsonPath("$.recentReviews[*].content", not(hasItem("삭제된 후기"))))
+                .andExpect(jsonPath("$.recentReviews[*].imageUrl", not(hasItem("https://img/other-group.png"))))
+                .andExpect(jsonPath("$.recentReviews[*].imageUrl", not(hasItem("https://img/deleted.png"))))
                 .andExpect(jsonPath("$.recentPhotos", hasSize(2)))
                 .andExpect(jsonPath("$.recentPhotos[*].imageId", containsInAnyOrder(ownerImage.getId().intValue(), memberImage.getId().intValue())))
                 .andExpect(jsonPath("$.recentPhotos[*].imageUrl", containsInAnyOrder("https://img/owner.png", "https://img/member.png")))

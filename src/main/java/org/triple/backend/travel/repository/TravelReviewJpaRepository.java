@@ -13,7 +13,8 @@ public interface TravelReviewJpaRepository extends JpaRepository<TravelReview, L
             SELECT tr
             FROM TravelReview tr
             JOIN FETCH tr.user u
-            WHERE tr.travelItinerary.group.id = :groupId
+            JOIN FETCH tr.travelItinerary ti
+            WHERE ti.group.id = :groupId
               AND tr.isDeleted = false
             ORDER BY tr.id DESC
             """)

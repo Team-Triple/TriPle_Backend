@@ -19,6 +19,7 @@ import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
+import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
@@ -338,6 +339,171 @@ class TravelItineraryServiceTest {
 
         TravelItinerary deletedTravel = travelItineraryJpaRepository.findById(savedTravelItinerary.getId()).orElseThrow();
         Assertions.assertThat(deletedTravel.isDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("여행 탈퇴 요청 시 참가 정보가 삭제된다.")
+    void 여행_탈퇴_요청_시_참가_정보가_삭제된다() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                2,
+                false));
+        User user = userJpaRepository.save(createUser());
+        userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.MEMBER));
+
+        travelItineraryService.leaveTravel(savedTravelItinerary.getId(), user.getId());
+
+        Assertions.assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(user.getId(), savedTravelItinerary.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("여행 리더는 탈퇴 요청 시 예외를 던진다.")
+    void 여행_리더는_탈퇴_요청_시_예외를_던진다() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                1,
+                false));
+        User user = userJpaRepository.save(createUser());
+        userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.LEADER));
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.leaveTravel(savedTravelItinerary.getId(), user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserTravelItineraryErrorCode.LEAVE_UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("여행 목록 조회 시 유저를 찾을 수 없으면 예외를 던진다.")
+    void 여행_목록_조회_유저_없음_예외() {
+        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, 1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+    }
+
+    @Test
+    @DisplayName("여행 목록 조회 시 그룹을 찾을 수 없으면 예외를 던진다.")
+    void 여행_목록_조회_그룹_없음_예외() {
+        User user = userJpaRepository.save(createUser());
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+    }
+
+    @Test
+    @DisplayName("여행 목록 조회 시 그룹 멤버가 아니면 예외를 던진다.")
+    void 여행_목록_조회_그룹_멤버_아님_예외() {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(group.getId(), null, 10, user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+    }
+
+    @Test
+    @DisplayName("여행 목록 조회를 커서 기반으로 정상 처리한다.")
+    void 여행_목록_조회_커서_성공() {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(user, group));
+
+        Group anotherGroup = groupJpaRepository.save(Group.create(GroupKind.PUBLIC, "다른모임", "설명", "http://thumb2", 10));
+
+        TravelItinerary firstTravel = travelItineraryJpaRepository.save(new TravelItinerary(
+                "첫번째",
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 3, 2, 0, 0),
+                group,
+                "설명1",
+                "thumb-1",
+                5,
+                1,
+                false
+        ));
+
+        TravelItinerary secondTravel = travelItineraryJpaRepository.save(new TravelItinerary(
+                "두번째",
+                LocalDateTime.of(2026, 3, 3, 0, 0),
+                LocalDateTime.of(2026, 3, 4, 0, 0),
+                group,
+                "설명2",
+                "thumb-2",
+                6,
+                2,
+                false
+        ));
+
+        TravelItinerary thirdTravel = travelItineraryJpaRepository.save(new TravelItinerary(
+                "세번째",
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                LocalDateTime.of(2026, 3, 6, 0, 0),
+                group,
+                "설명3",
+                "thumb-3",
+                7,
+                3,
+                false
+        ));
+
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "다른그룹",
+                LocalDateTime.of(2026, 3, 7, 0, 0),
+                LocalDateTime.of(2026, 3, 8, 0, 0),
+                anotherGroup,
+                "설명4",
+                "thumb-4",
+                8,
+                1,
+                false
+        ));
+
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "삭제된여행",
+                LocalDateTime.of(2026, 3, 9, 0, 0),
+                LocalDateTime.of(2026, 3, 10, 0, 0),
+                group,
+                "설명5",
+                "thumb-5",
+                9,
+                1,
+                true
+        ));
+
+        TravelItineraryCursorResponseDto firstPage = travelItineraryService.browseTravels(group.getId(), null, 2, user.getId());
+        Assertions.assertThat(firstPage.items()).hasSize(2);
+        Assertions.assertThat(firstPage.hasNext()).isTrue();
+        Assertions.assertThat(firstPage.nextCursor()).isEqualTo(secondTravel.getId());
+        Assertions.assertThat(firstPage.items())
+                .extracting(item -> item.title())
+                .containsExactly(thirdTravel.getTitle(), secondTravel.getTitle());
+        Assertions.assertThat(firstPage.items().get(0))
+                .extracting("description", "thumbnailUrl", "memberCount", "memberLimit")
+                .containsExactly("설명3", "thumb-3", 3, 7);
+
+        TravelItineraryCursorResponseDto secondPage = travelItineraryService.browseTravels(group.getId(), firstPage.nextCursor(), 2, user.getId());
+        Assertions.assertThat(secondPage.items()).hasSize(1);
+        Assertions.assertThat(secondPage.hasNext()).isFalse();
+        Assertions.assertThat(secondPage.nextCursor()).isNull();
+        Assertions.assertThat(secondPage.items().get(0).title()).isEqualTo(firstTravel.getTitle());
     }
 
     @Test
