@@ -29,10 +29,25 @@ include::{snippets}/groups/delete/path-parameters.adoc[]
 include::{snippets}/groups/delete/http-request.adoc[]
 include::{snippets}/groups/delete/http-response.adoc[]
 
+== 그룹 멤버 추방
+include::{snippets}/groups/kick/path-parameters.adoc[]
+include::{snippets}/groups/kick/http-request.adoc[]
+include::{snippets}/groups/kick/http-response.adoc[]
+
+== 그룹 탈퇴
+include::{snippets}/groups/leave/path-parameters.adoc[]
+include::{snippets}/groups/leave/http-request.adoc[]
+include::{snippets}/groups/leave/http-response.adoc[]
+
 == 그룹 수정
 include::{snippets}/groups/update/path-parameters.adoc[]
 include::{snippets}/groups/update/http-request.adoc[]
 include::{snippets}/groups/update/http-response.adoc[]
+
+== 그룹 소유권 이전
+include::{snippets}/groups/owner-transfer/path-parameters.adoc[]
+include::{snippets}/groups/owner-transfer/http-request.adoc[]
+include::{snippets}/groups/owner-transfer/http-response.adoc[]
 
 
 == 그룹 가입 신청

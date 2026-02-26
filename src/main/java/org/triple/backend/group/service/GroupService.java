@@ -26,12 +26,14 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class GroupService {
+public class  GroupService {
 
+    private static final int KEYWORD_MAX_LENGTH = 20;
     private static final int MIN_PAGE_SIZE = 1;
     private static final int MAX_PAGE_SIZE = 10;
 
@@ -124,6 +126,98 @@ public class GroupService {
         return GroupDetailResponseDto.from(userGroups, group);
     }
 
+    @Transactional
+    public void ownerTransfer(final Long groupId, final Long targetUserId, final Long ownerId) {
+
+        if(ownerId.equals(targetUserId)) {
+            throw new BusinessException(GroupErrorCode.CANNOT_OWNER_DEMOTE_SELF);
+        }
+
+        groupJpaRepository.findByIdForUpdate(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
+        UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, ownerId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        if(ownerUserGroup.getRole() != Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
+        }
+
+        if(ownerUserGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        targetUserGroup.transferRole(Role.OWNER);
+        ownerUserGroup.transferRole(Role.MEMBER);
+    }
+
+    @Transactional
+    public void kick(final Long groupId, final Long ownerId, final Long targetUserId) {
+        if(ownerId.equals(targetUserId)) {
+            throw new BusinessException(GroupErrorCode.CANNOT_KICK_SELF);
+        }
+
+        UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, ownerId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        if(userGroup.getRole() != Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
+        }
+        if(userGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+        if(targetUserGroup.getRole() == Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.CANNOT_KICK_OWNER);
+        }
+
+        joinApplyJpaRepository.deleteByGroupIdAndUserId(groupId, targetUserId);
+
+        Group group = userGroup.getGroup();
+        targetUserGroup.leave();
+        group.decreaseCurrentMemberCount();
+
+        try {
+            groupJpaRepository.flush();
+        } catch(OptimisticLockingFailureException e) {
+            throw new BusinessException(GroupErrorCode.CONCURRENT_GROUP_UPDATE);
+        }
+    }
+
+    @Transactional
+    public void leave(final Long groupId, final Long userId) {
+        if (!userJpaRepository.existsById(userId)) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+        UserGroup userGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, userId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        if(userGroup.getRole() == Role.OWNER) {
+            throw new BusinessException(GroupErrorCode.GROUP_OWNER_NOT_LEAVE);
+        }
+
+        if(userGroup.getJoinStatus() != JoinStatus.JOINED) {
+            throw new BusinessException(GroupErrorCode.ALREADY_LEAVE_GROUP);
+        }
+
+        joinApplyJpaRepository.deleteByGroupIdAndUserId(groupId, userId);
+
+        Group group = userGroup.getGroup();
+        userGroup.leave();
+        group.decreaseCurrentMemberCount();
+
+        try {
+            groupJpaRepository.flush();
+        } catch(OptimisticLockingFailureException e) {
+            throw new BusinessException(GroupErrorCode.CONCURRENT_GROUP_UPDATE);
+        }
+    }
+
     @Transactional(readOnly = true)
     public GroupCursorResponseDto myGroups(final Long cursor, final int size, final Long userId) {
         if(!userJpaRepository.existsById(userId)) {
@@ -151,5 +245,53 @@ public class GroupService {
 
         Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
         return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
+    }
+
+    @Transactional(readOnly = true)
+    public GroupCursorResponseDto search(final String keyword, final Long cursor, final int size) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+
+        if (normalizedKeyword.isBlank()) {
+            return browsePublicGroups(cursor, size);
+        }
+
+        if(normalizedKeyword.length() > KEYWORD_MAX_LENGTH) {
+            throw new BusinessException(GroupErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
+        }
+
+        int pageSize = Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+        Pageable pageable = PageRequest.of(0, pageSize + 1);
+
+        List<Group> rows = cursor == null
+                ? findFirstPageByKeyword(normalizedKeyword, pageable)
+                : findNextPageByKeyword(normalizedKeyword, cursor, pageable);
+
+        return toCursorResponse(rows, pageSize);
+    }
+
+    private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        return groupJpaRepository.findFirstPageByKeywordFullText(booleanQuery, GroupKind.PUBLIC.name(), pageable);
+    }
+
+    private List<Group> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable) {
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        return groupJpaRepository.findNextPageByKeywordFullText(booleanQuery, cursor, GroupKind.PUBLIC.name(), pageable);
+    }
+
+    private String toBooleanModeQuery(String keyword) {
+        return Arrays.stream(keyword.trim().split("[^\\p{L}\\p{N}]+"))
+                .filter(token -> !token.isBlank())
+                .map(token -> "+" + token + "*")
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
     }
 }
