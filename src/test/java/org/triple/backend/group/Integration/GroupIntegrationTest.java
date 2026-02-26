@@ -336,8 +336,8 @@ public class GroupIntegrationTest {
     }
 
     @Test
-    @DisplayName("로그인한 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
-    void 로그인한_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
+    @DisplayName("비로그인 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
+    void 비로그인_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
         // given
         User owner = userJpaRepository.save(
                 User.builder()
@@ -348,22 +348,12 @@ public class GroupIntegrationTest {
                         .build()
         );
 
-        User viewer = userJpaRepository.save(
-                User.builder()
-                        .providerId("kakao-viewer-detail")
-                        .nickname("민규")
-                        .email("viewer-detail@test.com")
-                        .profileUrl("http://img2")
-                        .build()
-        );
-
         Group group = Group.create(GroupKind.PUBLIC, "여행모임", "3월 일본 여행", "https://example.com/thumb.png", 10);
         group.addMember(owner, Role.OWNER);
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, viewer.getId()))
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("여행모임"))
                 .andExpect(jsonPath("$.description").value("3월 일본 여행"))
@@ -393,22 +383,12 @@ public class GroupIntegrationTest {
                         .build()
         );
 
-        User outsider = userJpaRepository.save(
-                User.builder()
-                        .providerId("kakao-outsider-private-detail")
-                        .nickname("민규")
-                        .email("outsider-private-detail@test.com")
-                        .profileUrl("http://img2")
-                        .build()
-        );
-
         Group group = Group.create(GroupKind.PRIVATE, "비공개모임", "설명", "https://example.com/thumb.png", 10);
         group.addMember(owner, Role.OWNER);
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getId()))
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
     }
@@ -486,15 +466,6 @@ public class GroupIntegrationTest {
                         .profileUrl("http://img2")
                         .build()
         );
-        User outsider = userJpaRepository.save(
-                User.builder()
-                        .providerId("kakao-outsider-detail-items")
-                        .nickname("지원")
-                        .email("outsider-detail-items@test.com")
-                        .profileUrl("http://img3")
-                        .build()
-        );
-
         Group group = Group.create(GroupKind.PUBLIC, "상세모임", "상세설명", "https://example.com/detail-thumb.png", 10);
         group.addMember(owner, Role.OWNER);
         group.addMember(member, Role.MEMBER);
@@ -560,8 +531,7 @@ public class GroupIntegrationTest {
         );
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getId()))
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recentTravels", hasSize(1)))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(itinerary.getId().intValue()))
