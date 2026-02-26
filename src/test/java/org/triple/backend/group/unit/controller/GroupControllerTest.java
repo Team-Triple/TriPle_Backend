@@ -275,8 +275,8 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("로그인한 사용자는 그룹 상세 정보를 조회할 수 있다.")
-    void 로그인한_사용자는_그룹_상세_정보를_조회할_수_있다() throws Exception {
+    @DisplayName("비로그인 사용자는 공개 그룹 상세 정보를 조회할 수 있다.")
+    void 비로그인_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
         // given
         Long groupId = 1L;
         GroupDetailResponseDto response = new GroupDetailResponseDto(
@@ -286,11 +286,11 @@ public class GroupControllerTest extends ControllerTest {
                 ),
                 "여행모임",
                 "3월 일본 여행",
-                GroupKind.PRIVATE,
+                GroupKind.PUBLIC,
                 "https://example.com/thumb.png",
                 2,
                 10,
-                Role.OWNER,
+                Role.GUEST,
                 List.of(new GroupDetailResponseDto.RecentPhotoDto(100L, "https://example.com/review-image-1.png")),
                 List.of(new GroupDetailResponseDto.RecentTravelDto(
                         200L,
@@ -313,12 +313,11 @@ public class GroupControllerTest extends ControllerTest {
                 ))
         );
 
-        given(groupService.detail(eq(groupId), eq(1L)))
+        given(groupService.detail(eq(groupId), eq(null)))
                 .willReturn(response);
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", groupId)
-                        .with(loginSessionAndCsrf()))
+        mockMvc.perform(get("/groups/{groupId}", groupId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.users").isArray())
                 .andExpect(jsonPath("$.users.length()").value(2))
@@ -326,11 +325,11 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.users[0].isOwner").value(true))
                 .andExpect(jsonPath("$.name").value("여행모임"))
                 .andExpect(jsonPath("$.description").value("3월 일본 여행"))
-                .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
+                .andExpect(jsonPath("$.groupKind").value("PUBLIC"))
                 .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
                 .andExpect(jsonPath("$.currentMemberCount").value(2))
                 .andExpect(jsonPath("$.memberLimit").value(10))
-                .andExpect(jsonPath("$.role").value("OWNER"))
+                .andExpect(jsonPath("$.role").value("GUEST"))
                 .andExpect(jsonPath("$.recentPhotos.length()").value(1))
                 .andExpect(jsonPath("$.recentTravels.length()").value(1))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(200))
@@ -364,7 +363,7 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("thumbNailUrl").description("그룹 썸네일 URL").optional(),
                                 fieldWithPath("currentMemberCount").description("현재 인원"),
                                 fieldWithPath("memberLimit").description("최대 인원"),
-                                fieldWithPath("role").description("요청한 사용자의 그룹 내 역할 (OWNER, MEMBER, null)").optional(),
+                                fieldWithPath("role").description("요청한 사용자의 그룹 내 역할 (OWNER, MEMBER, GUEST)").optional(),
                                 fieldWithPath("recentPhotos").description("최근 사진 최대 4개"),
                                 fieldWithPath("recentPhotos[].imageId").description("사진 ID"),
                                 fieldWithPath("recentPhotos[].imageUrl").description("사진 URL"),
@@ -388,7 +387,7 @@ public class GroupControllerTest extends ControllerTest {
                         )
                 ));
 
-        verify(groupService, times(1)).detail(groupId, 1L);
+        verify(groupService, times(1)).detail(groupId, null);
     }
 
     @Test
