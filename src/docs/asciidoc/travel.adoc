@@ -1,23 +1,28 @@
-= Travel API Document
+﻿= Travel API Document
 :doctype: book
 :icons: font
 :source-highlighter: highlightjs
 :toc: left
 :toclevels: 3
 
-== 여행 일정 생성
+== Create Travel Itinerary
 include::{snippets}/travels/create/http-request.adoc[]
 include::{snippets}/travels/create/request-fields.adoc[]
 include::{snippets}/travels/create/http-response.adoc[]
 include::{snippets}/travels/create/response-fields.adoc[]
 
-== 여행 일정 수정
+== Update Travel Itinerary
 include::{snippets}/travels/update/path-parameters.adoc[]
 include::{snippets}/travels/update/http-request.adoc[]
 include::{snippets}/travels/update/request-fields.adoc[]
 include::{snippets}/travels/update/http-response.adoc[]
 
-== 여행 일정 삭제
+== Delete Travel Itinerary
 include::{snippets}/travels/delete/path-parameters.adoc[]
 include::{snippets}/travels/delete/http-request.adoc[]
 include::{snippets}/travels/delete/http-response.adoc[]
+
+== Join Travel Itinerary
+include::{snippets}/travels/join/path-parameters.adoc[]
+include::{snippets}/travels/join/http-request.adoc[]
+include::{snippets}/travels/join/http-response.adoc[]
