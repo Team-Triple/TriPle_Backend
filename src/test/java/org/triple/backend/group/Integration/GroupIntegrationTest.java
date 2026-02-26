@@ -1104,7 +1104,7 @@ public class GroupIntegrationTest {
         User target = userJpaRepository.save(
                 User.builder()
                         .providerId("kakao-target-transfer-forbidden")
-                        .nickname("지원")
+                        .nickname("지호")
                         .email("target-transfer-forbidden@test.com")
                         .profileUrl("http://img3")
                         .build()
