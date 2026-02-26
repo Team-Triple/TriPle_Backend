@@ -451,7 +451,7 @@ public class GroupControllerTest extends ControllerTest {
                         )
                 ));
 
-        verify(groupService, times(1)).detail(groupId, 1L);
+        verify(groupService, times(1)).detail(groupId, null);
     }
 
     @Test
