@@ -33,7 +33,9 @@ import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.triple.backend.group.dto.response.GroupDetailResponseDto.*;
 
@@ -144,9 +146,12 @@ public class GroupService {
                 .map(this::toRecentTravelDto)
                 .toList();
 
-        List<RecentReviewDto> recentReviews = travelReviewJpaRepository.findRecentByGroupId(groupId, detailRecentPage)
+        List<TravelReview> recentReviewEntities = travelReviewJpaRepository.findRecentByGroupId(groupId, detailRecentPage);
+        Map<Long, String> reviewImageUrlByReviewId = findFirstReviewImageUrlByReviewId(recentReviewEntities);
+
+        List<RecentReviewDto> recentReviews = recentReviewEntities
                 .stream()
-                .map(this::toRecentReviewDto)
+                .map(review -> toRecentReviewDto(review, reviewImageUrlByReviewId.get(review.getId())))
                 .toList();
 
         List<RecentPhotoDto> recentPhotos = travelReviewImageJpaRepository.findRecentByGroupId(groupId, detailRecentPage)
@@ -179,12 +184,33 @@ public class GroupService {
         );
     }
 
-    private RecentReviewDto toRecentReviewDto(final TravelReview review) {
+    private RecentReviewDto toRecentReviewDto(final TravelReview review, final String imageUrl) {
         return new RecentReviewDto(
                 review.getId(),
+                review.getTitle(),
                 review.getContent(),
-                review.getUser().getNickname()
+                review.getUser().getNickname(),
+                imageUrl,
+                review.getView(),
+                review.getCreatedAt()
         );
+    }
+
+    private Map<Long, String> findFirstReviewImageUrlByReviewId(final List<TravelReview> reviews) {
+        if (reviews.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> reviewIds = reviews.stream()
+                .map(TravelReview::getId)
+                .toList();
+
+        Map<Long, String> imageUrlByReviewId = new LinkedHashMap<>();
+        List<TravelReviewImage> reviewImages = travelReviewImageJpaRepository.findAllByReviewIds(reviewIds);
+        for (TravelReviewImage reviewImage : reviewImages) {
+            imageUrlByReviewId.putIfAbsent(reviewImage.getTravelReview().getId(), reviewImage.getReviewImageUrl());
+        }
+        return imageUrlByReviewId;
     }
 
     @Transactional
