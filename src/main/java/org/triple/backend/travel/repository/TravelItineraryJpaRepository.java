@@ -21,10 +21,6 @@ public interface TravelItineraryJpaRepository extends JpaRepository<TravelItiner
     @Query("SELECT t from TravelItinerary t WHERE t.id = :travelItineraryId AND t.group.id = :groupId AND t.isDeleted = false")
     Optional<TravelItinerary> findByIdAndGroupIdAndIsDeletedFalseForUpdate(Long travelItineraryId, Long groupId);
 
-    @Lock(value = LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT t from TravelItinerary t WHERE t.id = :travelItineraryId AND t.group.id = :groupId AND t.isDeleted = false")
-    Optional<TravelItinerary> findByIdAndGroupIdAndIsDeletedFalseForUpdate(Long travelItineraryId, Long groupId);
-
     @Query("""
             SELECT t
             FROM TravelItinerary t
