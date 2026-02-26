@@ -333,7 +333,7 @@ public class GroupServiceTest {
         assertThat(response.thumbNailUrl()).isEqualTo("thumb");
         assertThat(response.currentMemberCount()).isEqualTo(1);
         assertThat(response.memberLimit()).isEqualTo(10);
-        assertThat(response.role()).isNull();
+        assertThat(response.role()).isEqualTo(Role.GUEST);
         assertThat(response.users()).hasSize(1);
         assertThat(response.users().get(0).name()).isEqualTo("상윤");
         assertThat(response.users().get(0).isOwner()).isTrue();

@@ -304,7 +304,7 @@ public class GroupControllerTest extends ControllerTest {
                 )),
                 List.of(new GroupDetailResponseDto.RecentReviewDto(
                         300L,
-                        "즐거운 여행",
+                        "벚꽃여행",
                         "즐거운 여행이었어요",
                         "민규",
                         "https://example.com/review-image-2.png",
@@ -342,7 +342,7 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.recentTravels[0].startAt").value("2026-03-20T09:00:00"))
                 .andExpect(jsonPath("$.recentTravels[0].endAt").value("2026-03-22T18:00:00"))
                 .andExpect(jsonPath("$.recentReviews.length()").value(1))
-                .andExpect(jsonPath("$.recentReviews[0].title").value("즐거운 여행"))
+                .andExpect(jsonPath("$.recentReviews[0].travelItineraryName").value("벚꽃여행"))
                 .andExpect(jsonPath("$.recentReviews[0].view").value(100))
                 .andExpect(jsonPath("$.recentReviews[0].createdAt").value("2026-03-21T10:00:00"))
                 .andExpect(jsonPath("$.recentReviews[0].imageUrl").value("https://example.com/review-image-2.png"))
@@ -379,7 +379,7 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("recentTravels[].endAt").description("여행 종료 일시"),
                                 fieldWithPath("recentReviews").description("최근 여행 후기 최대 4개"),
                                 fieldWithPath("recentReviews[].reviewId").description("여행 후기 ID"),
-                                fieldWithPath("recentReviews[].title").description("여행 후기 제목"),
+                                fieldWithPath("recentReviews[].travelItineraryName").description("여행 일정 이름"),
                                 fieldWithPath("recentReviews[].content").description("여행 후기 내용"),
                                 fieldWithPath("recentReviews[].writerNickname").description("작성자 닉네임"),
                                 fieldWithPath("recentReviews[].imageUrl").description("여행 후기 대표 이미지 URL").optional(),
