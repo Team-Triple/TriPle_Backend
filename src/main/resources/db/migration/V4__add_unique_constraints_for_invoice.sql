@@ -1,3 +1,21 @@
+SET @invoice_description_column_exists := (
+    SELECT COUNT(1)
+    FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'invoice'
+      AND column_name = 'description'
+);
+
+SET @invoice_description_column_ddl := IF(
+    @invoice_description_column_exists = 0,
+    'ALTER TABLE invoice ADD COLUMN description VARCHAR(255) NULL',
+    'SELECT 1'
+);
+
+PREPARE stmt FROM @invoice_description_column_ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 SET @invoice_unique_exists := (
     SELECT COUNT(1)
     FROM information_schema.statistics
