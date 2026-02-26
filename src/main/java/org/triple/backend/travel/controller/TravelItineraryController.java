@@ -26,6 +26,15 @@ public class TravelItineraryController {
     }
 
     @LoginRequired
+    @PostMapping("/{travelId}/users/me")
+    public void joinTravel(
+            @PathVariable Long travelId,
+            @LoginUser Long userId
+    ) {
+        travelItineraryService.joinTravel(travelId, userId);
+    }
+
+    @LoginRequired
     @PatchMapping("/{travelId}")
     public void updateTravel(
             @Valid @RequestBody TravelItineraryUpdateRequestDto travelItineraryUpdateRequestDto,
