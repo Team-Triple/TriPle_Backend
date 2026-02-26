@@ -23,6 +23,27 @@ public interface TravelItineraryJpaRepository extends JpaRepository<TravelItiner
     Optional<TravelItinerary> findByIdAndGroupIdAndIsDeletedFalseForUpdate(Long travelItineraryId, Long groupId);
 
     @Query("""
+        SELECT t FROM TravelItinerary t
+        WHERE t.group.id = :groupId
+            AND t.isDeleted = false
+        ORDER BY t.id DESC
+    """)
+    List<TravelItinerary> findGroupTravelsFirstPage(@Param("groupId") Long groupId, Pageable pageable);
+
+    @Query("""
+        SELECT t FROM TravelItinerary t
+        WHERE t.group.id = :groupId
+            AND t.isDeleted = false
+            AND t.id < :cursor
+        ORDER BY t.id DESC
+    """)
+    List<TravelItinerary> findGroupTravelsNextPage(
+            @Param("groupId") Long groupId,
+            @Param("cursor") Long cursor,
+            Pageable pageable
+    );
+
+    @Query("""
             SELECT t
             FROM TravelItinerary t
             WHERE t.group.id = :groupId
