@@ -37,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.stream.Collectors.*;
 import static org.triple.backend.group.dto.response.GroupDetailResponseDto.*;
 
 @Service
@@ -202,12 +203,13 @@ public class GroupService {
                 .map(TravelReview::getId)
                 .toList();
 
-        Map<Long, String> imageUrlByReviewId = new LinkedHashMap<>();
-        List<TravelReviewImage> reviewImages = travelReviewImageJpaRepository.findAllByReviewIds(reviewIds);
-        for (TravelReviewImage reviewImage : reviewImages) {
-            imageUrlByReviewId.putIfAbsent(reviewImage.getTravelReview().getId(), reviewImage.getReviewImageUrl());
-        }
-        return imageUrlByReviewId;
+        return travelReviewImageJpaRepository.findAllByReviewIds(reviewIds).stream()
+                .collect(toMap(
+                        image -> image.getTravelReview().getId(),
+                        TravelReviewImage::getReviewImageUrl,
+                        (first, second) -> first,
+                        LinkedHashMap::new
+                ));
     }
 
     @Transactional
