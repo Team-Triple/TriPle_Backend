@@ -395,33 +395,4 @@ public class GroupService {
                 .reduce((left, right) -> left + " " + right)
                 .orElse("");
     }
-
-    @Transactional(readOnly = true)
-    public GroupCursorResponseDto myGroups(final Long cursor, final int size, final Long userId) {
-        if(!userJpaRepository.existsById(userId)) {
-            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
-        }
-
-        int pageSize = normalizePageSize(size);
-        Pageable pageRequest = PageRequest.of(0, pageSize + 1);
-
-        List<Group> rows = cursor == null ? userGroupJpaRepository.findMyGroupsFirstPage(userId, JoinStatus.JOINED, pageRequest)
-                : userGroupJpaRepository.findMyGroupsNextPage(userId, JoinStatus.JOINED, cursor, pageRequest);
-
-        return toCursorResponse(rows, pageSize);
-    }
-
-    private int normalizePageSize(int size) {
-        return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
-    }
-
-    private GroupCursorResponseDto toCursorResponse(List<Group> rows, int pageSize) {
-        boolean hasNext = rows.size() > pageSize;
-        if(hasNext) {
-            rows = rows.subList(0, pageSize);
-        }
-
-        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
-        return GroupCursorResponseDto.from(rows, nextCursor, hasNext);
-    }
 }
