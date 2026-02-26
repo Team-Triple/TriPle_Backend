@@ -35,4 +35,13 @@ public interface TravelItineraryJpaRepository extends JpaRepository<TravelItiner
             @Param("cursor") Long cursor,
             Pageable pageable
     );
+
+    @Query("""
+            SELECT t
+            FROM TravelItinerary t
+            WHERE t.group.id = :groupId
+              AND t.isDeleted = false
+            ORDER BY t.id desc
+            """)
+    List<TravelItinerary> findRecentByGroupId(Long groupId, Pageable pageable);
 }
