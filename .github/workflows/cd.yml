@@ -4,7 +4,6 @@ on:
   workflow_run:
     workflows: ["Build and Push"]
     types: [completed]
-    branches: [ "develop", "main" ]
   workflow_dispatch:
     inputs:
       branch_name:
@@ -30,11 +29,22 @@ jobs:
       (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push'
+        contains(fromJson('["develop","main"]'), github.event.workflow_run.head_branch)
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
 
     steps:
+      - name: Debug trigger context
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "workflow_run.conclusion=${{ github.event.workflow_run.conclusion }}"
+          echo "workflow_run.event=${{ github.event.workflow_run.event }}"
+          echo "workflow_run.head_branch=${{ github.event.workflow_run.head_branch }}"
+          echo "workflow_run.head_sha=${{ github.event.workflow_run.head_sha }}"
+
       - name: Checkout deploy ref
         uses: actions/checkout@v4
         with:
