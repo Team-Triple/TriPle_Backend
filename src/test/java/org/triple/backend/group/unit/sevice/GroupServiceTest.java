@@ -302,8 +302,8 @@ public class GroupServiceTest {
     }
 
     @Test
-    @DisplayName("공개 그룹 상세 조회 시 상세 정보를 조회할 수 있다")
-    void 공개_그룹_상세_조회_시_상세_정보를_조회할_수_있다() {
+    @DisplayName("비로그인 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
+    void 비로그인_사용자는_공개_그룹_상세_정보를_조회할_수_있다() {
         // given
         User owner = userJpaRepository.save(User.builder()
                 .providerId("kakao-owner-detail")
@@ -312,19 +312,12 @@ public class GroupServiceTest {
                 .profileUrl("http://img")
                 .build());
 
-        User viewer = userJpaRepository.save(User.builder()
-                .providerId("kakao-viewer-detail")
-                .nickname("조회자")
-                .email("viewer-detail@test.com")
-                .profileUrl("http://img2")
-                .build());
-
         Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
         group.addMember(owner, Role.OWNER);
         Group savedGroup = groupJpaRepository.save(group);
 
         // when
-        GroupDetailResponseDto response = groupService.detail(savedGroup.getId(), viewer.getId());
+        GroupDetailResponseDto response = groupService.detail(savedGroup.getId(), null);
 
         // then
         assertThat(response.name()).isEqualTo("여행모임");
