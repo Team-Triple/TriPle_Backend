@@ -343,7 +343,7 @@ class TravelItineraryServiceTest {
                 "description",
                 "test-thumbnailUrl",
                 20,
-                1,
+                2,
                 false));
         User user = userJpaRepository.save(createUser());
         userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.MEMBER));

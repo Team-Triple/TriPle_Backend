@@ -187,7 +187,7 @@ class TravelIntegrationTest {
                 "description",
                 "test-url",
                 5,
-                1,
+                2,
                 false
         ));
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.MEMBER));
