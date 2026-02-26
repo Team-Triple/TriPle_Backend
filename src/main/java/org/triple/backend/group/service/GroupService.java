@@ -159,7 +159,7 @@ public class GroupService {
                 .map(this::toRecentPhotoDto)
                 .toList();
 
-        Role myRole = myUserGroup == null ? null : myUserGroup.getRole();
+        Role myRole = myUserGroup == null ? Role.GUEST : myUserGroup.getRole();
 
         return from(userGroups, group, myRole, recentPhotos, recentTravels, recentReviews);
     }
@@ -187,7 +187,7 @@ public class GroupService {
     private RecentReviewDto toRecentReviewDto(final TravelReview review, final String imageUrl) {
         return new RecentReviewDto(
                 review.getId(),
-                review.getTitle(),
+                review.getTravelItinerary().getTitle(),
                 review.getContent(),
                 review.getUser().getNickname(),
                 imageUrl,
