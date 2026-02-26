@@ -331,6 +331,52 @@ class TravelItineraryServiceTest {
         Assertions.assertThat(deletedTravel.isDeleted()).isTrue();
     }
 
+    @Test
+    @DisplayName("여행 탈퇴 요청 시 참가 정보가 삭제된다.")
+    void 여행_탈퇴_요청_시_참가_정보가_삭제된다() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                1,
+                false));
+        User user = userJpaRepository.save(createUser());
+        userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.MEMBER));
+
+        travelItineraryService.leaveTravel(savedTravelItinerary.getId(), user.getId());
+
+        Assertions.assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(user.getId(), savedTravelItinerary.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("여행 리더는 탈퇴 요청 시 예외를 던진다.")
+    void 여행_리더는_탈퇴_요청_시_예외를_던진다() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                1,
+                false));
+        User user = userJpaRepository.save(createUser());
+        userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.LEADER));
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.leaveTravel(savedTravelItinerary.getId(), user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserTravelItineraryErrorCode.LEAVE_UNAUTHORIZED);
+    }
+
     private static Group createGroup() {
         return Group.create(GroupKind.PUBLIC, "모임", "설명", "http://thumb", 10);
     }
