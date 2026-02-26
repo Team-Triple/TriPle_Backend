@@ -110,12 +110,6 @@ public class TravelItineraryService {
             final int size,
             final Long userId
     ) {
-        if (!userJpaRepository.existsById(userId)) {
-            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
-        }
-        if (!groupJpaRepository.existsById(groupId)) {
-            throw new BusinessException(GroupErrorCode.GROUP_NOT_FOUND);
-        }
         if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
