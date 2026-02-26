@@ -44,4 +44,13 @@ public class TravelItineraryController {
         travelItineraryService.deleteTravel(travelId, userId);
     }
 
+    @LoginRequired
+    @DeleteMapping("/{travelId}/users/me")
+    public void leaveTravel(
+            @PathVariable Long travelId,
+            @LoginUser Long userId
+    ) {
+        travelItineraryService.leaveTravel(travelId, userId);
+    }
+
 }
