@@ -1,7 +1,9 @@
 package org.triple.backend.travel.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.triple.backend.travel.entity.TravelItinerary;
 
@@ -13,6 +15,10 @@ public interface TravelItineraryJpaRepository extends JpaRepository<TravelItiner
 
     @Query("select t from TravelItinerary t where t.id = :travelId and t.isDeleted = false")
     Optional<TravelItinerary> findByIdAndIsDeletedFalse(Long travelId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select t from TravelItinerary t where t.id = :travelId and t.isDeleted = false")
+    Optional<TravelItinerary> findByIdAndIsDeletedFalseForUpdate(Long travelId);
 
     @Query("""
             SELECT t

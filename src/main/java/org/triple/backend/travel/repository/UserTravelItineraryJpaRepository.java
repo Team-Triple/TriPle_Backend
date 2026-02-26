@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface UserTravelItineraryJpaRepository extends JpaRepository<UserTravelItinerary, Long> {
 
     Optional<UserTravelItinerary> findByUserIdAndTravelItineraryId(Long userId, Long travelItineraryId);
+
+    boolean existsByUserIdAndTravelItineraryId(Long userId, Long travelItineraryId);
 }
