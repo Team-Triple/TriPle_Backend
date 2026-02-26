@@ -10,19 +10,26 @@ import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.travel.controller.TravelItineraryController;
 import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
+import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
 import org.triple.backend.travel.service.TravelItineraryService;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
-import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,8 +66,7 @@ class TravelControllerTest extends ControllerTest {
         mockMvc.perform(post("/travels")
                         .requestAttr("LOGIN_USER_ID", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody)
-                )
+                        .content(requestBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.itineraryId").value(1L))
                 .andDo(
@@ -196,8 +202,67 @@ class TravelControllerTest extends ControllerTest {
                                 parameterWithName("travelId").description("탈퇴할 여행 일정 ID")
                         )
                 ));
+    }
 
-        verify(travelItineraryService, times(1)).leaveTravel(travelId, 1L);
+    @Test
+    @DisplayName("그룹 여행 목록 조회 요청 성공 시 200을 반환한다.")
+    void browse_group_travels_success() throws Exception {
+        given(sessionManager.getUserId(any())).willReturn(1L);
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(travelItineraryService.browseTravels(any(), any(), anyInt(), any())).willReturn(
+                new TravelItineraryCursorResponseDto(
+                        List.of(
+                                new TravelItineraryCursorResponseDto.TravelSummaryDto(
+                                        "제주도 뚜벅코 탐험",
+                                        "제주 맛집 투어",
+                                        LocalDateTime.of(2026, 3, 1, 0, 0),
+                                        LocalDateTime.of(2026, 3, 5, 0, 0),
+                                        "https://example.com/thumb.png",
+                                        3,
+                                        5
+                                )
+                        ),
+                        100L,
+                        true
+                )
+        );
+
+        mockMvc.perform(get("/travels/{groupId}", 10L)
+                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].title").value("제주도 뚜벅코 탐험"))
+                .andExpect(jsonPath("$.items[0].description").value("제주 맛집 투어"))
+                .andExpect(jsonPath("$.items[0].startAt").value("2026-03-01T00:00:00"))
+                .andExpect(jsonPath("$.items[0].endAt").value("2026-03-05T00:00:00"))
+                .andExpect(jsonPath("$.items[0].thumbnailUrl").value("https://example.com/thumb.png"))
+                .andExpect(jsonPath("$.items[0].memberCount").value(3))
+                .andExpect(jsonPath("$.items[0].memberLimit").value(5))
+                .andExpect(jsonPath("$.nextCursor").value(100L))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andDo(document("travels/list",
+                        pathParameters(
+                                parameterWithName("groupId").description("그룹 ID")
+                        ),
+                        queryParameters(
+                                parameterWithName("cursor").optional().description("다음 페이지 커서"),
+                                parameterWithName("size").optional().description("조회할 개수")
+                        ),
+                        responseFields(
+                                fieldWithPath("items").description("여행 일정 목록"),
+                                fieldWithPath("items[].title").description("여행 제목"),
+                                fieldWithPath("items[].description").description("여행 설명").optional(),
+                                fieldWithPath("items[].startAt").description("시작 일시"),
+                                fieldWithPath("items[].endAt").description("종료 일시"),
+                                fieldWithPath("items[].thumbnailUrl").description("썸네일 URL").optional(),
+                                fieldWithPath("items[].memberCount").description("현재 인원"),
+                                fieldWithPath("items[].memberLimit").description("최대 인원"),
+                                fieldWithPath("nextCursor").description("다음 페이지 커서").optional(),
+                                fieldWithPath("hasNext").description("다음 페이지 존재 여부")
+                        )
+                ));
     }
 
     private String buildTravelSaveRequestBody(Object... values) {

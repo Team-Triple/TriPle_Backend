@@ -2,6 +2,8 @@ package org.triple.backend.travel.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
@@ -13,6 +15,7 @@ import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
 import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
+import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
@@ -24,9 +27,14 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class TravelItineraryService {
+    private static final int MIN_PAGE_SIZE = 1;
+    private static final int MAX_PAGE_SIZE = 10;
+
     private final UserJpaRepository userJpaRepository;
     private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
     private final TravelItineraryJpaRepository travelItineraryJpaRepository;
@@ -93,6 +101,37 @@ public class TravelItineraryService {
         } catch (OptimisticLockingFailureException e) {
             throw new BusinessException(TravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_DELETE);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public TravelItineraryCursorResponseDto browseTravels(
+            final Long groupId,
+            final Long cursor,
+            final int size,
+            final Long userId
+    ) {
+        if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        int pageSize = normalizePageSize(size);
+        Pageable pageRequest = PageRequest.of(0, pageSize + 1);
+
+        List<TravelItinerary> rows = cursor == null
+                ? travelItineraryJpaRepository.findGroupTravelsFirstPage(groupId, pageRequest)
+                : travelItineraryJpaRepository.findGroupTravelsNextPage(groupId, cursor, pageRequest);
+
+        boolean hasNext = rows.size() > pageSize;
+        if (hasNext) {
+            rows = rows.subList(0, pageSize);
+        }
+
+        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
+        return TravelItineraryCursorResponseDto.of(rows, nextCursor, hasNext);
+    }
+
+    private int normalizePageSize(int size) {
+        return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
     }
 
     @Transactional

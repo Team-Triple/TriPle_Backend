@@ -27,8 +27,7 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_HEADER;
@@ -171,6 +170,37 @@ class TravelIntegrationTest {
 
         TravelItinerary deleted = travelItineraryJpaRepository.findById(travelItinerary.getId()).orElseThrow();
         assertThat(deleted.isDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("내 여행 일정 목록 조회에 성공한다.")
+    void 내_여행_일정_목록_조회_성공() throws Exception {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(user, group));
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-url",
+                5,
+                1,
+                false
+        ));
+
+        mockMvc.perform(get("/travels/{groupId}", group.getId())
+                        .sessionAttr(USER_SESSION_KEY, user.getId())
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].title").value("title"))
+                .andExpect(jsonPath("$.items[0].description").value("description"))
+                .andExpect(jsonPath("$.items[0].memberCount").value(1))
+                .andExpect(jsonPath("$.items[0].memberLimit").value(5))
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 
     @Test
