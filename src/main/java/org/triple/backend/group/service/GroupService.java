@@ -22,6 +22,12 @@ import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.JoinApplyJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
+import org.triple.backend.travel.entity.TravelItinerary;
+import org.triple.backend.travel.entity.TravelReview;
+import org.triple.backend.travel.entity.TravelReviewImage;
+import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
+import org.triple.backend.travel.repository.TravelReviewImageJpaRepository;
+import org.triple.backend.travel.repository.TravelReviewJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
@@ -29,17 +35,23 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.triple.backend.group.dto.response.GroupDetailResponseDto.*;
+
 @Service
 @RequiredArgsConstructor
-public class  GroupService {
+public class GroupService {
 
     private static final int KEYWORD_MAX_LENGTH = 20;
+    private static final int DETAIL_RECENT_SIZE = 4;
     private static final int MIN_PAGE_SIZE = 1;
     private static final int MAX_PAGE_SIZE = 10;
 
     private final GroupJpaRepository groupJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
     private final JoinApplyJpaRepository joinApplyJpaRepository;
+    private final TravelItineraryJpaRepository travelItineraryJpaRepository;
+    private final TravelReviewJpaRepository travelReviewJpaRepository;
+    private final TravelReviewImageJpaRepository travelReviewImageJpaRepository;
     private final UserJpaRepository userJpaRepository;
 
     @Transactional
@@ -113,17 +125,66 @@ public class  GroupService {
     public GroupDetailResponseDto detail(final Long groupId, final Long userId) {
 
         Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
-        userJpaRepository.findById(userId).orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        if(!userJpaRepository.existsById(userId)) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
 
-        if(group.getGroupKind().equals(GroupKind.PRIVATE)) {
-            if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)) {
-                throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
-            }
+        UserGroup myUserGroup = userGroupJpaRepository.findByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)
+                .orElse(null);
+
+        if(group.getGroupKind().equals(GroupKind.PRIVATE) && myUserGroup == null) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
 
         List<UserGroup> userGroups = userGroupJpaRepository.findAllByGroupIdAndJoinStatus(groupId, JoinStatus.JOINED);
 
-        return GroupDetailResponseDto.from(userGroups, group);
+        Pageable detailRecentPage = PageRequest.of(0, DETAIL_RECENT_SIZE);
+        List<RecentTravelDto> recentTravels = travelItineraryJpaRepository.findRecentByGroupId(groupId, detailRecentPage)
+                .stream()
+                .map(this::toRecentTravelDto)
+                .toList();
+
+        List<RecentReviewDto> recentReviews = travelReviewJpaRepository.findRecentByGroupId(groupId, detailRecentPage)
+                .stream()
+                .map(this::toRecentReviewDto)
+                .toList();
+
+        List<RecentPhotoDto> recentPhotos = travelReviewImageJpaRepository.findRecentByGroupId(groupId, detailRecentPage)
+                .stream()
+                .map(this::toRecentPhotoDto)
+                .toList();
+
+        Role myRole = myUserGroup == null ? null : myUserGroup.getRole();
+
+        return from(userGroups, group, myRole, recentPhotos, recentTravels, recentReviews);
+    }
+
+    private RecentPhotoDto toRecentPhotoDto(final TravelReviewImage reviewImage) {
+        return new RecentPhotoDto(
+                reviewImage.getId(),
+                reviewImage.getReviewImageUrl()
+        );
+    }
+
+    private RecentTravelDto toRecentTravelDto(final TravelItinerary itinerary) {
+        return new RecentTravelDto(
+                itinerary.getId(),
+                itinerary.getTitle(),
+                itinerary.getThumbnailUrl(),
+                itinerary.getDescription(),
+                itinerary.getMemberCount(),
+                itinerary.getMemberLimit(),
+                itinerary.getStartAt(),
+                itinerary.getEndAt()
+        );
+    }
+
+    private RecentReviewDto toRecentReviewDto(final TravelReview review) {
+        return new RecentReviewDto(
+                review.getId(),
+                review.getContent(),
+                review.getUser().getNickname()
+        );
     }
 
     @Transactional
