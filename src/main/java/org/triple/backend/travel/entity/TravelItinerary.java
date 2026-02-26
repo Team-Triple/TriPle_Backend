@@ -87,6 +87,13 @@ public class TravelItinerary extends BaseEntity {
         this.isDeleted = true;
     }
 
+    public void increaseMemberCount() {
+        if (this.memberCount >= this.memberLimit) {
+            throw new IllegalStateException("여행 정원이 가득 찼습니다.");
+        }
+        this.memberCount++;
+    }
+
     private void updateTitle(String title) {
         if (title == null) return;
         this.title = validateTitle(title);
