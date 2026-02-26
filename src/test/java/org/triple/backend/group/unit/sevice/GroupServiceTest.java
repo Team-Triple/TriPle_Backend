@@ -333,7 +333,7 @@ public class GroupServiceTest {
         assertThat(response.thumbNailUrl()).isEqualTo("thumb");
         assertThat(response.currentMemberCount()).isEqualTo(1);
         assertThat(response.memberLimit()).isEqualTo(10);
-        assertThat(response.isOwner()).isFalse();
+        assertThat(response.role()).isNull();
         assertThat(response.users()).hasSize(1);
         assertThat(response.users().get(0).name()).isEqualTo("상윤");
         assertThat(response.users().get(0).isOwner()).isTrue();
@@ -405,7 +405,7 @@ public class GroupServiceTest {
         assertThat(response.users().stream().map(GroupDetailResponseDto.UserDto::name).toList())
                 .containsExactlyInAnyOrder("상윤", "민규");
         assertThat(response.users().stream().filter(GroupDetailResponseDto.UserDto::isOwner).count()).isEqualTo(1);
-        assertThat(response.isOwner()).isFalse();
+        assertThat(response.role()).isEqualTo(Role.MEMBER);
         assertThat(response.recentPhotos()).isEmpty();
         assertThat(response.recentTravels()).isEmpty();
         assertThat(response.recentReviews()).isEmpty();
