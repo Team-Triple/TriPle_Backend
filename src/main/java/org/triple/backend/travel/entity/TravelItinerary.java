@@ -72,6 +72,13 @@ public class TravelItinerary extends BaseEntity {
         this.isDeleted = isDeleted;
     }
 
+    public void decreaseMemberCount() {
+        if(memberCount <= 1) {
+            throw new IllegalArgumentException("여행에서 member는 최소 1명이 존재해야 합니다.");
+        }
+        this.memberCount--;
+    }
+
     public void updateTravelItinerary(final TravelItineraryUpdateRequestDto travelItineraryUpdateRequestDto) {
         updateTitle(travelItineraryUpdateRequestDto.title());
         updateStartAt(travelItineraryUpdateRequestDto.startAt());
@@ -118,7 +125,6 @@ public class TravelItinerary extends BaseEntity {
     }
 
     //첫 생성 정적 팩터리 메서드
-
     public static TravelItinerary of(final TravelItinerarySaveRequestDto travelsRequestDto, final Group group) {
         return TravelItinerary.builder()
                 .title(travelsRequestDto.title())
@@ -132,6 +138,7 @@ public class TravelItinerary extends BaseEntity {
                 .isDeleted(false)
                 .build();
     }
+
     private static String validateTitle(String title) {
         if (title == null || title.isBlank()) throw new IllegalArgumentException("제목은 빈값일 수 없습니다.");
         return title;

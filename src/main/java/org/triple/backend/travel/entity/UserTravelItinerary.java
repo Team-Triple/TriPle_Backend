@@ -27,6 +27,9 @@ public class UserTravelItinerary {
     @Enumerated(EnumType.STRING)
     private UserRole userRole;
 
+    @Version
+    private Long version;
+
     public UserTravelItinerary(User user, TravelItinerary travelItinerary, UserRole userRole) {
         this.user = validateUser(user);
         this.travelItinerary = validateTravelItinerary(travelItinerary);
