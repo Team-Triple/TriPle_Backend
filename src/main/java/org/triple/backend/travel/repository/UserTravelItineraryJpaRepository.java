@@ -19,4 +19,6 @@ public interface UserTravelItineraryJpaRepository extends JpaRepository<UserTrav
     Optional<UserTravelItinerary> findByUserIdAndTravelItineraryId(
             @Param("userId") Long userId, @Param("travelItineraryId") Long travelItineraryId
     );
+
+    boolean existsByUserIdAndTravelItineraryId(Long userId, Long travelItineraryId);
 }

@@ -261,12 +261,143 @@ class TravelIntegrationTest {
                 .isPresent();
     }
 
+    @Test
+    @DisplayName("여행 참가 요청 성공 시 멤버십이 저장되고 인원이 증가한다.")
+    void 여행_참가_요청_성공() throws Exception {
+        User leader = userJpaRepository.save(createUser());
+        User joiner = userJpaRepository.save(createUserWithProviderId("kakao-2"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+        userGroupJpaRepository.save(createUserGroup(joiner, group));
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-url",
+                3,
+                1,
+                false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
+
+        mockMvc.perform(post("/travels/{travelId}/users/me", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, joiner.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
+                        .header(CSRF_HEADER, "test-token"))
+                .andExpect(status().isOk());
+
+        TravelItinerary updated = travelItineraryJpaRepository.findById(travelItinerary.getId()).orElseThrow();
+        assertThat(updated.getMemberCount()).isEqualTo(2);
+        assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(joiner.getId(), travelItinerary.getId()))
+                .isPresent();
+    }
+
+    @Test
+    @DisplayName("이미 참가한 유저가 다시 참가 요청하면 409를 반환한다.")
+    void 이미_참가한_유저가_다시_참가_요청하면_409를_반환한다() throws Exception {
+        User leader = userJpaRepository.save(createUser());
+        User joiner = userJpaRepository.save(createUserWithProviderId("kakao-3"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+        userGroupJpaRepository.save(createUserGroup(joiner, group));
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-url",
+                3,
+                2,
+                false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(joiner, travelItinerary, UserRole.MEMBER));
+
+        mockMvc.perform(post("/travels/{travelId}/users/me", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, joiner.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
+                        .header(CSRF_HEADER, "test-token"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아니면 여행 참가 요청 시 403을 반환한다.")
+    void 그룹_멤버가_아니면_여행_참가_요청_시_403을_반환한다() throws Exception {
+        User leader = userJpaRepository.save(createUser());
+        User outsider = userJpaRepository.save(createUserWithProviderId("kakao-4"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-url",
+                3,
+                1,
+                false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
+
+        mockMvc.perform(post("/travels/{travelId}/users/me", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
+                        .header(CSRF_HEADER, "test-token"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("여행 정원이 가득 차면 참가 요청 시 409를 반환한다.")
+    void 여행_정원이_가득_차면_참가_요청_시_409를_반환한다() throws Exception {
+        User leader = userJpaRepository.save(createUser());
+        User joiner = userJpaRepository.save(createUserWithProviderId("kakao-5"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+        userGroupJpaRepository.save(createUserGroup(joiner, group));
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-url",
+                1,
+                1,
+                false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
+
+        mockMvc.perform(post("/travels/{travelId}/users/me", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, joiner.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
+                        .header(CSRF_HEADER, "test-token"))
+                .andExpect(status().isConflict());
+    }
+
     private User createUser() {
         return User.builder()
                 .provider(OauthProvider.KAKAO)
                 .providerId("kakao-1")
                 .nickname("nick")
                 .email("test@test.com")
+                .profileUrl("http://img")
+                .build();
+    }
+
+    private User createUserWithProviderId(String providerId) {
+        return User.builder()
+                .provider(OauthProvider.KAKAO)
+                .providerId(providerId)
+                .nickname("nick-" + providerId)
+                .email(providerId + "@test.com")
                 .profileUrl("http://img")
                 .build();
     }

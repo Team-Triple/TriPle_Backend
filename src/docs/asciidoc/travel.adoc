@@ -1,4 +1,4 @@
-= Travel API Document
+﻿= Travel API Document
 :doctype: book
 :icons: font
 :source-highlighter: highlightjs
@@ -21,6 +21,11 @@ include::{snippets}/travels/update/http-response.adoc[]
 include::{snippets}/travels/delete/path-parameters.adoc[]
 include::{snippets}/travels/delete/http-request.adoc[]
 include::{snippets}/travels/delete/http-response.adoc[]
+
+== 여행 일정 참가
+include::{snippets}/travels/join/path-parameters.adoc[]
+include::{snippets}/travels/join/http-request.adoc[]
+include::{snippets}/travels/join/http-response.adoc[]
 
 == 여행 일정 탈퇴
 include::{snippets}/travels/leave/path-parameters.adoc[]
