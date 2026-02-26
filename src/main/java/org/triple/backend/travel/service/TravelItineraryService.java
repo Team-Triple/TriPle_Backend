@@ -97,17 +97,20 @@ public class TravelItineraryService {
 
     @Transactional
     public void leaveTravel(final Long travelItineraryId, final Long userId) {
-        travelItineraryJpaRepository.findByIdAndIsDeletedFalse(travelItineraryId)
-                .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
-
         UserTravelItinerary userTravelItinerary = userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(userId, travelItineraryId)
                 .orElseThrow(() -> new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
+
+        TravelItinerary travelItinerary = userTravelItinerary.getTravelItinerary();
+        if(travelItinerary == null) {
+            throw new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND);
+        }
 
         if (userTravelItinerary.getUserRole().equals(UserRole.LEADER)) {
             throw new BusinessException(UserTravelItineraryErrorCode.LEAVE_UNAUTHORIZED);
         }
 
         try {
+            travelItinerary.decreaseMemberCount();
             userTravelItineraryJpaRepository.delete(userTravelItinerary);
             userTravelItineraryJpaRepository.flush();
         } catch (OptimisticLockingFailureException e) {
