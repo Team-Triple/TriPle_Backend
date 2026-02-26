@@ -333,6 +333,52 @@ class TravelItineraryServiceTest {
     }
 
     @Test
+    @DisplayName("여행 탈퇴 요청 시 참가 정보가 삭제된다.")
+    void 여행_탈퇴_요청_시_참가_정보가_삭제된다() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                2,
+                false));
+        User user = userJpaRepository.save(createUser());
+        userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.MEMBER));
+
+        travelItineraryService.leaveTravel(savedTravelItinerary.getId(), user.getId());
+
+        Assertions.assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(user.getId(), savedTravelItinerary.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("여행 리더는 탈퇴 요청 시 예외를 던진다.")
+    void 여행_리더는_탈퇴_요청_시_예외를_던진다() {
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-thumbnailUrl",
+                20,
+                1,
+                false));
+        User user = userJpaRepository.save(createUser());
+        userTravelItineraryJpaRepository.save(new UserTravelItinerary(user, savedTravelItinerary, UserRole.LEADER));
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.leaveTravel(savedTravelItinerary.getId(), user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserTravelItineraryErrorCode.LEAVE_UNAUTHORIZED);
+    }
+
+    @Test
     @DisplayName("여행 목록 조회 시 유저를 찾을 수 없으면 예외를 던진다.")
     void 여행_목록_조회_유저_없음_예외() {
         Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, 1L))

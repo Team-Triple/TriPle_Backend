@@ -49,7 +49,8 @@ class TravelControllerTest extends ControllerTest {
 
     @Test
     @DisplayName("요청 시 TravelSaveResponseDto를 반환해야함")
-    void save_travel_returns_response() throws Exception {
+    void 요청_반환() throws Exception {
+        //given
         given(sessionManager.getUserId(any())).willReturn(1L);
         given(csrfTokenManager.isValid(any(), any())).willReturn(true);
 
@@ -61,31 +62,35 @@ class TravelControllerTest extends ControllerTest {
                 "제목", "2026-02-15T00:00", "2026-02-18T00:00", 1L, "설명", "test-url", 5
         );
 
+        //when, then
         mockMvc.perform(post("/travels")
                         .requestAttr("LOGIN_USER_ID", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.itineraryId").value(1L))
-                .andDo(document("travels/create",
-                        requestFields(
-                                fieldWithPath("title").description("여행 제목 (필수)"),
-                                fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm 형식, 필수)"),
-                                fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm 형식, 필수)"),
-                                fieldWithPath("groupId").description("그룹 ID (필수)"),
-                                fieldWithPath("description").description("여행 설명").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("최대 인원 (최소 1, 필수)")
-                        ),
-                        responseFields(
-                                fieldWithPath("itineraryId").description("여행 일정 ID")
+                .andDo(
+                        document("travels/create",
+                                requestFields(
+                                        fieldWithPath("title").description("여행 제목 (필수)"),
+                                        fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm 형식, 필수)"),
+                                        fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm 형식, 필수)"),
+                                        fieldWithPath("groupId").description("그룹 ID (필수)"),
+                                        fieldWithPath("description").description("여행 설명 (100글자)").optional(),
+                                        fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
+                                        fieldWithPath("memberLimit").description("최대 인원 (최소 1, 필수))")
+                                ),
+                                responseFields(
+                                        fieldWithPath("itineraryId").description("여행 일정 ID")
+                                )
                         )
-                ));
+                );
     }
 
     @Test
-    @DisplayName("시작일 LocalDateTime 포맷 아닐 시 400 반환")
-    void save_travel_invalid_datetime() throws Exception {
+    @DisplayName("시작일 LocalDateTime 포맷 아닐 시 DateTimeParseException(타임존 포함의 경우)")
+    void 시작일_포맷_예외() throws Exception {
+        //given
         given(sessionManager.getUserId(any())).willReturn(1L);
         given(csrfTokenManager.isValid(any(), any())).willReturn(true);
 
@@ -93,16 +98,19 @@ class TravelControllerTest extends ControllerTest {
                 "제목", "2026-02-15Z00:00", "2026-02-18T00:00", 1L, "설명", "test-url", 5
         );
 
-        mockMvc.perform(post("/travels")
+        //when, then
+        mockMvc.perform(
+                post("/travels")
                         .requestAttr("LOGIN_USER_ID", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isBadRequest());
+                        .content(requestBody)
+        ).andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("시작일 월 경계값이 13월이면 400 반환")
-    void save_travel_invalid_month() throws Exception {
+    @DisplayName("시작일 월 경계값 13월일 시 예외")
+    void 시작일_월_경계값_예외() throws Exception {
+        //given
         given(sessionManager.getUserId(any())).willReturn(1L);
         given(csrfTokenManager.isValid(any(), any())).willReturn(true);
 
@@ -110,16 +118,19 @@ class TravelControllerTest extends ControllerTest {
                 "제목", "2026-13-15T00:00", "2027-02-18T00:00", 1L, "설명", "test-url", 5
         );
 
-        mockMvc.perform(post("/travels")
+        //when, then
+        mockMvc.perform(
+                post("/travels")
                         .requestAttr("LOGIN_USER_ID", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isBadRequest());
+                        .content(requestBody)
+        ).andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("여행 업데이트 요청 성공 시 200 반환")
-    void update_travel_success() throws Exception {
+    void 여행_업데이트_요청_성공() throws Exception {
+        // given
         Long travelId = 1L;
         given(sessionManager.getUserId(any())).willReturn(1L);
         given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
@@ -134,6 +145,7 @@ class TravelControllerTest extends ControllerTest {
                 10
         );
 
+        // when, then
         mockMvc.perform(patch("/travels/{travelId}", travelId)
                         .requestAttr("LOGIN_USER_ID", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -147,7 +159,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("title").description("여행 제목").optional(),
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
-                                fieldWithPath("description").description("여행 설명").optional(),
+                                fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
                                 fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
                                 fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
                         )
@@ -156,7 +168,7 @@ class TravelControllerTest extends ControllerTest {
 
     @Test
     @DisplayName("여행 일정 삭제 요청 성공 시 200을 반환한다.")
-    void delete_travel_success() throws Exception {
+    void 여행_일정_삭제_요청_성공() throws Exception {
         Long travelId = 1L;
         given(sessionManager.getUserId(any())).willReturn(1L);
         given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
@@ -165,10 +177,29 @@ class TravelControllerTest extends ControllerTest {
 
         mockMvc.perform(delete("/travels/{travelId}", travelId)
                         .requestAttr("LOGIN_USER_ID", 1L))
-                .andExpect(status().isOk())
-                .andDo(document("travels/delete",
-                        pathParameters(
+                        .andExpect(status().isOk())
+                        .andDo(document("travels/delete",
+                                pathParameters(
                                 parameterWithName("travelId").description("삭제할 여행 일정 ID")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("여행 탈퇴 요청 성공 시 200을 반환한다.")
+    void 여행_탈퇴_요청_성공() throws Exception {
+        Long travelId = 1L;
+        given(sessionManager.getUserId(any())).willReturn(1L);
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(csrfTokenManager.isValid(any(), any())).willReturn(true);
+        doNothing().when(travelItineraryService).leaveTravel(travelId, 1L);
+
+        mockMvc.perform(delete("/travels/{travelId}/users/me", travelId)
+                        .requestAttr("LOGIN_USER_ID", 1L))
+                .andExpect(status().isOk())
+                .andDo(document("travels/leave",
+                        pathParameters(
+                                parameterWithName("travelId").description("탈퇴할 여행 일정 ID")
                         )
                 ));
     }
@@ -235,7 +266,8 @@ class TravelControllerTest extends ControllerTest {
     }
 
     private String buildTravelSaveRequestBody(Object... values) {
-        return """
+        String answer =
+                """
                 {
                   "title": "%s",
                   "startAt": "%s",
@@ -245,7 +277,8 @@ class TravelControllerTest extends ControllerTest {
                   "thumbnailUrl": "%s",
                   "memberLimit": %d
                 }
-                """.formatted(values);
+                """;
+        return answer.formatted(values);
     }
 
     private String buildTravelUpdateRequestBody(

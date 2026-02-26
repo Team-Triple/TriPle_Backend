@@ -27,9 +27,7 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_HEADER;
@@ -203,6 +201,64 @@ class TravelIntegrationTest {
                 .andExpect(jsonPath("$.items[0].memberCount").value(1))
                 .andExpect(jsonPath("$.items[0].memberLimit").value(5))
                 .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    @DisplayName("여행 멤버가 탈퇴 요청하면 참가 정보가 삭제된다.")
+    void 여행_멤버가_탈퇴_요청하면_참가_정보가_삭제된다() throws Exception {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-url",
+                5,
+                2,
+                false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.MEMBER));
+
+        mockMvc.perform(delete("/travels/{travelId}/users/me", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, user.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
+                        .header(CSRF_HEADER, "test-token"))
+                .andExpect(status().isOk());
+
+        assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(user.getId(), travelItinerary.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("여행 리더가 탈퇴 요청하면 401을 반환한다.")
+    void 여행_리더가_탈퇴_요청하면_401을_반환한다() throws Exception {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                "test-url",
+                5,
+                1,
+                false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
+
+        mockMvc.perform(delete("/travels/{travelId}/users/me", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, user.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
+                        .header(CSRF_HEADER, "test-token"))
+                .andExpect(status().isUnauthorized());
+
+        assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(user.getId(), travelItinerary.getId()))
+                .isPresent();
     }
 
     private User createUser() {

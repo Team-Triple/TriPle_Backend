@@ -55,4 +55,14 @@ public class TravelItineraryController {
     ) {
         return travelItineraryService.browseTravels(groupId, cursor, size, userId);
     }
+
+    @LoginRequired
+    @DeleteMapping("/{travelId}/users/me")
+    public void leaveTravel(
+            @PathVariable Long travelId,
+            @LoginUser Long userId
+    ) {
+        travelItineraryService.leaveTravel(travelId, userId);
+    }
+
 }
