@@ -47,7 +47,7 @@ public record GroupDetailResponseDto(
 
     public record RecentReviewDto(
             Long reviewId,
-            String title,
+            String travelItineraryName,
             String content,
             String writerNickname,
             String imageUrl,
