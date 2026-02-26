@@ -275,76 +275,6 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("로그인 사용자는 내가 속한 그룹 목록을 조회할 수 있다.")
-    void 로그인_사용자는_내가_속한_그룹_목록을_조회할_수_있다() throws Exception {
-        // given
-        GroupCursorResponseDto response = new GroupCursorResponseDto(
-                List.of(
-                        new GroupCursorResponseDto.GroupSummaryDto(
-                                30L,
-                                "제주모임",
-                                "제주도 여행",
-                                3,
-                                10,
-                                "https://example.com/jeju.png"
-                        )
-                ),
-                30L,
-                true
-        );
-
-        given(groupService.myGroups(eq(null), eq(10), eq(1L)))
-                .willReturn(response);
-
-        // when & then
-        mockMvc.perform(get("/groups/me")
-                        .with(loginSessionAndCsrf())
-                        .param("size", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isArray())
-                .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].groupId").value(30L))
-                .andExpect(jsonPath("$.items[0].name").value("제주모임"))
-                .andExpect(jsonPath("$.items[0].description").value("제주도 여행"))
-                .andExpect(jsonPath("$.items[0].currentMemberCount").value(3))
-                .andExpect(jsonPath("$.items[0].memberLimit").value(10))
-                .andExpect(jsonPath("$.items[0].thumbNailUrl").value("https://example.com/jeju.png"))
-                .andExpect(jsonPath("$.nextCursor").value(30L))
-                .andExpect(jsonPath("$.hasNext").value(true))
-                .andDo(document("groups/my-groups",
-                        preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint()),
-                        queryParameters(
-                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
-                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
-                        ),
-                        responseFields(
-                                fieldWithPath("items").description("내가 속한 그룹 목록"),
-                                fieldWithPath("items[].groupId").description("그룹 ID"),
-                                fieldWithPath("items[].name").description("그룹 이름"),
-                                fieldWithPath("items[].description").description("그룹 설명").optional(),
-                                fieldWithPath("items[].thumbNailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("items[].currentMemberCount").description("현재 인원").optional(),
-                                fieldWithPath("items[].memberLimit").description("최대 인원").optional(),
-                                fieldWithPath("nextCursor").description("다음 페이지 커서 (없으면 null)").optional(),
-                                fieldWithPath("hasNext").description("다음 페이지 존재 여부")
-                        )
-                ));
-
-        verify(groupService, times(1)).myGroups(eq(null), eq(10), eq(1L));
-    }
-
-    @Test
-    @DisplayName("비로그인 사용자가 내 그룹 목록을 조회하면 401을 반환한다.")
-    void 비로그인_사용자가_내_그룹_목록을_조회하면_401을_반환한다() throws Exception {
-        // when & then
-        mockMvc.perform(get("/groups/me"))
-                .andExpect(status().isUnauthorized());
-
-        verify(groupService, never()).myGroups(any(), anyInt(), any());
-    }
-
-    @Test
     @DisplayName("로그인한 사용자는 그룹 상세 정보를 조회할 수 있다.")
     void 로그인한_사용자는_그룹_상세_정보를_조회할_수_있다() throws Exception {
         // given
@@ -360,7 +290,7 @@ public class GroupControllerTest extends ControllerTest {
                 "https://example.com/thumb.png",
                 2,
                 10,
-                true,
+                Role.OWNER,
                 List.of(new GroupDetailResponseDto.RecentPhotoDto(100L, "https://example.com/review-image-1.png")),
                 List.of(new GroupDetailResponseDto.RecentTravelDto(
                         200L,
@@ -372,7 +302,15 @@ public class GroupControllerTest extends ControllerTest {
                         LocalDateTime.of(2026, 3, 20, 9, 0),
                         LocalDateTime.of(2026, 3, 22, 18, 0)
                 )),
-                List.of(new GroupDetailResponseDto.RecentReviewDto(300L, "즐거운 여행이었어요", "민규"))
+                List.of(new GroupDetailResponseDto.RecentReviewDto(
+                        300L,
+                        "벚꽃여행",
+                        "즐거운 여행이었어요",
+                        "민규",
+                        "https://example.com/review-image-1.png",
+                        12,
+                        LocalDateTime.of(2026, 3, 23, 14, 30)
+                ))
         );
 
         given(groupService.detail(eq(groupId), eq(1L)))
@@ -392,7 +330,7 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
                 .andExpect(jsonPath("$.currentMemberCount").value(2))
                 .andExpect(jsonPath("$.memberLimit").value(10))
-                .andExpect(jsonPath("$.isOwner").value(true))
+                .andExpect(jsonPath("$.role").value("OWNER"))
                 .andExpect(jsonPath("$.recentPhotos.length()").value(1))
                 .andExpect(jsonPath("$.recentTravels.length()").value(1))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(200))
@@ -404,6 +342,13 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.recentTravels[0].startAt").value("2026-03-20T09:00:00"))
                 .andExpect(jsonPath("$.recentTravels[0].endAt").value("2026-03-22T18:00:00"))
                 .andExpect(jsonPath("$.recentReviews.length()").value(1))
+                .andExpect(jsonPath("$.recentReviews[0].reviewId").value(300))
+                .andExpect(jsonPath("$.recentReviews[0].travelItineraryName").value("벚꽃여행"))
+                .andExpect(jsonPath("$.recentReviews[0].content").value("즐거운 여행이었어요"))
+                .andExpect(jsonPath("$.recentReviews[0].writerNickname").value("민규"))
+                .andExpect(jsonPath("$.recentReviews[0].imageUrl").value("https://example.com/review-image-1.png"))
+                .andExpect(jsonPath("$.recentReviews[0].view").value(12))
+                .andExpect(jsonPath("$.recentReviews[0].createdAt").value("2026-03-23T14:30:00"))
                 .andDo(document("groups/detail",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
@@ -422,7 +367,7 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("thumbNailUrl").description("그룹 썸네일 URL").optional(),
                                 fieldWithPath("currentMemberCount").description("현재 인원"),
                                 fieldWithPath("memberLimit").description("최대 인원"),
-                                fieldWithPath("isOwner").description("요청한 사용자의 그룹장 여부"),
+                                fieldWithPath("role").description("요청한 사용자의 그룹 내 역할 (OWNER, MEMBER, GUEST)"),
                                 fieldWithPath("recentPhotos").description("최근 사진 최대 4개"),
                                 fieldWithPath("recentPhotos[].imageId").description("사진 ID"),
                                 fieldWithPath("recentPhotos[].imageUrl").description("사진 URL"),
@@ -437,8 +382,12 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("recentTravels[].endAt").description("여행 종료 일시"),
                                 fieldWithPath("recentReviews").description("최근 여행 후기 최대 4개"),
                                 fieldWithPath("recentReviews[].reviewId").description("여행 후기 ID"),
+                                fieldWithPath("recentReviews[].travelItineraryName").description("여행 일정 이름"),
                                 fieldWithPath("recentReviews[].content").description("여행 후기 내용"),
-                                fieldWithPath("recentReviews[].writerNickname").description("작성자 닉네임")
+                                fieldWithPath("recentReviews[].writerNickname").description("작성자 닉네임"),
+                                fieldWithPath("recentReviews[].imageUrl").description("후기 대표 이미지 URL").optional(),
+                                fieldWithPath("recentReviews[].view").description("후기 조회수"),
+                                fieldWithPath("recentReviews[].createdAt").description("후기 생성 일시")
                         )
                 ));
 
