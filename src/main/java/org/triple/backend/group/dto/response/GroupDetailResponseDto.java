@@ -16,7 +16,7 @@ public record GroupDetailResponseDto(
         String thumbNailUrl,
         int currentMemberCount,
         int memberLimit,
-        Boolean isOwner,
+        Role role,
         List<RecentPhotoDto> recentPhotos,
         List<RecentTravelDto> recentTravels,
         List<RecentReviewDto> recentReviews
@@ -47,8 +47,12 @@ public record GroupDetailResponseDto(
 
     public record RecentReviewDto(
             Long reviewId,
+            String title,
             String content,
-            String writerNickname
+            String writerNickname,
+            String imageUrl,
+            int view,
+            LocalDateTime createdAt
     ) {}
 
     public static GroupDetailResponseDto from(
@@ -74,7 +78,7 @@ public record GroupDetailResponseDto(
                 group.getThumbNailUrl(),
                 group.getCurrentMemberCount(),
                 group.getMemberLimit(),
-                role == Role.OWNER,
+                role,
                 recentPhotos,
                 recentTravels,
                 recentReviews
