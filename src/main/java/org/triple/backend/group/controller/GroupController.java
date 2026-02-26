@@ -7,10 +7,7 @@ import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
-import org.triple.backend.group.dto.response.GroupCursorResponseDto;
-import org.triple.backend.group.dto.response.CreateGroupResponseDto;
-import org.triple.backend.group.dto.response.GroupDetailResponseDto;
-import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
+import org.triple.backend.group.dto.response.*;
 import org.triple.backend.group.service.GroupService;
 
 @RestController
@@ -72,5 +69,10 @@ public class GroupController {
     @GetMapping("/me")
     public GroupCursorResponseDto myGroups(@RequestParam(required = false) Long cursor, @RequestParam(defaultValue = "10") int size, @LoginUser final Long userId) {
         return groupService.myGroups(cursor, size, userId);
+    }
+
+    @GetMapping("/{groupId}/menu")
+    public GroupMenuResponseDto menu(@PathVariable Long groupId, @LoginUser final Long userId) {
+        return groupService.menu(userId, groupId);
     }
 }

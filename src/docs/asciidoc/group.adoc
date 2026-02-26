@@ -19,6 +19,11 @@ include::{snippets}/groups/my-groups/query-parameters.adoc[]
 include::{snippets}/groups/my-groups/http-request.adoc[]
 include::{snippets}/groups/my-groups/http-response.adoc[]
 
+== 그룹 메뉴 조회
+include::{snippets}/groups/menu/path-parameters.adoc[]
+include::{snippets}/groups/menu/http-request.adoc[]
+include::{snippets}/groups/menu/http-response.adoc[]
+
 == 그룹 상세 조회
 include::{snippets}/groups/detail/path-parameters.adoc[]
 include::{snippets}/groups/detail/http-request.adoc[]

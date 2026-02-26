@@ -15,6 +15,7 @@ import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
 import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupDetailResponseDto;
+import org.triple.backend.group.dto.response.GroupMenuResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.userGroup.Role;
@@ -27,6 +28,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
@@ -272,6 +274,69 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(status().isUnauthorized());
 
         verify(groupService, never()).myGroups(any(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("로그인 사용자는 그룹 메뉴 정보를 조회할 수 있다.")
+    void 로그인_사용자는_그룹_메뉴_정보를_조회할_수_있다() throws Exception {
+        // given
+        Long groupId = 10L;
+        GroupMenuResponseDto response = new GroupMenuResponseDto(
+                "즐거운 여행단",
+                "MBTI P들의 모임입니다. 맛집 탐방!",
+                6,
+                10,
+                Role.MEMBER
+        );
+        given(groupService.menu(eq(1L), eq(groupId))).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/menu", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("즐거운 여행단"))
+                .andExpect(jsonPath("$.description").value("MBTI P들의 모임입니다. 맛집 탐방!"))
+                .andExpect(jsonPath("$.currentMemberCount").value(6))
+                .andExpect(jsonPath("$.memberLimit").value(10))
+                .andExpect(jsonPath("$.role").value("MEMBER"))
+                .andDo(document("groups/menu",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("메뉴 정보를 조회할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("currentMemberCount").description("현재 인원"),
+                                fieldWithPath("memberLimit").description("최대 인원"),
+                                fieldWithPath("role").description("요청 사용자 역할 (OWNER, MEMBER, GUEST)")
+                        )
+                ));
+
+        verify(groupService, times(1)).menu(1L, groupId);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 그룹 메뉴 조회 시 GUEST 역할을 전달받는다.")
+    void 비로그인_사용자는_그룹_메뉴_조회_시_GUEST_역할을_전달받는다() throws Exception {
+        // given
+        Long groupId = 20L;
+        GroupMenuResponseDto response = new GroupMenuResponseDto(
+                "제주 모임",
+                "게스트 조회",
+                2,
+                10,
+                Role.GUEST
+        );
+        given(groupService.menu(isNull(), eq(groupId))).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/menu", groupId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("GUEST"));
+
+        verify(groupService, times(1)).menu(isNull(), eq(groupId));
     }
 
     @Test

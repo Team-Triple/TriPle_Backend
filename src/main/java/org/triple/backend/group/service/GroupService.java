@@ -9,10 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
-import org.triple.backend.group.dto.response.CreateGroupResponseDto;
-import org.triple.backend.group.dto.response.GroupCursorResponseDto;
-import org.triple.backend.group.dto.response.GroupDetailResponseDto;
-import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
+import org.triple.backend.group.dto.response.*;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
@@ -353,6 +350,24 @@ public class GroupService {
                 : findNextPageByKeyword(normalizedKeyword, cursor, pageable);
 
         return toCursorResponse(rows, pageSize);
+    }
+
+    @Transactional(readOnly = true)
+    public GroupMenuResponseDto menu(final Long userId, final Long groupId) {
+        Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+        UserGroup userGroup = null;
+
+        if (userId != null) {
+            userGroup = userGroupJpaRepository.findByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED).orElse(null);
+        }
+
+        if (group.getGroupKind() == GroupKind.PRIVATE && userGroup == null) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        Role role = userGroup == null ? Role.GUEST : userGroup.getRole();
+
+        return new GroupMenuResponseDto(group.getName(), group.getDescription(), group.getCurrentMemberCount(), group.getMemberLimit(), role);
     }
 
     private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
