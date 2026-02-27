@@ -67,6 +67,9 @@ public class Invoice extends BaseEntity {
 
     private String description;
 
+    @Version
+    private Long version;
+
     public static Invoice create(
             final String title,
             final String description,
@@ -86,5 +89,11 @@ public class Invoice extends BaseEntity {
                 .creator(creator)
                 .travelItinerary(travelItinerary)
                 .build();
+    }
+
+    public void update(final String title, final String description, final LocalDateTime dueAt) {
+        this.title = title;
+        this.description = description;
+        this.dueAt = dueAt;
     }
 }
