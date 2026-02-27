@@ -24,7 +24,6 @@ import org.triple.backend.travel.exception.TravelItineraryErrorCode;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
-import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -45,7 +44,6 @@ public class InvoiceService {
     private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
-    private final UserJpaRepository userJpaRepository;
 
     @Transactional
     public InvoiceCreateResponseDto create(final Long userId, final InvoiceCreateRequestDto dto) {
@@ -89,11 +87,9 @@ public class InvoiceService {
             final Map<Long, RecipientAmountDto> recipientByUserId
     ) {
         List<Long> recipientUserIds = new ArrayList<>(recipientByUserId.keySet());
-        validateRecipientsInGroup(groupId, recipientUserIds);
-
-        List<User> users = userJpaRepository.findAllById(recipientUserIds);
+        List<User> users = userGroupJpaRepository.findJoinedUsersInGroup(groupId, JoinStatus.JOINED, recipientUserIds);
         if (users.size() != recipientUserIds.size()) {
-            throw new BusinessException(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND);
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
 
         return users.stream()
@@ -151,10 +147,4 @@ public class InvoiceService {
         }
     }
 
-    private void validateRecipientsInGroup(final Long groupId, final List<Long> recipientUserIds) {
-        long count = userGroupJpaRepository.countJoinedUsersInGroup(groupId, JoinStatus.JOINED, recipientUserIds);
-        if(count != recipientUserIds.size()) {
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
-        }
-    }
 }
