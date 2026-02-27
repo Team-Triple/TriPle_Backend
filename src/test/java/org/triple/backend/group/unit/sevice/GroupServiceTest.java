@@ -428,6 +428,7 @@ public class GroupServiceTest {
         assertThat(response.description()).isEqualTo("MBTI P들의 모임입니다. 맛집 탐방!");
         assertThat(response.currentMemberCount()).isEqualTo(1);
         assertThat(response.memberLimit()).isEqualTo(10);
+        assertThat(response.thumbNailUrl()).isEqualTo("thumb");
         assertThat(response.role()).isEqualTo(Role.GUEST);
     }
 
@@ -459,6 +460,7 @@ public class GroupServiceTest {
         GroupMenuResponseDto response = groupService.menu(member.getId(), savedGroup.getId());
 
         // then
+        assertThat(response.thumbNailUrl()).isEqualTo("thumb");
         assertThat(response.role()).isEqualTo(Role.MEMBER);
         assertThat(response.currentMemberCount()).isEqualTo(2);
     }

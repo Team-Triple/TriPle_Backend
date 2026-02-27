@@ -359,6 +359,7 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.description").value("MBTI P들의 모임입니다. 맛집 탐방!"))
                 .andExpect(jsonPath("$.currentMemberCount").value(1))
                 .andExpect(jsonPath("$.memberLimit").value(10))
+                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
                 .andExpect(jsonPath("$.role").value(Role.GUEST.toString()));
     }
 
@@ -395,6 +396,7 @@ public class GroupIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("비공개모임"))
                 .andExpect(jsonPath("$.currentMemberCount").value(2))
+                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
                 .andExpect(jsonPath("$.role").value(Role.MEMBER.toString()));
     }
 

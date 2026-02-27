@@ -18,7 +18,7 @@ public class CookieManager {
                 .path("/")
                 .httpOnly(false)
                 .secure(true)
-                .sameSite("None")
+                .sameSite("Lax")
                 .maxAge(Duration.ofDays(1))
                 .build();
 
@@ -30,7 +30,7 @@ public class CookieManager {
                 .path("/")
                 .httpOnly(false)
                 .secure(true)
-                .sameSite("None")
+                .sameSite("Lax")
                 .maxAge(0)
                 .build();
 
@@ -42,7 +42,7 @@ public class CookieManager {
                 .path("/")
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("None")
+                .sameSite("Lax")
                 .maxAge(0)
                 .build();
 
