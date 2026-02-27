@@ -168,6 +168,5 @@ public class InvoiceService {
 
         invoiceUserJpaRepository.deleteAllByInvoiceIdInBatch(invoiceId);
         invoice.markDeleted();
-        invoiceRepository.flush();
     }
 }
