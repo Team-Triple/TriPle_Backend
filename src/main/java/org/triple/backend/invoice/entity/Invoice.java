@@ -87,4 +87,16 @@ public class Invoice extends BaseEntity {
                 .travelItinerary(travelItinerary)
                 .build();
     }
+
+    public boolean isCreatedBy(final Long userId) {
+        return creator != null && creator.getId().equals(userId);
+    }
+
+    public boolean isDeletableStatus() {
+        return invoiceStatus == InvoiceStatus.UNCONFIRM;
+    }
+
+    public void markDeleted() {
+        this.invoiceStatus = InvoiceStatus.DELETED;
+    }
 }
