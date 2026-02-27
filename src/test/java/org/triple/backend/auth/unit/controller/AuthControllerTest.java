@@ -117,7 +117,7 @@ public class AuthControllerTest extends ControllerTest {
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
                             containsString("login_status=true"),
                             containsString("Secure"),
-                            containsString("SameSite=Lax"),
+                            containsString("SameSite=None"),
                             not(containsString("HttpOnly"))
                     )));
 
