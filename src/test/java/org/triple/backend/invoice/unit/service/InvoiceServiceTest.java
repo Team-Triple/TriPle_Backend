@@ -550,6 +550,71 @@ class InvoiceServiceTest {
     }
 
     @Test
+    @DisplayName("청구서 금액/대상 정보 수정 시 수신자에 중복 사용자가 있으면 DUPLICATE_RECIPIENT 예외가 발생한다.")
+    void 청구서_금액_대상_정보_수정_시_수신자에_중복_사용자가_있으면_DUPLICATE_RECIPIENT_예외가_발생한다() {
+        // given
+        User leader = saveUser("leader-adjust-dup");
+        User member = saveUser("member-adjust-dup");
+        Group group = saveGroup("정산 중복 수신자 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 중복 수신자 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
+
+        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+                new BigDecimal("20000"),
+                List.of(
+                        new RecipientAmountDto(member.getId(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member.getId(), new BigDecimal("10000"))
+                )
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateInfo(leader.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DUPLICATE_RECIPIENT);
+                });
+    }
+
+    @Test
+    @DisplayName("결제 내역이 있는 청구서는 금액/대상 정보를 수정할 수 없다.")
+    void 결제_내역이_있는_청구서는_금액_대상_정보를_수정할_수_없다() {
+        // given
+        User leader = saveUser("leader-adjust-payment");
+        User member = saveUser("member-adjust-payment");
+        Group group = saveGroup("정산 결제 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 결제 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
+
+        entityManager.createNativeQuery("insert into payment (invoice_id, payment_status) values (?, ?)")
+                .setParameter(1, invoice.getId())
+                .setParameter(2, "READY")
+                .executeUpdate();
+        entityManager.flush();
+
+        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+                new BigDecimal("10000"),
+                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("10000")))
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateInfo(leader.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
+                });
+    }
+
+    @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DisplayName("동일한 청구서 메타 수정 요청이 동시에 들어오면 하나만 성공하고 나머지는 CONCURRENT_INVOICE_UPDATE가 발생한다.")
     void 동일한_청구서_메타_수정_요청이_동시에_들어오면_하나만_성공하고_나머지는_CONCURRENT_INVOICE_UPDATE가_발생한다() throws InterruptedException {
