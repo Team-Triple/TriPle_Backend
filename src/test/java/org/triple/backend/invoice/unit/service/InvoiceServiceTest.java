@@ -1,5 +1,6 @@
 package org.triple.backend.invoice.unit.service;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
 import org.triple.backend.invoice.entity.Invoice;
+import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.entity.InvoiceUser;
 import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
@@ -63,6 +65,9 @@ class InvoiceServiceTest {
 
     @Autowired
     private UserJpaRepository userJpaRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("여행장(LEADER)은 청구서를 생성할 수 있다.")
@@ -318,6 +323,80 @@ class InvoiceServiceTest {
                 });
     }
 
+    @Test
+    @DisplayName("청구서 삭제 요청 시 상태를 DELETED로 변경하고 invoiceUser를 모두 삭제한다.")
+    void 청구서_삭제_성공() {
+        User creator = saveUser("creator");
+        User member = saveUser("member-delete-success");
+        Group group = saveGroup("삭제 테스트 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 테스트 여행");
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new BigDecimal("10000")));
+
+        invoiceService.delete(creator.getId(), invoice.getId());
+
+        Invoice deletedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(deletedInvoice.getInvoiceStatus()).isEqualTo(InvoiceStatus.DELETED);
+        assertThat(invoiceUserJpaRepository.findAll().stream()
+                .filter(invoiceUser -> invoiceUser.getInvoice().getId().equals(invoice.getId()))
+                .toList()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("청구서 생성자가 아니면 삭제 시 예외를 던진다.")
+    void 청구서_생성자가_아니면_삭제_불가() {
+        User creator = saveUser("creator-not-owner");
+        User other = saveUser("other-not-owner");
+        Group group = saveGroup("삭제 권한 테스트 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 권한 테스트 여행");
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+
+        assertThatThrownBy(() -> invoiceService.delete(other.getId(), invoice.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DELETE_UNAUTHORIZED);
+                });
+    }
+
+    @Test
+    @DisplayName("청구서 상태가 UNCONFIRM이 아니면 삭제 시 예외를 던진다.")
+    void 청구서_상태가_UNCONFIRM이_아니면_삭제_불가() {
+        User creator = saveUser("creator-status");
+        Group group = saveGroup("삭제 상태 테스트 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 상태 테스트 여행");
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.CONFIRM);
+
+        assertThatThrownBy(() -> invoiceService.delete(creator.getId(), invoice.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DELETE_FORBIDDEN_STATUS);
+                });
+    }
+
+    @Test
+    @DisplayName("결제 내역이 존재하면 삭제 시 예외를 던진다.")
+    void 결제_내역이_존재하면_삭제_불가() {
+        User creator = saveUser("creator-payment");
+        Group group = saveGroup("삭제 결제 테스트 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 결제 테스트 여행");
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+
+        entityManager.createNativeQuery("insert into payment (invoice_id, payment_status) values (?, ?)")
+                .setParameter(1, invoice.getId())
+                .setParameter(2, "READY")
+                .executeUpdate();
+        entityManager.flush();
+
+        assertThatThrownBy(() -> invoiceService.delete(creator.getId(), invoice.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DELETE_FORBIDDEN_PAYMENT_EXISTS);
+                });
+    }
+
     private User saveUser(final String providerId) {
         return userJpaRepository.save(
                 User.builder()
@@ -362,6 +441,26 @@ class InvoiceServiceTest {
                         1,
                         false
                 )
+        );
+    }
+
+    private Invoice saveInvoice(
+            final User creator,
+            final Group group,
+            final TravelItinerary travelItinerary,
+            final InvoiceStatus invoiceStatus
+    ) {
+        return invoiceRepository.save(
+                Invoice.builder()
+                        .group(group)
+                        .creator(creator)
+                        .travelItinerary(travelItinerary)
+                        .invoiceStatus(invoiceStatus)
+                        .title("청구서")
+                        .description("청구서 설명")
+                        .totalAmount(new BigDecimal("10000"))
+                        .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
+                        .build()
         );
     }
 }

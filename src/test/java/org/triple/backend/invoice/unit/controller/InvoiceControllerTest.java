@@ -32,6 +32,9 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -175,6 +178,28 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(invoiceService, never()).create(any(), any());
+    }
+
+    @Test
+    @DisplayName("청구서 삭제 요청 시 200을 반환한다.")
+    void 청구서_삭제_요청_성공() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("invoices/delete",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("삭제할 청구서 ID")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).delete(1L, invoiceId);
     }
 
     private void mockCsrfValid() {
