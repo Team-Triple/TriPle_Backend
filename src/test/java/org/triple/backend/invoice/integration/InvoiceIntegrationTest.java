@@ -457,6 +457,43 @@ class InvoiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("결제 내역이 있는 청구서는 금액/대상 정보 수정 요청 시 409를 반환한다.")
+    void 결제_내역이_있는_청구서는_금액_대상_정보_수정_요청_시_409를_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-adjust-payment-409");
+        User member = saveUser("member-adjust-payment-409");
+        Group group = saveGroup("정산 결제 검증 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 결제 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new java.math.BigDecimal("10000")));
+        jdbcTemplate.update("insert into payment (invoice_id, payment_status) values (?, ?)", invoice.getId(), "READY");
+
+        String body = """
+                {
+                  "totalAmount": 10000,
+                  "recipients": [
+                    { "userId": %d, "amount": 10000 }
+                  ]
+                }
+                """.formatted(member.getId());
+
+        // when & then
+        mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 수정할 수 없습니다."));
+    }
+
+    @Test
     @DisplayName("청구서 생성자가 삭제 요청하면 상태가 DELETED로 변경되고 invoice_user가 삭제된다.")
     void 청구서_삭제_성공() throws Exception {
         User creator = saveUser("delete-creator");
