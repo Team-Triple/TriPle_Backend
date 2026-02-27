@@ -2,6 +2,7 @@ package org.triple.backend.invoice.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
@@ -12,8 +13,11 @@ import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
+import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
+import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.Invoice;
+import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.entity.InvoiceUser;
 import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
@@ -22,6 +26,7 @@ import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
+import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
@@ -39,7 +44,7 @@ import static org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto.Rec
 @RequiredArgsConstructor
 public class InvoiceService {
 
-    private final InvoiceJpaRepository invoiceRepository;
+    private final InvoiceJpaRepository invoiceJpaRepository;
     private final GroupJpaRepository groupJpaRepository;
     private final TravelItineraryJpaRepository travelItineraryJpaRepository;
     private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
@@ -73,6 +78,37 @@ public class InvoiceService {
         return InvoiceCreateResponseDto.from(savedInvoice, invoiceUsers);
     }
 
+    @Transactional
+    public InvoiceUpdateResponseDto updateMetaInfo(final Long userId, final Long invoiceId, final InvoiceUpdateRequestDto dto) {
+
+        Invoice invoice = invoiceJpaRepository.findById(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+
+        if(!invoice.getInvoiceStatus().equals(InvoiceStatus.UNCONFIRM)) {
+            throw new BusinessException(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
+        }
+
+        if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(invoice.getGroup().getId(), userId, JoinStatus.JOINED)) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        UserTravelItinerary userTravelItinerary = userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(userId, invoice.getTravelItinerary().getId())
+                .orElseThrow(() -> new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
+
+        if(!userTravelItinerary.getUserRole().equals(UserRole.LEADER)) {
+            throw new BusinessException(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+        }
+
+        invoice.update(dto.title(), dto.description(), dto.dueAt());
+
+        try {
+            invoiceJpaRepository.flush();
+        } catch (OptimisticLockingFailureException e) {
+            throw new BusinessException(InvoiceErrorCode.CONCURRENT_INVOICE_UPDATE);
+        }
+
+        return InvoiceUpdateResponseDto.from(invoice);
+    }
+
     private Map<Long, RecipientAmountDto> toRecipientMap(final List<RecipientAmountDto> recipients) {
         return recipients.stream()
                 .collect(Collectors.toMap(
@@ -103,7 +139,7 @@ public class InvoiceService {
             final Group group
     ) {
         try {
-            return invoiceRepository.saveAndFlush(
+            return invoiceJpaRepository.saveAndFlush(
                     Invoice.create(
                             dto.title(),
                             dto.description(),
