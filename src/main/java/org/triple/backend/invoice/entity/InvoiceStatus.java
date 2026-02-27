@@ -1,5 +1,5 @@
 package org.triple.backend.invoice.entity;
 
 public enum InvoiceStatus {
-    CONFIRM, UNCONFIRM
+    CONFIRM, UNCONFIRM, DELETED, DONE
 }

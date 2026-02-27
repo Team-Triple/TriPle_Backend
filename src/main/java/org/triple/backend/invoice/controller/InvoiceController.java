@@ -2,6 +2,12 @@ package org.triple.backend.invoice.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
@@ -30,4 +36,10 @@ public class InvoiceController {
         return invoiceService.updateMetaInfo(userId, invoiceId, dto);
     }
 
+
+    @LoginRequired
+    @DeleteMapping("/{invoiceId}")
+    public void delete(@LoginUser final Long userId, @PathVariable final Long invoiceId) {
+        invoiceService.delete(userId, invoiceId);
+    }
 }

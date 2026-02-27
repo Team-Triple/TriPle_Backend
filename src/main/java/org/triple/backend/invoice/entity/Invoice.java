@@ -91,6 +91,18 @@ public class Invoice extends BaseEntity {
                 .build();
     }
 
+    public boolean isCreatedBy(final Long userId) {
+        return creator != null && creator.getId().equals(userId);
+    }
+
+    public boolean isDeletableStatus() {
+        return invoiceStatus == InvoiceStatus.UNCONFIRM;
+    }
+
+    public void markDeleted() {
+        this.invoiceStatus = InvoiceStatus.DELETED;
+    }
+
     public void update(final String title, final String description, final LocalDateTime dueAt) {
         if(!invoiceStatus.equals(InvoiceStatus.UNCONFIRM)) {
             throw new IllegalStateException("청구서 수정이 불가합니다.");

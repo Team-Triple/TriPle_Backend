@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
@@ -16,6 +17,9 @@ import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
+import org.triple.backend.invoice.entity.Invoice;
+import org.triple.backend.invoice.entity.InvoiceStatus;
+import org.triple.backend.invoice.entity.InvoiceUser;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.travel.entity.TravelItinerary;
@@ -29,6 +33,7 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -68,6 +73,9 @@ class InvoiceIntegrationTest {
 
     @Autowired
     private InvoiceUserJpaRepository invoiceUserJpaRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
     void setUp() {
@@ -364,6 +372,77 @@ class InvoiceIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    @DisplayName("청구서 생성자가 삭제 요청하면 상태가 DELETED로 변경되고 invoice_user가 삭제된다.")
+    void 청구서_삭제_성공() throws Exception {
+        User creator = saveUser("delete-creator");
+        User member = saveUser("delete-member");
+        Group group = saveGroup("삭제 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 여행");
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new java.math.BigDecimal("10000")));
+
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, creator.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        Invoice deletedInvoice = invoiceJpaRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(deletedInvoice.getInvoiceStatus()).isEqualTo(InvoiceStatus.DELETED);
+        assertThat(invoiceUserJpaRepository.findAll().stream()
+                .filter(invoiceUser -> invoiceUser.getInvoice().getId().equals(invoice.getId()))
+                .toList()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("청구서 생성자가 아니면 삭제 요청 시 403을 반환한다.")
+    void 청구서_생성자가_아니면_삭제_요청_시_403을_반환한다() throws Exception {
+        User creator = saveUser("delete-creator-403");
+        User other = saveUser("delete-other-403");
+        Group group = saveGroup("삭제 권한 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 권한 여행");
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, other.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("청구서 상태가 UNCONFIRM이 아니면 삭제 요청 시 409를 반환한다.")
+    void 청구서_상태가_UNCONFIRM이_아니면_삭제_요청_시_409를_반환한다() throws Exception {
+        User creator = saveUser("delete-status-409");
+        Group group = saveGroup("삭제 상태 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 상태 여행");
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.CONFIRM);
+
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, creator.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("결제 내역이 있으면 삭제 요청 시 409를 반환한다.")
+    void 결제_내역이_있으면_삭제_요청_시_409를_반환한다() throws Exception {
+        User creator = saveUser("delete-payment-409");
+        Group group = saveGroup("삭제 결제 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 결제 여행");
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+
+        jdbcTemplate.update("insert into payment (invoice_id, payment_status) values (?, ?)", invoice.getId(), "READY");
+
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, creator.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isConflict());
+    }
+
     private User saveUser(final String providerId) {
         return userJpaRepository.save(
                 User.builder()
@@ -427,6 +506,26 @@ class InvoiceIntegrationTest {
                         .title(title)
                         .description("기존 설명")
                         .totalAmount(new java.math.BigDecimal("70000"))
+                        .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
+                        .build()
+        );
+    }
+
+    private Invoice saveInvoice(
+            final User creator,
+            final Group group,
+            final TravelItinerary travelItinerary,
+            final InvoiceStatus invoiceStatus
+    ) {
+        return invoiceJpaRepository.save(
+                Invoice.builder()
+                        .group(group)
+                        .creator(creator)
+                        .travelItinerary(travelItinerary)
+                        .invoiceStatus(invoiceStatus)
+                        .title("청구서")
+                        .description("청구서 설명")
+                        .totalAmount(new java.math.BigDecimal("10000"))
                         .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
                         .build()
         );
