@@ -117,10 +117,16 @@ public class InvoiceService {
 
     @Transactional
     public InvoiceAdjustResponseDto updateInfo(final Long userId, final Long invoiceId, final InvoiceAdjustRequestDto dto) {
+
         Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+
         validateUpdatableStatusOrThrow(invoice);
         validateUpdateAuthorityOrThrow(userId, invoice);
+
+        if(paymentJpaRepository.existsByInvoiceId(invoiceId)) {
+            throw new BusinessException(InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
+        }
 
         Map<Long, RecipientAmountDto> recipientByUserId = toRecipientMap(dto.recipients());
         validateTotalAmount(dto.recipients(), dto.totalAmount());
