@@ -32,7 +32,7 @@ public class CookieManagerTest {
         assertThat(setCookie).contains("Path=/");
         assertThat(setCookie).contains("Max-Age=86400");
         assertThat(setCookie).contains("Secure");
-        assertThat(setCookie).contains("SameSite=Lax");
+        assertThat(setCookie).contains("SameSite=None");
         assertThat(setCookie).doesNotContainIgnoringCase("HttpOnly"); // httpOnly(false)면 보통 HttpOnly 속성이 안 붙음
     }
 
@@ -54,7 +54,7 @@ public class CookieManagerTest {
         assertThat(setCookie).contains("Path=/");
         assertThat(setCookie).contains("Max-Age=0");
         assertThat(setCookie).contains("Secure");
-        assertThat(setCookie).contains("SameSite=Lax");
+        assertThat(setCookie).contains("SameSite=None");
         assertThat(setCookie).doesNotContainIgnoringCase("HttpOnly");
     }
 
@@ -76,7 +76,7 @@ public class CookieManagerTest {
         assertThat(setCookie).contains("Path=/");
         assertThat(setCookie).contains("Max-Age=0");
         assertThat(setCookie).contains("Secure");
-        assertThat(setCookie).contains("SameSite=Lax");
+        assertThat(setCookie).contains("SameSite=None");
         assertThat(setCookie).contains("HttpOnly");
     }
 }
