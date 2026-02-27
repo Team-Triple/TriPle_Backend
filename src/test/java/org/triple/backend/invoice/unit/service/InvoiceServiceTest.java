@@ -4,6 +4,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
@@ -35,6 +37,12 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -430,6 +438,91 @@ class InvoiceServiceTest {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_TRAVEL_LEADER);
                 });
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("동일한 청구서 메타 수정 요청이 동시에 들어오면 하나만 성공하고 나머지는 CONCURRENT_INVOICE_UPDATE가 발생한다.")
+    void 동일한_청구서_메타_수정_요청이_동시에_들어오면_하나만_성공하고_나머지는_CONCURRENT_INVOICE_UPDATE가_발생한다() throws InterruptedException {
+        // given
+        User leader = saveUser("leader-update-concurrency");
+        Group group = saveGroup("동시 수정 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "동시 수정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(2);
+        AtomicInteger successCount = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        Runnable firstUpdate = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                invoiceService.updateMetaInfo(
+                        leader.getId(),
+                        invoice.getId(),
+                        new InvoiceUpdateRequestDto("수정 제목 A", "수정 설명 A", LocalDateTime.of(2030, 4, 10, 18, 0))
+                );
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        Runnable secondUpdate = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                invoiceService.updateMetaInfo(
+                        leader.getId(),
+                        invoice.getId(),
+                        new InvoiceUpdateRequestDto("수정 제목 B", "수정 설명 B", LocalDateTime.of(2030, 4, 11, 18, 0))
+                );
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        try {
+            executorService.submit(firstUpdate);
+            executorService.submit(secondUpdate);
+
+            assertThat(ready.await(3, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+
+            long concurrentConflictCount = failures.stream()
+                    .filter(BusinessException.class::isInstance)
+                    .map(BusinessException.class::cast)
+                    .filter(e -> e.getErrorCode() == InvoiceErrorCode.CONCURRENT_INVOICE_UPDATE)
+                    .count();
+
+            Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+
+            assertThat(successCount.get()).isEqualTo(1);
+            assertThat(failures).hasSize(1);
+            assertThat(concurrentConflictCount).isEqualTo(1);
+            assertThat(List.of("수정 제목 A", "수정 제목 B")).contains(updatedInvoice.getTitle());
+        } finally {
+            executorService.shutdownNow();
+            invoiceUserJpaRepository.deleteAllInBatch();
+            invoiceRepository.deleteAllInBatch();
+            userTravelItineraryJpaRepository.deleteAllInBatch();
+            travelItineraryJpaRepository.deleteAllInBatch();
+            userGroupJpaRepository.deleteAllInBatch();
+            groupJpaRepository.deleteAllInBatch();
+            userJpaRepository.deleteAllInBatch();
+        }
     }
 
     private User saveUser(final String providerId) {
