@@ -18,6 +18,7 @@ import org.triple.backend.invoice.entity.InvoiceUser;
 import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
+import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
@@ -44,6 +45,7 @@ public class InvoiceService {
     private final TravelItineraryJpaRepository travelItineraryJpaRepository;
     private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
+    private final PaymentJpaRepository paymentJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
 
     @Transactional
@@ -147,4 +149,25 @@ public class InvoiceService {
         }
     }
 
+    @Transactional
+    public void delete(final Long userId, final Long invoiceId) {
+        Invoice invoice = invoiceRepository.findByIdForUpdate(invoiceId)
+                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.INVOICE_NOT_FOUND));
+
+        if (!invoice.isCreatedBy(userId)) {
+            throw new BusinessException(InvoiceErrorCode.DELETE_UNAUTHORIZED);
+        }
+
+        if (!invoice.isDeletableStatus()) {
+            throw new BusinessException(InvoiceErrorCode.DELETE_FORBIDDEN_STATUS);
+        }
+
+        if (paymentJpaRepository.existsByInvoiceId(invoiceId)) {
+            throw new BusinessException(InvoiceErrorCode.DELETE_FORBIDDEN_PAYMENT_EXISTS);
+        }
+
+        invoiceUserJpaRepository.deleteAllByInvoiceIdInBatch(invoiceId);
+        invoice.markDeleted();
+        invoiceRepository.flush();
+    }
 }
