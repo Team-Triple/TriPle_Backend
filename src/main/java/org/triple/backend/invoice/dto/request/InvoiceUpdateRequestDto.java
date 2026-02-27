@@ -1,5 +1,6 @@
 package org.triple.backend.invoice.dto.request;
 
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -13,6 +14,7 @@ public record InvoiceUpdateRequestDto(
         @NotBlank
         String description,
 
+        @Future
         @NotNull
         LocalDateTime dueAt
 ) {
