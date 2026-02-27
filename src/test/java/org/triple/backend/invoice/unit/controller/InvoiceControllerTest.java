@@ -11,7 +11,10 @@ import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.invoice.controller.InvoiceController;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
+import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
+import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
+import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.service.InvoiceService;
 
 import java.math.BigDecimal;
@@ -19,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -29,9 +33,12 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -175,6 +182,111 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(invoiceService, never()).create(any(), any());
+    }
+
+    @Test
+    @DisplayName("로그인한 여행장(LEADER)은 청구서 메타 정보를 수정할 수 있다.")
+    void 로그인한_여행장_LEADER은_청구서_메타_정보를_수정할_수_있다() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        InvoiceUpdateResponseDto response = new InvoiceUpdateResponseDto(
+                invoiceId,
+                "수정된 정산 제목",
+                "수정된 설명",
+                new BigDecimal("70000"),
+                LocalDateTime.of(2030, 4, 1, 18, 0),
+                InvoiceStatus.UNCONFIRM,
+                LocalDateTime.of(2030, 3, 20, 12, 0)
+        );
+        given(invoiceService.updateMetaInfo(eq(1L), eq(invoiceId), any(InvoiceUpdateRequestDto.class))).willReturn(response);
+        mockCsrfValid();
+
+        String body = """
+                {
+                  "title": "수정된 정산 제목",
+                  "description": "수정된 설명",
+                  "dueAt": "2030-04-01T18:00:00"
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invoiceId").value(invoiceId))
+                .andExpect(jsonPath("$.title").value("수정된 정산 제목"))
+                .andExpect(jsonPath("$.description").value("수정된 설명"))
+                .andExpect(jsonPath("$.totalAmount").value(70000))
+                .andExpect(jsonPath("$.dueAt").value("2030-04-01T18:00:00"))
+                .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"))
+                .andExpect(jsonPath("$.updatedAt").value("2030-03-20T12:00:00"))
+                .andDo(document("invoices/update-meta",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("invoiceId").description("청구서 ID"),
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("totalAmount").description("총 청구 금액"),
+                                fieldWithPath("dueAt").description("납부 기한"),
+                                fieldWithPath("invoiceStatus").description("청구서 상태"),
+                                fieldWithPath("updatedAt").description("수정 일시")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).updateMetaInfo(eq(1L), eq(invoiceId), any(InvoiceUpdateRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 청구서 메타 정보 수정을 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_청구서_메타_정보_수정을_요청하면_401을_반환한다() throws Exception {
+        String body = """
+                {
+                  "title": "수정된 정산 제목",
+                  "description": "수정된 설명",
+                  "dueAt": "2030-04-01T18:00:00"
+                }
+                """;
+
+        mockMvc.perform(patch("/invoices/{invoiceId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized());
+
+        verify(invoiceService, never()).updateMetaInfo(anyLong(), anyLong(), any(InvoiceUpdateRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("청구서 메타 정보 수정 요청이 유효하지 않으면 400을 반환한다.")
+    void 청구서_메타_정보_수정_요청이_유효하지_않으면_400을_반환한다() throws Exception {
+        // given
+        mockCsrfValid();
+        String invalidBody = """
+                {
+                  "title": " ",
+                  "description": " ",
+                  "dueAt": null
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/invoices/{invoiceId}", 1L)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest());
+
+        verify(invoiceService, never()).updateMetaInfo(anyLong(), anyLong(), any(InvoiceUpdateRequestDto.class));
     }
 
     private void mockCsrfValid() {
