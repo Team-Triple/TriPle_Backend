@@ -305,8 +305,7 @@ class InvoiceControllerTest extends ControllerTest {
                         new org.triple.backend.invoice.dto.RecipientAmountDto(2L, new BigDecimal("10000")),
                         new org.triple.backend.invoice.dto.RecipientAmountDto(3L, new BigDecimal("20000"))
                 ),
-                InvoiceStatus.UNCONFIRM,
-                LocalDateTime.of(2030, 4, 2, 12, 0)
+                InvoiceStatus.UNCONFIRM
         );
         given(invoiceService.updateInfo(eq(1L), eq(invoiceId), any(InvoiceAdjustRequestDto.class))).willReturn(response);
         mockCsrfValid();
@@ -333,7 +332,6 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.recipients[0].userId").value(2))
                 .andExpect(jsonPath("$.recipients[0].amount").value(10000))
                 .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"))
-                .andExpect(jsonPath("$.updatedAt").value("2030-04-02T12:00:00"))
                 .andDo(document("invoices/update-info",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
@@ -352,8 +350,7 @@ class InvoiceControllerTest extends ControllerTest {
                                 fieldWithPath("recipients").description("최종 청구 대상 목록"),
                                 fieldWithPath("recipients[].userId").description("청구 대상 사용자 ID"),
                                 fieldWithPath("recipients[].amount").description("청구 대상 금액"),
-                                fieldWithPath("invoiceStatus").description("청구서 상태"),
-                                fieldWithPath("updatedAt").description("수정 일시")
+                                fieldWithPath("invoiceStatus").description("청구서 상태")
                         )
                 ));
 
