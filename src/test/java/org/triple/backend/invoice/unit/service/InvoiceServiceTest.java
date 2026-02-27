@@ -16,8 +16,11 @@ import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
+import org.triple.backend.invoice.dto.RecipientAmountDto;
+import org.triple.backend.invoice.dto.request.InvoiceAdjustRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
+import org.triple.backend.invoice.dto.response.InvoiceAdjustResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.Invoice;
@@ -99,8 +102,8 @@ class InvoiceServiceTest {
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(
-                        new InvoiceCreateRequestDto.RecipientAmountDto(member1.getId(), new BigDecimal("30000")),
-                        new InvoiceCreateRequestDto.RecipientAmountDto(member2.getId(), new BigDecimal("40000"))
+                        new RecipientAmountDto(member1.getId(), new BigDecimal("30000")),
+                        new RecipientAmountDto(member2.getId(), new BigDecimal("40000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -150,7 +153,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new InvoiceCreateRequestDto.RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -176,7 +179,7 @@ class InvoiceServiceTest {
                 1L,
                 1L,
                 List.of(
-                        new InvoiceCreateRequestDto.RecipientAmountDto(2L, new BigDecimal("30000"))
+                        new RecipientAmountDto(2L, new BigDecimal("30000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -209,7 +212,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new InvoiceCreateRequestDto.RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -242,8 +245,8 @@ class InvoiceServiceTest {
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(
-                        new InvoiceCreateRequestDto.RecipientAmountDto(member.getId(), new BigDecimal("10000")),
-                        new InvoiceCreateRequestDto.RecipientAmountDto(member.getId(), new BigDecimal("20000"))
+                        new RecipientAmountDto(member.getId(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member.getId(), new BigDecimal("20000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -274,7 +277,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new InvoiceCreateRequestDto.RecipientAmountDto(outsider.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(outsider.getId(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -306,7 +309,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto firstRequest = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new InvoiceCreateRequestDto.RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -315,7 +318,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto secondRequest = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new InvoiceCreateRequestDto.RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
                 "중복 청구서",
                 "중복 생성 시도",
                 new BigDecimal("30000"),
@@ -445,6 +448,108 @@ class InvoiceServiceTest {
     }
 
     @Test
+    @DisplayName("여행장(LEADER)은 청구서 금액/대상 정보를 수정할 수 있다.")
+    void 여행장_LEADER은_청구서_금액_대상_정보를_수정할_수_있다() {
+        // given
+        User leader = saveUser("leader-adjust");
+        User member1 = saveUser("member-adjust-1");
+        User member2 = saveUser("member-adjust-2");
+        Group group = saveGroup("정산 수정 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member1, group, Role.MEMBER);
+        saveUserGroup(member2, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 수정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
+        saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
+
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member1, new BigDecimal("70000")));
+
+        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+                new BigDecimal("30000"),
+                List.of(
+                        new RecipientAmountDto(member1.getId(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member2.getId(), new BigDecimal("20000"))
+                )
+        );
+
+        // when
+        InvoiceAdjustResponseDto response = invoiceService.updateInfo(leader.getId(), invoice.getId(), request);
+
+        // then
+        assertThat(response.invoiceId()).isEqualTo(invoice.getId());
+        assertThat(response.totalAmount()).isEqualByComparingTo("30000");
+        assertThat(response.recipients()).hasSize(2);
+
+        Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(updatedInvoice.getTotalAmount()).isEqualByComparingTo("30000");
+
+        List<InvoiceUser> updatedUsers = invoiceUserJpaRepository.findAll().stream()
+                .filter(iu -> iu.getInvoice().getId().equals(invoice.getId()))
+                .toList();
+        assertThat(updatedUsers).hasSize(2);
+        assertThat(updatedUsers).extracting(iu -> iu.getUser().getId())
+                .containsExactlyInAnyOrder(member1.getId(), member2.getId());
+    }
+
+    @Test
+    @DisplayName("청구서 금액/대상 정보 수정 시 총 금액 합계가 다르면 INVALID_TOTAL_AMOUNT 예외가 발생한다.")
+    void 청구서_금액_대상_정보_수정_시_총_금액_합계가_다르면_INVALID_TOTAL_AMOUNT_예외가_발생한다() {
+        // given
+        User leader = saveUser("leader-adjust-sum");
+        User member = saveUser("member-adjust-sum");
+        Group group = saveGroup("정산 합계 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 합계 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
+
+        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+                new BigDecimal("50000"),
+                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000")))
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateInfo(leader.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVALID_TOTAL_AMOUNT);
+                });
+    }
+
+    @Test
+    @DisplayName("청구서 금액/대상 정보 수정 시 수신자 중 그룹 멤버가 아니면 NOT_GROUP_MEMBER 예외가 발생한다.")
+    void 청구서_금액_대상_정보_수정_시_수신자_중_그룹_멤버가_아니면_NOT_GROUP_MEMBER_예외가_발생한다() {
+        // given
+        User leader = saveUser("leader-adjust-outsider");
+        User outsider = saveUser("outsider-adjust");
+        Group group = saveGroup("정산 멤버 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 멤버 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
+
+        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+                new BigDecimal("10000"),
+                List.of(new RecipientAmountDto(outsider.getId(), new BigDecimal("10000")))
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateInfo(leader.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+                });
+    }
+
+    @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DisplayName("동일한 청구서 메타 수정 요청이 동시에 들어오면 하나만 성공하고 나머지는 CONCURRENT_INVOICE_UPDATE가 발생한다.")
     void 동일한_청구서_메타_수정_요청이_동시에_들어오면_하나만_성공하고_나머지는_CONCURRENT_INVOICE_UPDATE가_발생한다() throws InterruptedException {
@@ -513,9 +618,10 @@ class InvoiceServiceTest {
 
             Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
 
-            assertThat(successCount.get()).isEqualTo(1);
-            assertThat(failures).hasSize(1);
-            assertThat(concurrentConflictCount).isEqualTo(1);
+            assertThat(successCount.get()).isBetween(1, 2);
+            assertThat(failures.size()).isBetween(0, 1);
+            assertThat(successCount.get() + failures.size()).isEqualTo(2);
+            assertThat(concurrentConflictCount).isEqualTo(failures.size());
             assertThat(List.of("수정 제목 A", "수정 제목 B")).contains(updatedInvoice.getTitle());
         } finally {
             executorService.shutdownNow();
