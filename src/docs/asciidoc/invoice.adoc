@@ -29,3 +29,27 @@ include::{snippets}/invoices/update-info/http-request.adoc[]
 include::{snippets}/invoices/update-info/request-fields.adoc[]
 include::{snippets}/invoices/update-info/http-response.adoc[]
 include::{snippets}/invoices/update-info/response-fields.adoc[]
+
+=== 실패: 여행장 권한 없음 (403)
+include::{snippets}/invoices/update-info-fail-not-travel-leader/http-response.adoc[]
+
+=== 실패: 결제 내역 존재 (409)
+include::{snippets}/invoices/update-info-fail-payment-exists/http-response.adoc[]
+
+=== 실패: 청구서 없음 (404)
+include::{snippets}/invoices/update-info-fail-not-found-invoice/http-response.adoc[]
+
+=== 실패: 수정 불가능 상태 (409)
+include::{snippets}/invoices/update-info-fail-not-allowed-status/http-response.adoc[]
+
+=== 실패: 그룹 멤버 아님 (403)
+include::{snippets}/invoices/update-info-fail-not-group-member/http-response.adoc[]
+
+=== 실패: 여행 멤버십 없음 (404)
+include::{snippets}/invoices/update-info-fail-user-travel-not-found/http-response.adoc[]
+
+=== 실패: 수신자 중복 (409)
+include::{snippets}/invoices/update-info-fail-duplicate-recipient/http-response.adoc[]
+
+=== 실패: 총 금액 불일치 (403)
+include::{snippets}/invoices/update-info-fail-invalid-total-amount/http-response.adoc[]
