@@ -1,14 +1,15 @@
 package org.triple.backend.group.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
-import org.triple.backend.user.entity.User;
 
 import java.util.List;
 import java.util.Optional;
@@ -51,12 +52,15 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
     """)
     List<Group> findMyGroupsFirstPage(Long userId, JoinStatus joinStatus, Pageable pageable);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-        SELECT ug.user
+        SELECT ug
         FROM UserGroup ug
+        JOIN FETCH ug.user
         WHERE ug.group.id = :groupId
          AND ug.joinStatus = :joinStatus
          AND ug.user.id IN :userIds
+         ORDER BY ug.user.id
     """)
-    List<User> findJoinedUsersInGroup(Long groupId, JoinStatus joinStatus, List<Long> userIds);
+    List<UserGroup> findJoinedUsersInGroupForUpdate(Long groupId, JoinStatus joinStatus, List<Long> userIds);
 }
