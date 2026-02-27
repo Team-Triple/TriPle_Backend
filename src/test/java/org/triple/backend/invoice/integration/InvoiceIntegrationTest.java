@@ -17,8 +17,6 @@ import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
-import org.triple.backend.invoice.entity.Invoice;
-import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.entity.InvoiceUser;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
@@ -36,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_HEADER;
@@ -370,6 +369,91 @@ class InvoiceIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)은 청구서 금액/대상 정보를 수정할 수 있다.")
+    void 여행장_LEADER은_청구서_금액_대상_정보를_수정할_수_있다() throws Exception {
+        // given
+        User leader = saveUser("leader-adjust");
+        User member1 = saveUser("member-adjust-1");
+        User member2 = saveUser("member-adjust-2");
+        Group group = saveGroup("정산 수정 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member1, group, Role.MEMBER);
+        saveMembership(member2, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 수정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
+        saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
+
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member1, new java.math.BigDecimal("70000")));
+
+        String body = """
+                {
+                  "totalAmount": 30000,
+                  "recipients": [
+                    { "userId": %d, "amount": 10000 },
+                    { "userId": %d, "amount": 20000 }
+                  ]
+                }
+                """.formatted(member1.getId(), member2.getId());
+
+        // when & then
+        mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invoiceId").value(invoice.getId()))
+                .andExpect(jsonPath("$.totalAmount").value(30000))
+                .andExpect(jsonPath("$.recipients.length()").value(2))
+                .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"));
+
+        Invoice updatedInvoice = invoiceJpaRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(updatedInvoice.getTotalAmount()).isEqualByComparingTo("30000");
+        assertThat(invoiceUserJpaRepository.findAll().stream()
+                .filter(iu -> iu.getInvoice().getId().equals(invoice.getId()))
+                .toList())
+                .hasSize(2);
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서 금액/대상 정보 수정 요청 시 403을 반환한다.")
+    void 여행장_LEADER가_아니면_청구서_금액_대상_정보_수정_요청_시_403을_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-adjust-forbidden");
+        User member = saveUser("member-adjust-forbidden");
+        Group group = saveGroup("정산 수정 권한 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 수정 권한 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new java.math.BigDecimal("10000")));
+
+        String body = """
+                {
+                  "totalAmount": 10000,
+                  "recipients": [
+                    { "userId": %d, "amount": 10000 }
+                  ]
+                }
+                """.formatted(member.getId());
+
+        // when & then
+        mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
     }
 
     @Test
