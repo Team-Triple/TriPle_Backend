@@ -3,17 +3,19 @@ package org.triple.backend.invoice.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
+import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.service.InvoiceService;
 
@@ -34,6 +36,15 @@ public class InvoiceController {
     @PatchMapping("/{invoiceId}")
     public InvoiceUpdateResponseDto updateMetaInfo(@LoginUser final Long userId, @PathVariable Long invoiceId, @RequestBody @Valid InvoiceUpdateRequestDto dto) {
         return invoiceService.updateMetaInfo(userId, invoiceId, dto);
+    }
+
+    @LoginRequired
+    @GetMapping("/travels/{travelItineraryId}")
+    public InvoiceDetailResponseDto searchInvoice(
+            @LoginUser final Long userId,
+            @PathVariable final Long travelItineraryId
+    ) {
+        return invoiceService.searchInvoice(userId, travelItineraryId);
     }
 
 

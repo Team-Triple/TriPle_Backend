@@ -15,6 +15,7 @@ import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
+import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
@@ -78,6 +79,24 @@ public class InvoiceService {
         saveInvoiceUsersOrThrow(invoiceUsers);
 
         return InvoiceCreateResponseDto.from(savedInvoice, invoiceUsers);
+    }
+
+    @Transactional(readOnly = true)
+    public InvoiceDetailResponseDto searchInvoice(final Long userId, final Long travelItineraryId) {
+        if (!userTravelItineraryJpaRepository.existsByUserIdAndTravelItineraryId(userId, travelItineraryId)) {
+            throw new BusinessException(InvoiceErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
+        }
+
+        Invoice invoice = invoiceJpaRepository
+                .findInvoiceDetailByTravelItineraryIdAndInvoiceStatusNot(travelItineraryId, InvoiceStatus.DELETED)
+                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+
+        BigDecimal remainingAmount = invoice.getInvoiceUsers().stream()
+                .map(InvoiceUser::getRemainAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        boolean isDone = remainingAmount.compareTo(BigDecimal.ZERO) == 0;
+
+        return InvoiceDetailResponseDto.from(invoice, remainingAmount, isDone);
     }
 
     @Transactional
