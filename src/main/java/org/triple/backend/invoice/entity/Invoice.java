@@ -67,6 +67,9 @@ public class Invoice extends BaseEntity {
 
     private String description;
 
+    @Version
+    private Long version;
+
     public static Invoice create(
             final String title,
             final String description,
@@ -86,5 +89,14 @@ public class Invoice extends BaseEntity {
                 .creator(creator)
                 .travelItinerary(travelItinerary)
                 .build();
+    }
+
+    public void update(final String title, final String description, final LocalDateTime dueAt) {
+        if(!invoiceStatus.equals(InvoiceStatus.UNCONFIRM)) {
+            throw new IllegalStateException("청구서 수정이 불가합니다.");
+        }
+        this.title = title;
+        this.description = description;
+        this.dueAt = dueAt;
     }
 }
