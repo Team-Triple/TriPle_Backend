@@ -14,6 +14,15 @@ import java.math.BigDecimal;
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
+@Table(
+        name = "invoice_user",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_invoice_user_invoice_user",
+                        columnNames = {"invoice_id", "user_id"}
+                )
+        }
+)
 public class InvoiceUser {
 
     @Id

@@ -13,6 +13,7 @@ import java.util.List;
 
 @Entity
 @Getter
+@Table(name = "travel_itinerary")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TravelItinerary extends BaseEntity {
 

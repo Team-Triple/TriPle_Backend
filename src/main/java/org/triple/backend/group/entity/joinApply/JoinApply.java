@@ -13,7 +13,15 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "join_apply")
+@Table(
+        name = "join_apply",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_join_apply_group_user",
+                        columnNames = {"group_id", "user_id"}
+                )
+        }
+)
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

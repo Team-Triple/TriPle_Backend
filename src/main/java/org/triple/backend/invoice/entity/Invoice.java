@@ -21,6 +21,15 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@Table(
+        name = "invoice",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_invoice_travel_itinerary",
+                        columnNames = {"travel_itinerary_id"}
+                )
+        }
+)
 public class Invoice extends BaseEntity {
 
     @Id
