@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
+import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
@@ -87,13 +88,12 @@ public class InvoiceService {
             final Map<Long, RecipientAmountDto> recipientByUserId
     ) {
         List<Long> recipientUserIds = new ArrayList<>(recipientByUserId.keySet());
-        List<User> users = userGroupJpaRepository.findJoinedUsersInGroup(groupId, JoinStatus.JOINED, recipientUserIds);
-        if (users.size() != recipientUserIds.size()) {
+        List<UserGroup> lockedUserGroups = userGroupJpaRepository.findJoinedUsersInGroupForUpdate(groupId, JoinStatus.JOINED, recipientUserIds);
+        if (lockedUserGroups.size() != recipientUserIds.size()) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
 
-        return users.stream()
-                .collect(Collectors.toMap(User::getId, user -> user));
+        return lockedUserGroups.stream().map(UserGroup::getUser).collect(Collectors.toMap(User::getId, user -> user));
     }
 
     private Invoice saveInvoiceOrThrow(
