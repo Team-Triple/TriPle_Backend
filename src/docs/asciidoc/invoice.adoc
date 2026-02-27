@@ -10,3 +10,10 @@ include::{snippets}/invoices/create/http-request.adoc[]
 include::{snippets}/invoices/create/request-fields.adoc[]
 include::{snippets}/invoices/create/http-response.adoc[]
 include::{snippets}/invoices/create/response-fields.adoc[]
+
+== 청구서 메타 정보 수정
+include::{snippets}/invoices/update-meta/path-parameters.adoc[]
+include::{snippets}/invoices/update-meta/http-request.adoc[]
+include::{snippets}/invoices/update-meta/request-fields.adoc[]
+include::{snippets}/invoices/update-meta/http-response.adoc[]
+include::{snippets}/invoices/update-meta/response-fields.adoc[]
