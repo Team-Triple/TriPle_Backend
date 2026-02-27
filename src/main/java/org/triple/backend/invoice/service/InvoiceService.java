@@ -81,7 +81,7 @@ public class InvoiceService {
     @Transactional
     public InvoiceUpdateResponseDto updateMetaInfo(final Long userId, final Long invoiceId, final InvoiceUpdateRequestDto dto) {
 
-        Invoice invoice = invoiceJpaRepository.findById(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+        Invoice invoice = invoiceJpaRepository.findByIdForUpdateWithGroupAndTravelItinerary(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
 
         if(!invoice.getInvoiceStatus().equals(InvoiceStatus.UNCONFIRM)) {
             throw new BusinessException(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
