@@ -367,7 +367,7 @@ public class GroupService {
 
         Role role = userGroup == null ? Role.GUEST : userGroup.getRole();
 
-        return new GroupMenuResponseDto(group.getName(), group.getDescription(), group.getCurrentMemberCount(), group.getMemberLimit(), role);
+        return new GroupMenuResponseDto(group.getName(), group.getDescription(), group.getCurrentMemberCount(), group.getMemberLimit(), group.getThumbNailUrl(), role);
     }
 
     private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
