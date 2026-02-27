@@ -10,8 +10,10 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.invoice.controller.InvoiceController;
+import org.triple.backend.invoice.dto.request.InvoiceAdjustRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
+import org.triple.backend.invoice.dto.response.InvoiceAdjustResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.InvoiceStatus;
@@ -39,10 +41,9 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWit
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
-import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
@@ -290,6 +291,115 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(invoiceService, never()).updateMetaInfo(anyLong(), anyLong(), any(InvoiceUpdateRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("로그인한 여행장(LEADER)은 청구서 금액/대상 정보를 수정할 수 있다.")
+    void 로그인한_여행장_LEADER은_청구서_금액_대상_정보를_수정할_수_있다() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        InvoiceAdjustResponseDto response = new InvoiceAdjustResponseDto(
+                invoiceId,
+                new BigDecimal("30000"),
+                List.of(
+                        new org.triple.backend.invoice.dto.RecipientAmountDto(2L, new BigDecimal("10000")),
+                        new org.triple.backend.invoice.dto.RecipientAmountDto(3L, new BigDecimal("20000"))
+                ),
+                InvoiceStatus.UNCONFIRM,
+                LocalDateTime.of(2030, 4, 2, 12, 0)
+        );
+        given(invoiceService.updateInfo(eq(1L), eq(invoiceId), any(InvoiceAdjustRequestDto.class))).willReturn(response);
+        mockCsrfValid();
+
+        String body = """
+                {
+                  "totalAmount": 30000,
+                  "recipients": [
+                    { "userId": 2, "amount": 10000 },
+                    { "userId": 3, "amount": 20000 }
+                  ]
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(put("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invoiceId").value(invoiceId))
+                .andExpect(jsonPath("$.totalAmount").value(30000))
+                .andExpect(jsonPath("$.recipients.length()").value(2))
+                .andExpect(jsonPath("$.recipients[0].userId").value(2))
+                .andExpect(jsonPath("$.recipients[0].amount").value(10000))
+                .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"))
+                .andExpect(jsonPath("$.updatedAt").value("2030-04-02T12:00:00"))
+                .andDo(document("invoices/update-info",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("totalAmount").description("변경할 총 청구 금액"),
+                                fieldWithPath("recipients").description("변경할 청구 대상 목록(전체 교체)"),
+                                fieldWithPath("recipients[].userId").description("청구 대상 사용자 ID"),
+                                fieldWithPath("recipients[].amount").description("청구 대상 금액")
+                        ),
+                        responseFields(
+                                fieldWithPath("invoiceId").description("청구서 ID"),
+                                fieldWithPath("totalAmount").description("변경된 총 청구 금액"),
+                                fieldWithPath("recipients").description("최종 청구 대상 목록"),
+                                fieldWithPath("recipients[].userId").description("청구 대상 사용자 ID"),
+                                fieldWithPath("recipients[].amount").description("청구 대상 금액"),
+                                fieldWithPath("invoiceStatus").description("청구서 상태"),
+                                fieldWithPath("updatedAt").description("수정 일시")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).updateInfo(eq(1L), eq(invoiceId), any(InvoiceAdjustRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("청구서 금액/대상 정보 수정 요청이 유효하지 않으면 400을 반환한다.")
+    void 청구서_금액_대상_정보_수정_요청이_유효하지_않으면_400을_반환한다() throws Exception {
+        // given
+        mockCsrfValid();
+        String invalidBody = """
+                {
+                  "totalAmount": 0,
+                  "recipients": []
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(put("/invoices/{invoiceId}", 1L)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest());
+
+        verify(invoiceService, never()).updateInfo(anyLong(), anyLong(), any(InvoiceAdjustRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 청구서 금액/대상 정보 수정을 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_청구서_금액_대상_정보_수정을_요청하면_401을_반환한다() throws Exception {
+        String body = """
+                {
+                  "totalAmount": 30000,
+                  "recipients": [
+                    { "userId": 2, "amount": 10000 }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(put("/invoices/{invoiceId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized());
+
+        verify(invoiceService, never()).updateInfo(anyLong(), anyLong(), any(InvoiceAdjustRequestDto.class));
     }
 
     @Test
