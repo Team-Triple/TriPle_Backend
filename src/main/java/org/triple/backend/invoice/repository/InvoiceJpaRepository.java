@@ -10,6 +10,9 @@ import java.util.Optional;
 
 public interface InvoiceJpaRepository extends JpaRepository<Invoice, Long> {
 
+    @Query("SELECT i FROM Invoice i JOIN FETCH i.travelItinerary JOIN FETCH i.group WHERE i.id = :invoiceId")
+    Optional<Invoice> findByIdForUpdateWithGroupAndTravelItinerary(Long invoiceId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from Invoice i where i.id = :invoiceId")
     Optional<Invoice> findByIdForUpdate(Long invoiceId);

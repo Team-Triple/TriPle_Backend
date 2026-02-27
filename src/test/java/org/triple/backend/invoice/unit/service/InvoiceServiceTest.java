@@ -5,6 +5,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
@@ -15,7 +17,9 @@ import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
+import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
+import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.entity.InvoiceUser;
@@ -34,6 +38,12 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -324,6 +334,202 @@ class InvoiceServiceTest {
     }
 
     @Test
+    @DisplayName("여행장(LEADER)은 UNCONFIRM 상태 청구서의 메타 정보를 수정할 수 있다.")
+    void 여행장_LEADER은_UNCONFIRM_상태_청구서의_메타_정보를_수정할_수_있다() {
+        // given
+        User leader = saveUser("leader-update");
+        Group group = saveGroup("수정 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "수정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+                "수정된 제목",
+                "수정된 설명",
+                LocalDateTime.of(2030, 4, 1, 18, 0)
+        );
+
+        // when
+        InvoiceUpdateResponseDto response = invoiceService.updateMetaInfo(leader.getId(), invoice.getId(), request);
+
+        // then
+        assertThat(response.invoiceId()).isEqualTo(invoice.getId());
+        assertThat(response.title()).isEqualTo("수정된 제목");
+        assertThat(response.description()).isEqualTo("수정된 설명");
+        assertThat(response.dueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
+        assertThat(response.invoiceStatus()).isEqualTo(InvoiceStatus.UNCONFIRM);
+
+        Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(updatedInvoice.getTitle()).isEqualTo("수정된 제목");
+        assertThat(updatedInvoice.getDescription()).isEqualTo("수정된 설명");
+        assertThat(updatedInvoice.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
+    }
+
+    @Test
+    @DisplayName("UNCONFIRM 상태가 아닌 청구서는 수정할 수 없다.")
+    void UNCONFIRM_상태가_아닌_청구서는_수정할_수_없다() {
+        // given
+        User leader = saveUser("leader-confirm");
+        Group group = saveGroup("확정 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.CONFIRM, "확정 제목");
+        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+                "수정 시도",
+                "수정 시도 설명",
+                LocalDateTime.of(2030, 4, 2, 18, 0)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateMetaInfo(leader.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아니면 청구서 메타 정보를 수정할 수 없다.")
+    void 그룹_멤버가_아니면_청구서_메타_정보를_수정할_수_없다() {
+        // given
+        User leader = saveUser("leader-not-member");
+        User outsider = saveUser("outsider-not-member");
+        Group group = saveGroup("멤버 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "멤버 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+                "수정 시도",
+                "수정 시도 설명",
+                LocalDateTime.of(2030, 4, 3, 18, 0)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateMetaInfo(outsider.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+                });
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서 메타 정보를 수정할 수 없다.")
+    void 여행장_LEADER가_아니면_청구서_메타_정보를_수정할_수_없다() {
+        // given
+        User leader = saveUser("leader-meta");
+        User member = saveUser("member-meta");
+        Group group = saveGroup("리더 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "리더 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+                "수정 시도",
+                "수정 시도 설명",
+                LocalDateTime.of(2030, 4, 4, 18, 0)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateMetaInfo(member.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+                });
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("동일한 청구서 메타 수정 요청이 동시에 들어오면 하나만 성공하고 나머지는 CONCURRENT_INVOICE_UPDATE가 발생한다.")
+    void 동일한_청구서_메타_수정_요청이_동시에_들어오면_하나만_성공하고_나머지는_CONCURRENT_INVOICE_UPDATE가_발생한다() throws InterruptedException {
+        // given
+        User leader = saveUser("leader-update-concurrency");
+        Group group = saveGroup("동시 수정 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "동시 수정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(2);
+        AtomicInteger successCount = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        Runnable firstUpdate = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                invoiceService.updateMetaInfo(
+                        leader.getId(),
+                        invoice.getId(),
+                        new InvoiceUpdateRequestDto("수정 제목 A", "수정 설명 A", LocalDateTime.of(2030, 4, 10, 18, 0))
+                );
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        Runnable secondUpdate = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                invoiceService.updateMetaInfo(
+                        leader.getId(),
+                        invoice.getId(),
+                        new InvoiceUpdateRequestDto("수정 제목 B", "수정 설명 B", LocalDateTime.of(2030, 4, 11, 18, 0))
+                );
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        try {
+            executorService.submit(firstUpdate);
+            executorService.submit(secondUpdate);
+
+            assertThat(ready.await(3, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+
+            long concurrentConflictCount = failures.stream()
+                    .filter(BusinessException.class::isInstance)
+                    .map(BusinessException.class::cast)
+                    .filter(e -> e.getErrorCode() == InvoiceErrorCode.CONCURRENT_INVOICE_UPDATE)
+                    .count();
+
+            Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+
+            assertThat(successCount.get()).isEqualTo(1);
+            assertThat(failures).hasSize(1);
+            assertThat(concurrentConflictCount).isEqualTo(1);
+            assertThat(List.of("수정 제목 A", "수정 제목 B")).contains(updatedInvoice.getTitle());
+        } finally {
+            executorService.shutdownNow();
+            invoiceUserJpaRepository.deleteAllInBatch();
+            invoiceRepository.deleteAllInBatch();
+            userTravelItineraryJpaRepository.deleteAllInBatch();
+            travelItineraryJpaRepository.deleteAllInBatch();
+            userGroupJpaRepository.deleteAllInBatch();
+            groupJpaRepository.deleteAllInBatch();
+            userJpaRepository.deleteAllInBatch();
+        }
+    }
+
+    @Test
     @DisplayName("청구서 삭제 요청 시 상태를 DELETED로 변경하고 invoiceUser를 모두 삭제한다.")
     void 청구서_삭제_성공() {
         User creator = saveUser("creator");
@@ -441,6 +647,27 @@ class InvoiceServiceTest {
                         1,
                         false
                 )
+        );
+    }
+
+    private Invoice saveInvoice(
+            final Group group,
+            final User creator,
+            final TravelItinerary travelItinerary,
+            final InvoiceStatus invoiceStatus,
+            final String title
+    ) {
+        return invoiceRepository.save(
+                Invoice.builder()
+                        .group(group)
+                        .creator(creator)
+                        .travelItinerary(travelItinerary)
+                        .invoiceStatus(invoiceStatus)
+                        .title(title)
+                        .description("기존 설명")
+                        .totalAmount(new BigDecimal("70000"))
+                        .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
+                        .build()
         );
     }
 

@@ -17,6 +17,8 @@ import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
+import org.triple.backend.invoice.entity.Invoice;
+import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.entity.InvoiceUser;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
@@ -32,6 +34,7 @@ import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -281,6 +284,95 @@ class InvoiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("여행장(LEADER)은 청구서 메타 정보를 수정할 수 있다.")
+    void 여행장_LEADER은_청구서_메타_정보를_수정할_수_있다() throws Exception {
+        // given
+        User leader = saveUser("leader-update");
+        Group group = saveGroup("수정 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "수정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+
+        String body = """
+                {
+                  "title": "수정된 제목",
+                  "description": "수정된 설명",
+                  "dueAt": "2030-04-01T18:00:00"
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invoiceId").value(invoice.getId()))
+                .andExpect(jsonPath("$.title").value("수정된 제목"))
+                .andExpect(jsonPath("$.description").value("수정된 설명"))
+                .andExpect(jsonPath("$.dueAt").value("2030-04-01T18:00:00"))
+                .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"));
+
+        Invoice updatedInvoice = invoiceJpaRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(updatedInvoice.getTitle()).isEqualTo("수정된 제목");
+        assertThat(updatedInvoice.getDescription()).isEqualTo("수정된 설명");
+        assertThat(updatedInvoice.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서 메타 정보 수정 요청 시 403을 반환한다.")
+    void 여행장_LEADER가_아니면_청구서_메타_정보_수정_요청_시_403을_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-update-fail");
+        User member = saveUser("member-update-fail");
+        Group group = saveGroup("리더 검증 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "리더 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+
+        String body = """
+                {
+                  "title": "수정 시도",
+                  "description": "수정 시도 설명",
+                  "dueAt": "2030-04-02T18:00:00"
+                }
+                """;
+
+        // when & then
+        mockMvc.perform(patch("/invoices/{invoiceId}", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("여행장만 청구서를 생성할 수 있습니다."));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 청구서 메타 정보 수정을 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_청구서_메타_정보_수정을_요청하면_401을_반환한다() throws Exception {
+        String body = """
+                {
+                  "title": "수정된 제목",
+                  "description": "수정된 설명",
+                  "dueAt": "2030-04-01T18:00:00"
+                }
+                """;
+
+        mockMvc.perform(patch("/invoices/{invoiceId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("청구서 생성자가 삭제 요청하면 상태가 DELETED로 변경되고 invoice_user가 삭제된다.")
     void 청구서_삭제_성공() throws Exception {
         User creator = saveUser("delete-creator");
@@ -395,6 +487,27 @@ class InvoiceIntegrationTest {
                         1,
                         false
                 )
+        );
+    }
+
+    private Invoice saveInvoice(
+            final Group group,
+            final User creator,
+            final TravelItinerary travelItinerary,
+            final InvoiceStatus invoiceStatus,
+            final String title
+    ) {
+        return invoiceJpaRepository.save(
+                Invoice.builder()
+                        .group(group)
+                        .creator(creator)
+                        .travelItinerary(travelItinerary)
+                        .invoiceStatus(invoiceStatus)
+                        .title(title)
+                        .description("기존 설명")
+                        .totalAmount(new java.math.BigDecimal("70000"))
+                        .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
+                        .build()
         );
     }
 
