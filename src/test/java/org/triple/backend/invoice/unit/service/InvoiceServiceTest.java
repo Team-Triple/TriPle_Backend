@@ -14,8 +14,11 @@ import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
+import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
+import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.Invoice;
+import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.entity.InvoiceUser;
 import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
@@ -318,6 +321,117 @@ class InvoiceServiceTest {
                 });
     }
 
+    @Test
+    @DisplayName("여행장(LEADER)은 UNCONFIRM 상태 청구서의 메타 정보를 수정할 수 있다.")
+    void 여행장_LEADER은_UNCONFIRM_상태_청구서의_메타_정보를_수정할_수_있다() {
+        // given
+        User leader = saveUser("leader-update");
+        Group group = saveGroup("수정 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "수정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+                "수정된 제목",
+                "수정된 설명",
+                LocalDateTime.of(2030, 4, 1, 18, 0)
+        );
+
+        // when
+        InvoiceUpdateResponseDto response = invoiceService.updateMetaInfo(leader.getId(), invoice.getId(), request);
+
+        // then
+        assertThat(response.invoiceId()).isEqualTo(invoice.getId());
+        assertThat(response.title()).isEqualTo("수정된 제목");
+        assertThat(response.description()).isEqualTo("수정된 설명");
+        assertThat(response.dueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
+        assertThat(response.invoiceStatus()).isEqualTo(InvoiceStatus.UNCONFIRM);
+
+        Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(updatedInvoice.getTitle()).isEqualTo("수정된 제목");
+        assertThat(updatedInvoice.getDescription()).isEqualTo("수정된 설명");
+        assertThat(updatedInvoice.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
+    }
+
+    @Test
+    @DisplayName("UNCONFIRM 상태가 아닌 청구서는 수정할 수 없다.")
+    void UNCONFIRM_상태가_아닌_청구서는_수정할_수_없다() {
+        // given
+        User leader = saveUser("leader-confirm");
+        Group group = saveGroup("확정 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확정 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.CONFIRM, "확정 제목");
+        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+                "수정 시도",
+                "수정 시도 설명",
+                LocalDateTime.of(2030, 4, 2, 18, 0)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateMetaInfo(leader.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아니면 청구서 메타 정보를 수정할 수 없다.")
+    void 그룹_멤버가_아니면_청구서_메타_정보를_수정할_수_없다() {
+        // given
+        User leader = saveUser("leader-not-member");
+        User outsider = saveUser("outsider-not-member");
+        Group group = saveGroup("멤버 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "멤버 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+                "수정 시도",
+                "수정 시도 설명",
+                LocalDateTime.of(2030, 4, 3, 18, 0)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateMetaInfo(outsider.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+                });
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서 메타 정보를 수정할 수 없다.")
+    void 여행장_LEADER가_아니면_청구서_메타_정보를_수정할_수_없다() {
+        // given
+        User leader = saveUser("leader-meta");
+        User member = saveUser("member-meta");
+        Group group = saveGroup("리더 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "리더 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+                "수정 시도",
+                "수정 시도 설명",
+                LocalDateTime.of(2030, 4, 4, 18, 0)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.updateMetaInfo(member.getId(), invoice.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+                });
+    }
+
     private User saveUser(final String providerId) {
         return userJpaRepository.save(
                 User.builder()
@@ -362,6 +476,27 @@ class InvoiceServiceTest {
                         1,
                         false
                 )
+        );
+    }
+
+    private Invoice saveInvoice(
+            final Group group,
+            final User creator,
+            final TravelItinerary travelItinerary,
+            final InvoiceStatus invoiceStatus,
+            final String title
+    ) {
+        return invoiceRepository.save(
+                Invoice.builder()
+                        .group(group)
+                        .creator(creator)
+                        .travelItinerary(travelItinerary)
+                        .invoiceStatus(invoiceStatus)
+                        .title(title)
+                        .description("기존 설명")
+                        .totalAmount(new BigDecimal("70000"))
+                        .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
+                        .build()
         );
     }
 }
