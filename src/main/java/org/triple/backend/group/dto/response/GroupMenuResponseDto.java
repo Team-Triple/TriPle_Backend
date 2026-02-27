@@ -7,6 +7,7 @@ public record GroupMenuResponseDto(
         String description,
         int currentMemberCount,
         int memberLimit,
+        String thumbNailUrl,
         Role role
 ) {
 }
