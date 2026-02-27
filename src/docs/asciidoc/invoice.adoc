@@ -22,3 +22,10 @@ include::{snippets}/invoices/update-meta/http-request.adoc[]
 include::{snippets}/invoices/update-meta/request-fields.adoc[]
 include::{snippets}/invoices/update-meta/http-response.adoc[]
 include::{snippets}/invoices/update-meta/response-fields.adoc[]
+
+== 청구서 금액/대상 정보 수정
+include::{snippets}/invoices/update-info/path-parameters.adoc[]
+include::{snippets}/invoices/update-info/http-request.adoc[]
+include::{snippets}/invoices/update-info/request-fields.adoc[]
+include::{snippets}/invoices/update-info/http-response.adoc[]
+include::{snippets}/invoices/update-info/response-fields.adoc[]
