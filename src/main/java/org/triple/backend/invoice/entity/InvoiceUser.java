@@ -1,11 +1,19 @@
 package org.triple.backend.invoice.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.triple.backend.user.entity.User;
 
 import java.math.BigDecimal;
 
 @Entity
+@Builder
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
 public class InvoiceUser {
 
     @Id
@@ -23,4 +31,13 @@ public class InvoiceUser {
 
     @Column(name = "remain_amount", nullable = false)
     private BigDecimal remainAmount;
+
+
+    public static InvoiceUser create(final Invoice invoice, final User user, final BigDecimal remainAmount) {
+        return InvoiceUser.builder()
+                .invoice(invoice)
+                .user(user)
+                .remainAmount(remainAmount)
+                .build();
+    }
 }

@@ -21,6 +21,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
@@ -202,8 +204,29 @@ class TravelControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("여행 참가 요청 성공 시 200을 반환한다.")
+    void 여행_참가_요청_성공() throws Exception {
+        Long travelId = 1L;
+        given(sessionManager.getUserId(any())).willReturn(1L);
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(csrfTokenManager.isValid(any(), any())).willReturn(true);
+        doNothing().when(travelItineraryService).joinTravel(travelId, 1L);
+
+        mockMvc.perform(post("/travels/{travelId}/users/me", travelId)
+                        .requestAttr("LOGIN_USER_ID", 1L))
+                .andExpect(status().isOk())
+                .andDo(document("travels/join",
+                        pathParameters(
+                                parameterWithName("travelId").description("참가할 여행 일정 ID")
+                        )
+                ));
+
+        verify(travelItineraryService, times(1)).joinTravel(travelId, 1L);
+    }
+
+    @Test
     @DisplayName("그룹 여행 목록 조회 요청 성공 시 200을 반환한다.")
-    void browse_group_travels_success() throws Exception {
+    void 그룹_여행_목록_조회_요청_성공_시_200을_반환한다() throws Exception {
         given(sessionManager.getUserId(any())).willReturn(1L);
         given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
         given(travelItineraryService.browseTravels(any(), any(), anyInt(), any())).willReturn(

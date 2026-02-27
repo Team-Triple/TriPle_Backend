@@ -1,7 +1,9 @@
 package org.triple.backend.group.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.triple.backend.group.entity.group.Group;
@@ -49,4 +51,16 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
         ORDER BY g.id desc
     """)
     List<Group> findMyGroupsFirstPage(Long userId, JoinStatus joinStatus, Pageable pageable);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT ug
+        FROM UserGroup ug
+        JOIN FETCH ug.user
+        WHERE ug.group.id = :groupId
+         AND ug.joinStatus = :joinStatus
+         AND ug.user.id IN :userIds
+         ORDER BY ug.user.id
+    """)
+    List<UserGroup> findJoinedUsersInGroupForUpdate(Long groupId, JoinStatus joinStatus, List<Long> userIds);
 }
