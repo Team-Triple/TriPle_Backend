@@ -2,6 +2,7 @@ package org.triple.backend.invoice.dto.request;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
+import org.triple.backend.invoice.dto.RecipientAmountDto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -33,13 +34,4 @@ public record InvoiceCreateRequestDto(
         @Future
         LocalDateTime dueAt
 ) {
-
-    public record RecipientAmountDto(
-            @NotNull
-            Long userId,
-
-            @NotNull
-            @Positive
-            BigDecimal amount
-    ){}
 }
