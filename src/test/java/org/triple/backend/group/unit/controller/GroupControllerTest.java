@@ -285,6 +285,7 @@ public class GroupControllerTest extends ControllerTest {
                 "MBTI P들의 모임입니다. 맛집 탐방!",
                 6,
                 10,
+                "https://example.com/thumb.png",
                 Role.MEMBER
         );
         given(groupService.menu(eq(1L), eq(groupId))).willReturn(response);
@@ -297,6 +298,7 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.description").value("MBTI P들의 모임입니다. 맛집 탐방!"))
                 .andExpect(jsonPath("$.currentMemberCount").value(6))
                 .andExpect(jsonPath("$.memberLimit").value(10))
+                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/thumb.png"))
                 .andExpect(jsonPath("$.role").value("MEMBER"))
                 .andDo(document("groups/menu",
                         preprocessRequest(prettyPrint()),
@@ -309,6 +311,7 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("description").description("그룹 설명"),
                                 fieldWithPath("currentMemberCount").description("현재 인원"),
                                 fieldWithPath("memberLimit").description("최대 인원"),
+                                fieldWithPath("thumbNailUrl").description("그룹 썸네일 URL").optional(),
                                 fieldWithPath("role").description("요청 사용자 역할 (OWNER, MEMBER, GUEST)")
                         )
                 ));
@@ -326,6 +329,7 @@ public class GroupControllerTest extends ControllerTest {
                 "게스트 조회",
                 2,
                 10,
+                "https://example.com/guest-thumb.png",
                 Role.GUEST
         );
         given(groupService.menu(isNull(), eq(groupId))).willReturn(response);
@@ -333,6 +337,7 @@ public class GroupControllerTest extends ControllerTest {
         // when & then
         mockMvc.perform(get("/groups/{groupId}/menu", groupId))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/guest-thumb.png"))
                 .andExpect(jsonPath("$.role").value("GUEST"));
 
         verify(groupService, times(1)).menu(isNull(), eq(groupId));
