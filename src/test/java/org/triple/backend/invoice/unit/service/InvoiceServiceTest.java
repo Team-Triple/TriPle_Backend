@@ -22,6 +22,7 @@ import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceAdjustResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
+import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
@@ -333,6 +334,83 @@ class InvoiceServiceTest {
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DUPLICATE_INVOICE);
+                });
+    }
+
+    @Test
+    @DisplayName("여행 멤버는 청구서를 조회할 수 있다.")
+    void 여행_멤버는_청구서를_조회할_수_있다() {
+        // given
+        User 생성자 = saveUser("read-creator");
+        User 멤버1 = saveUser("read-member-1");
+        User 멤버2 = saveUser("read-member-2");
+        Group 그룹 = saveGroup("조회 그룹");
+        TravelItinerary 여행일정 = saveTravelItinerary(그룹, "조회 여행");
+        saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
+        saveTravelMembership(멤버1, 여행일정, UserRole.MEMBER);
+        saveTravelMembership(멤버2, 여행일정, UserRole.MEMBER);
+        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버1, new BigDecimal("7000")));
+        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버2, new BigDecimal("3000")));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        InvoiceDetailResponseDto 응답 = invoiceService.searchInvoice(멤버1.getId(), 여행일정.getId());
+
+        // then
+        assertThat(응답.title()).isEqualTo(청구서.getTitle());
+        assertThat(응답.creator().userId()).isEqualTo(생성자.getId());
+        assertThat(응답.invoiceMembers()).hasSize(2);
+        assertThat(응답.remainingAmount()).isEqualByComparingTo("10000");
+        assertThat(응답.isDone()).isFalse();
+    }
+
+    @Test
+    @DisplayName("남은 금액이 0이면 청구서 완료 상태를 참으로 반환한다.")
+    void 남은_금액이_0이면_청구서_완료_상태를_참으로_반환한다() {
+        // given
+        User 생성자 = saveUser("done-creator");
+        User 멤버 = saveUser("done-member");
+        Group 그룹 = saveGroup("완료 그룹");
+        TravelItinerary 여행일정 = saveTravelItinerary(그룹, "완료 여행");
+        saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
+        saveTravelMembership(멤버, 여행일정, UserRole.MEMBER);
+        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버, BigDecimal.ZERO));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        InvoiceDetailResponseDto 응답 = invoiceService.searchInvoice(멤버.getId(), 여행일정.getId());
+
+        // then
+        assertThat(응답.remainingAmount()).isEqualByComparingTo("0");
+        assertThat(응답.isDone()).isTrue();
+    }
+
+    @Test
+    @DisplayName("여행 일정 멤버가 아니면 청구서를 조회할 수 없다.")
+    void 여행_일정_멤버가_아니면_청구서를_조회할_수_없다() {
+        // given
+        User 생성자 = saveUser("forbidden-creator");
+        User 멤버 = saveUser("forbidden-member");
+        User 외부인 = saveUser("forbidden-outsider");
+        Group 그룹 = saveGroup("권한 검증 그룹");
+        TravelItinerary 여행일정 = saveTravelItinerary(그룹, "권한 검증 여행");
+        saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
+        saveTravelMembership(멤버, 여행일정, UserRole.MEMBER);
+        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버, new BigDecimal("10000")));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.searchInvoice(외부인.getId(), 여행일정.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
                 });
     }
 
