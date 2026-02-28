@@ -16,6 +16,7 @@ import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
 import org.triple.backend.invoice.dto.response.InvoiceAdjustResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
+import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.exception.InvoiceErrorCode;
@@ -45,9 +46,10 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWit
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
@@ -295,6 +297,50 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(invoiceService, never()).updateMetaInfo(anyLong(), anyLong(), any(InvoiceUpdateRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("여행 멤버는 청구서를 조회할 수 있다.")
+    void 여행_멤버는_청구서를_조회할_수_있다() throws Exception {
+        // given
+        InvoiceDetailResponseDto response = new InvoiceDetailResponseDto(
+                "청구서 제목",
+                new BigDecimal("70000"),
+                LocalDateTime.of(2030, 3, 31, 18, 0),
+                "청구서 설명",
+                new InvoiceDetailResponseDto.UserSummaryDto(1L, "생성자", "http://profile/1"),
+                List.of(
+                        new InvoiceDetailResponseDto.InvoiceMemberDto(2L, "멤버1", "http://profile/2", BigDecimal.ZERO),
+                        new InvoiceDetailResponseDto.InvoiceMemberDto(3L, "멤버2", "http://profile/3", BigDecimal.ZERO)
+                ),
+                BigDecimal.ZERO,
+                true
+        );
+        given(invoiceService.searchInvoice(eq(1L), eq(20L))).willReturn(response);
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 20L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("청구서 제목"))
+                .andExpect(jsonPath("$.totalAmount").value(70000))
+                .andExpect(jsonPath("$.creator.userId").value(1L))
+                .andExpect(jsonPath("$.invoiceMembers.length()").value(2))
+                .andExpect(jsonPath("$.remainingAmount").value(0))
+                .andExpect(jsonPath("$.isDone").value(true));
+
+        verify(invoiceService, times(1)).searchInvoice(1L, 20L);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 청구서 조회를 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_청구서_조회를_요청하면_401을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 20L))
+                .andExpect(status().isUnauthorized());
+
+        verify(invoiceService, never()).searchInvoice(anyLong(), anyLong());
     }
 
     @Test
