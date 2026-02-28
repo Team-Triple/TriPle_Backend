@@ -53,3 +53,29 @@ include::{snippets}/invoices/update-info-fail-duplicate-recipient/http-response.
 
 === 실패: 총 금액 불일치 (403)
 include::{snippets}/invoices/update-info-fail-invalid-total-amount/http-response.adoc[]
+
+== 청구서 확인
+include::{snippets}/invoices/check/path-parameters.adoc[]
+include::{snippets}/invoices/check/http-request.adoc[]
+include::{snippets}/invoices/check/http-response.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/invoices/check-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 여행장 권한 없음 (403)
+include::{snippets}/invoices/check-fail-not-travel-leader/http-response.adoc[]
+
+=== 실패: 그룹 멤버 아님 (403)
+include::{snippets}/invoices/check-fail-not-group-member/http-response.adoc[]
+
+=== 실패: 여행 멤버십 없음 (404)
+include::{snippets}/invoices/check-fail-user-travel-not-found/http-response.adoc[]
+
+=== 실패: 청구서 없음 (404)
+include::{snippets}/invoices/check-fail-not-found-invoice/http-response.adoc[]
+
+=== 실패: 확인 불가능 상태 (409)
+include::{snippets}/invoices/check-fail-not-allowed-status/http-response.adoc[]
+
+=== 실패: 결제 내역 존재 (409)
+include::{snippets}/invoices/check-fail-payment-exists/http-response.adoc[]
