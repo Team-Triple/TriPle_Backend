@@ -12,8 +12,11 @@ import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
+import org.triple.backend.invoice.dto.RecipientAmountDto;
+import org.triple.backend.invoice.dto.request.InvoiceAdjustRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
+import org.triple.backend.invoice.dto.response.InvoiceAdjustResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
@@ -34,13 +37,8 @@ import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
-
-import static org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto.RecipientAmountDto;
 
 @Service
 @RequiredArgsConstructor
@@ -101,23 +99,10 @@ public class InvoiceService {
 
     @Transactional
     public InvoiceUpdateResponseDto updateMetaInfo(final Long userId, final Long invoiceId, final InvoiceUpdateRequestDto dto) {
-
-        Invoice invoice = invoiceJpaRepository.findByIdForUpdateWithGroupAndTravelItinerary(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
-
-        if(!invoice.getInvoiceStatus().equals(InvoiceStatus.UNCONFIRM)) {
-            throw new BusinessException(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
-        }
-
-        if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(invoice.getGroup().getId(), userId, JoinStatus.JOINED)) {
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
-        }
-
-        UserTravelItinerary userTravelItinerary = userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(userId, invoice.getTravelItinerary().getId())
-                .orElseThrow(() -> new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
-
-        if(!userTravelItinerary.getUserRole().equals(UserRole.LEADER)) {
-            throw new BusinessException(InvoiceErrorCode.NOT_TRAVEL_LEADER);
-        }
+        Invoice invoice = invoiceJpaRepository.findByIdForUpdateWithGroupAndTravelItinerary(invoiceId)
+                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+        validateUpdatableStatusOrThrow(invoice);
+        validateUpdateAuthorityOrThrow(userId, invoice);
 
         invoice.update(dto.title(), dto.description(), dto.dueAt());
 
@@ -128,6 +113,55 @@ public class InvoiceService {
         }
 
         return InvoiceUpdateResponseDto.from(invoice);
+    }
+
+    @Transactional
+    public InvoiceAdjustResponseDto updateInfo(final Long userId, final Long invoiceId, final InvoiceAdjustRequestDto dto) {
+
+        Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId)
+                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+
+        validateUpdatableStatusOrThrow(invoice);
+        validateUpdateAuthorityOrThrow(userId, invoice);
+
+        if(paymentJpaRepository.existsByInvoiceId(invoiceId)) {
+            throw new BusinessException(InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
+        }
+
+        Map<Long, RecipientAmountDto> recipientByUserId = toRecipientMap(dto.recipients());
+        validateTotalAmount(dto.recipients(), dto.totalAmount());
+        Map<Long, User> userById = loadRecipientUsersOrThrow(invoice.getGroup().getId(), recipientByUserId);
+
+        invoiceUserJpaRepository.deleteAllByInvoiceIdInBatch(invoiceId);
+        invoice.updateAmount(dto.totalAmount());
+
+        List<InvoiceUser> invoiceUsers = recipientByUserId.values().stream()
+                .map(r -> InvoiceUser.create(invoice, userById.get(r.userId()), r.amount()))
+                .toList();
+
+        invoiceUserJpaRepository.saveAll(invoiceUsers);
+
+        return InvoiceAdjustResponseDto.from(invoice, invoiceUsers);
+    }
+
+    private void validateUpdatableStatusOrThrow(final Invoice invoice) {
+        if (invoice.getInvoiceStatus() != InvoiceStatus.UNCONFIRM) {
+            throw new BusinessException(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
+        }
+    }
+
+    private void validateUpdateAuthorityOrThrow(final Long userId, final Invoice invoice) {
+        if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(invoice.getGroup().getId(), userId, JoinStatus.JOINED)) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+        }
+
+        UserTravelItinerary userTravelItinerary = userTravelItineraryJpaRepository
+                .findByUserIdAndTravelItineraryId(userId, invoice.getTravelItinerary().getId())
+                .orElseThrow(() -> new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
+
+        if (userTravelItinerary.getUserRole() != UserRole.LEADER) {
+            throw new BusinessException(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+        }
     }
 
     private Map<Long, RecipientAmountDto> toRecipientMap(final List<RecipientAmountDto> recipients) {

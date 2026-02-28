@@ -13,6 +13,7 @@ public enum InvoiceErrorCode implements ErrorCode {
     NOT_TRAVEL_LEADER(HttpStatus.FORBIDDEN, "여행장만 청구서를 생성할 수 있습니다."),
     USER_TRAVEL_ITINERARY_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 여행의 참여 멤버가 아닙니다."),
     INVOICE_UPDATE_NOT_ALLOWED_STATUS(HttpStatus.CONFLICT, "청구서를 수정할 수 없습니다."),
+    UPDATE_FORBIDDEN_PAYMENT_EXISTS(HttpStatus.CONFLICT, "결제 내역이 있는 청구서는 수정할 수 없습니다."),
     CONCURRENT_INVOICE_UPDATE(HttpStatus.CONFLICT, "동시에 청구서가 수정되었습니다. 다시 시도해주세요."),
     DELETE_UNAUTHORIZED(HttpStatus.FORBIDDEN, "청구서 생성자만 삭제할 수 있습니다."),
     DELETE_FORBIDDEN_STATUS(HttpStatus.CONFLICT, "현재 상태에서는 청구서를 삭제할 수 없습니다."),

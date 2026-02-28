@@ -111,4 +111,15 @@ public class Invoice extends BaseEntity {
         this.description = description;
         this.dueAt = dueAt;
     }
+
+    public void updateAmount(final BigDecimal totalAmount) {
+        if (invoiceStatus != InvoiceStatus.UNCONFIRM) {
+            throw new IllegalStateException("확정되지 않은 청구서만 수정할 수 있습니다.");
+        }
+        if (totalAmount == null || totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("총 금액은 0보다 커야 합니다.");
+        }
+
+        this.totalAmount = totalAmount;
+    }
 }

@@ -2,18 +2,13 @@ package org.triple.backend.invoice.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
+import org.triple.backend.invoice.dto.request.InvoiceAdjustRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
+import org.triple.backend.invoice.dto.response.InvoiceAdjustResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
@@ -45,6 +40,12 @@ public class InvoiceController {
             @PathVariable final Long travelItineraryId
     ) {
         return invoiceService.searchInvoice(userId, travelItineraryId);
+    }
+
+    @LoginRequired
+    @PutMapping("/{invoiceId}")
+    public InvoiceAdjustResponseDto updateInfo(@LoginUser final Long userId, @PathVariable Long invoiceId, @RequestBody @Valid InvoiceAdjustRequestDto dto) {
+        return invoiceService.updateInfo(userId, invoiceId, dto);
     }
 
 
