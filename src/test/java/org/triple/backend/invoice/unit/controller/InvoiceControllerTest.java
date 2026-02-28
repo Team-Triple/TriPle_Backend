@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -729,6 +730,213 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(status().isUnauthorized());
 
         verify(invoiceService, never()).updateInfo(anyLong(), anyLong(), any(InvoiceAdjustRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("로그인한 여행장(LEADER)은 청구서를 확인(CONFIRM)할 수 있다.")
+    void 로그인한_여행장_LEADER은_청구서를_확인할_수_있다() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("invoices/check",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).check(1L, invoiceId);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 청구서 확인을 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_청구서_확인을_요청하면_401을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", 1L))
+                .andExpect(status().isUnauthorized())
+                .andDo(document("invoices/check-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        )
+                ));
+
+        verify(invoiceService, never()).check(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서 확인 요청 시 403을 반환한다.")
+    void 여행장_LEADER가_아니면_청구서_확인_요청_시_403을_반환한다() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(InvoiceErrorCode.NOT_TRAVEL_LEADER))
+                .given(invoiceService).check(eq(1L), eq(invoiceId));
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("여행장만 청구서를 생성할 수 있습니다."))
+                .andDo(document("invoices/check-fail-not-travel-leader",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).check(eq(1L), eq(invoiceId));
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아니면 청구서 확인 요청 시 403을 반환한다.")
+    void 그룹_멤버가_아니면_청구서_확인_요청_시_403을_반환한다() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER))
+                .given(invoiceService).check(eq(1L), eq(invoiceId));
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."))
+                .andDo(document("invoices/check-fail-not-group-member",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).check(eq(1L), eq(invoiceId));
+    }
+
+    @Test
+    @DisplayName("여행 멤버십이 없으면 청구서 확인 요청 시 404를 반환한다.")
+    void 여행_멤버십이_없으면_청구서_확인_요청_시_404를_반환한다() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND))
+                .given(invoiceService).check(eq(1L), eq(invoiceId));
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("여행 내 해당 유저를 찾을 수 없습니다."))
+                .andDo(document("invoices/check-fail-user-travel-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).check(eq(1L), eq(invoiceId));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 청구서 확인 요청 시 404를 반환한다.")
+    void 존재하지_않는_청구서_확인_요청_시_404를_반환한다() throws Exception {
+        // given
+        Long invoiceId = 999L;
+        mockCsrfValid();
+        willThrow(new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE))
+                .given(invoiceService).check(eq(1L), eq(invoiceId));
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 청구서 입니다."))
+                .andDo(document("invoices/check-fail-not-found-invoice",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).check(eq(1L), eq(invoiceId));
+    }
+
+    @Test
+    @DisplayName("확인할 수 없는 상태의 청구서 확인 요청 시 409를 반환한다.")
+    void 확인할_수_없는_상태의_청구서_확인_요청_시_409를_반환한다() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(InvoiceErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS))
+                .given(invoiceService).check(eq(1L), eq(invoiceId));
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("청구서를 확인할 수 없습니다."))
+                .andDo(document("invoices/check-fail-not-allowed-status",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).check(eq(1L), eq(invoiceId));
+    }
+
+    @Test
+    @DisplayName("결제 내역이 있는 청구서 확인 요청 시 409를 반환한다.")
+    void 결제_내역이_있는_청구서_확인_요청_시_409를_반환한다() throws Exception {
+        // given
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(InvoiceErrorCode.CHECK_FORBIDDEN_PAYMENT_EXISTS))
+                .given(invoiceService).check(eq(1L), eq(invoiceId));
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 확인할 수 없습니다."))
+                .andDo(document("invoices/check-fail-payment-exists",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).check(eq(1L), eq(invoiceId));
     }
 
     @Test
