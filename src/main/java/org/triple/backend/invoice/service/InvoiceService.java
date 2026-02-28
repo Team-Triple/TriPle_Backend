@@ -102,7 +102,7 @@ public class InvoiceService {
         Invoice invoice = invoiceJpaRepository.findByIdForUpdateWithGroupAndTravelItinerary(invoiceId)
                 .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
         validateStatusOrThrow(invoice, InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
-        validateUpdateAuthorityOrThrow(userId, invoice);
+        validateLeaderAuthorityOrThrow(userId, invoice);
 
         invoice.update(dto.title(), dto.description(), dto.dueAt());
 
@@ -122,7 +122,7 @@ public class InvoiceService {
                 .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
 
         validateStatusOrThrow(invoice, InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
-        validateUpdateAuthorityOrThrow(userId, invoice);
+        validateLeaderAuthorityOrThrow(userId, invoice);
         validateNoPaymentOrThrow(invoiceId, InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
 
         Map<Long, RecipientAmountDto> recipientByUserId = toRecipientMap(dto.recipients());
@@ -147,7 +147,7 @@ public class InvoiceService {
         }
     }
 
-    private void validateUpdateAuthorityOrThrow(final Long userId, final Invoice invoice) {
+    private void validateLeaderAuthorityOrThrow(final Long userId, final Invoice invoice) {
         if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(invoice.getGroup().getId(), userId, JoinStatus.JOINED)) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
@@ -265,7 +265,7 @@ public class InvoiceService {
     @Transactional
     public void check(final Long userId, final Long invoiceId) {
         Invoice invoice = invoiceJpaRepository.findByIdForUpdateWithGroupAndTravelItinerary(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
-        validateUpdateAuthorityOrThrow(userId, invoice);
+        validateLeaderAuthorityOrThrow(userId, invoice);
         validateStatusOrThrow(invoice, InvoiceErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS);
         validateNoPaymentOrThrow(invoiceId, InvoiceErrorCode.CHECK_FORBIDDEN_PAYMENT_EXISTS);
         invoice.confirm();
