@@ -122,4 +122,12 @@ public class Invoice extends BaseEntity {
 
         this.totalAmount = totalAmount;
     }
+
+    public void confirm() {
+        if(invoiceStatus != InvoiceStatus.UNCONFIRM) {
+            throw new IllegalStateException("확정되지 않은 청구서만 확정지을 수 있습니다.");
+        }
+
+        this.invoiceStatus = InvoiceStatus.CONFIRM;
+    }
 }
