@@ -10,8 +10,13 @@ import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.controller.JoinApplyController;
+import org.triple.backend.group.dto.response.JoinApplyUserResponseDto;
+import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
+import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.exception.JoinApplyErrorCode;
 import org.triple.backend.group.service.JoinApplyService;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -19,9 +24,14 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
+import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN_KEY;
@@ -113,6 +123,243 @@ public class JoinApplyControllerTest extends ControllerTest {
                 .andExpect(status().isUnauthorized());
 
         verify(joinApplyService, never()).approve(any(Long.class), any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("로그인 사용자는 상태별 가입 신청 사용자 목록을 조회할 수 있다")
+    void 로그인_사용자는_상태별_가입_신청_사용자_목록을_조회할_수_있다() throws Exception {
+        // given
+        JoinApplyUserResponseDto response = new JoinApplyUserResponseDto(
+                List.of(
+                        new JoinApplyUserResponseDto.UserDto(101L, "지원자1", "자기소개1", "https://example.com/1.png", JoinApplyStatus.PENDING),
+                        new JoinApplyUserResponseDto.UserDto(100L, "지원자2", "자기소개2", "https://example.com/2.png", JoinApplyStatus.PENDING)
+                ),
+                98L,
+                true
+        );
+        when(joinApplyService.joinApplyUser(1L, 1L, JoinApplyStatus.PENDING, null, 10)).thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", 1L)
+                        .param("status", "PENDING")
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users").isArray())
+                .andExpect(jsonPath("$.users.length()").value(2))
+                .andExpect(jsonPath("$.users[0].joinApplyId").value(101L))
+                .andExpect(jsonPath("$.users[0].nickname").value("지원자1"))
+                .andExpect(jsonPath("$.users[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.nextCursor").value(98L))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andDo(document("groups/join-apply-users",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청 내역을 조회할 그룹 ID")
+                        ),
+                        queryParameters(
+                                parameterWithName("status").optional().description("조회할 가입 신청 상태(PENDING, APPROVED, REJECTED, CANCELED). 미입력 시 전체 상태 조회"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("users").description("가입 신청 사용자 목록"),
+                                fieldWithPath("users[].joinApplyId").description("가입 신청 ID"),
+                                fieldWithPath("users[].nickname").description("닉네임"),
+                                fieldWithPath("users[].description").description("자기소개").optional(),
+                                fieldWithPath("users[].profileUrl").description("프로필 이미지 URL").optional(),
+                                fieldWithPath("users[].status").description("가입 신청 상태"),
+                                fieldWithPath("nextCursor").description("다음 페이지 커서 (없으면 null)").optional(),
+                                fieldWithPath("hasNext").description("다음 페이지 존재 여부")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).joinApplyUser(1L, 1L, JoinApplyStatus.PENDING, null, 10);
+    }
+
+    @Test
+    @DisplayName("status 미입력 시 전체 가입 신청 사용자 목록을 조회할 수 있다")
+    void status_미입력_시_전체_가입_신청_사용자_목록을_조회할_수_있다() throws Exception {
+        // given
+        JoinApplyUserResponseDto response = new JoinApplyUserResponseDto(
+                List.of(
+                        new JoinApplyUserResponseDto.UserDto(101L, "지원자1", "자기소개1", "https://example.com/1.png", JoinApplyStatus.PENDING),
+                        new JoinApplyUserResponseDto.UserDto(100L, "지원자2", "자기소개2", "https://example.com/2.png", JoinApplyStatus.APPROVED)
+                ),
+                null,
+                false
+        );
+        when(joinApplyService.joinApplyUser(1L, 1L, null, null, 10)).thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", 1L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users").isArray())
+                .andExpect(jsonPath("$.users.length()").value(2))
+                .andExpect(jsonPath("$.users[0].joinApplyId").value(101L))
+                .andExpect(jsonPath("$.users[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.users[1].status").value("APPROVED"))
+                .andExpect(jsonPath("$.hasNext").value(false));
+
+        verify(joinApplyService, times(1)).joinApplyUser(1L, 1L, null, null, 10);
+    }
+
+    @Test
+    @DisplayName("cursor와 size를 지정해 다음 페이지 가입 신청 사용자 목록을 조회할 수 있다")
+    void cursor와_size를_지정해_다음_페이지_가입_신청_사용자_목록을_조회할_수_있다() throws Exception {
+        // given
+        JoinApplyUserResponseDto response = new JoinApplyUserResponseDto(
+                List.of(
+                        new JoinApplyUserResponseDto.UserDto(97L, "지원자3", "자기소개3", "https://example.com/3.png", JoinApplyStatus.PENDING),
+                        new JoinApplyUserResponseDto.UserDto(96L, "지원자2", "자기소개2", "https://example.com/2.png", JoinApplyStatus.PENDING)
+                ),
+                95L,
+                true
+        );
+        when(joinApplyService.joinApplyUser(1L, 1L, JoinApplyStatus.PENDING, 97L, 2)).thenReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", 1L)
+                        .param("status", "PENDING")
+                        .param("cursor", "97")
+                        .param("size", "2")
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users.length()").value(2))
+                .andExpect(jsonPath("$.users[0].joinApplyId").value(97L))
+                .andExpect(jsonPath("$.users[0].nickname").value("지원자3"))
+                .andExpect(jsonPath("$.nextCursor").value(95L))
+                .andExpect(jsonPath("$.hasNext").value(true));
+
+        verify(joinApplyService, times(1)).joinApplyUser(1L, 1L, JoinApplyStatus.PENDING, 97L, 2);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 가입 신청 사용자 목록 조회 시 401을 반환한다")
+    void 비로그인_사용자는_가입_신청_사용자_목록_조회_시_401을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", 1L)
+                        .param("status", "PENDING"))
+                .andExpect(status().isUnauthorized())
+                .andDo(document("groups/join-apply-users-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청 내역을 조회할 그룹 ID")
+                        ),
+                        queryParameters(
+                                parameterWithName("status").optional().description("조회할 가입 신청 상태(PENDING, APPROVED, REJECTED, CANCELED). 미입력 시 전체 상태 조회"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, never()).joinApplyUser(
+                any(Long.class),
+                any(Long.class),
+                any(JoinApplyStatus.class),
+                any(Long.class),
+                anyInt()
+        );
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자가 가입 신청 사용자 목록 조회 시 403을 반환한다")
+    void 오너가_아닌_사용자가_가입_신청_사용자_목록_조회_시_403을_반환한다() throws Exception {
+        // given
+        doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
+                .when(joinApplyService).joinApplyUser(1L, 1L, JoinApplyStatus.PENDING, null, 10);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", 1L)
+                        .param("status", "PENDING")
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andDo(document("groups/join-apply-users-fail-not-group-owner",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청 내역을 조회할 그룹 ID")
+                        ),
+                        queryParameters(
+                                parameterWithName("status").optional().description("조회할 가입 신청 상태(PENDING, APPROVED, REJECTED, CANCELED). 미입력 시 전체 상태 조회"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).joinApplyUser(1L, 1L, JoinApplyStatus.PENDING, null, 10);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 그룹의 가입 신청 사용자 목록 조회 시 404를 반환한다")
+    void 존재하지_않는_그룹의_가입_신청_사용자_목록_조회_시_404를_반환한다() throws Exception {
+        // given
+        doThrow(new BusinessException(GroupErrorCode.GROUP_NOT_FOUND))
+                .when(joinApplyService).joinApplyUser(1L, 1L, JoinApplyStatus.PENDING, null, 10);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", 1L)
+                        .param("status", "PENDING")
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andDo(document("groups/join-apply-users-fail-group-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청 내역을 조회할 그룹 ID")
+                        ),
+                        queryParameters(
+                                parameterWithName("status").optional().description("조회할 가입 신청 상태(PENDING, APPROVED, REJECTED, CANCELED). 미입력 시 전체 상태 조회"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).joinApplyUser(1L, 1L, JoinApplyStatus.PENDING, null, 10);
+    }
+
+    @Test
+    @DisplayName("잘못된 status 값으로 가입 신청 사용자 목록 조회 시 400을 반환한다")
+    void 잘못된_status_값으로_가입_신청_사용자_목록_조회_시_400을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", 1L)
+                        .param("status", "INVALID_STATUS")
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isBadRequest())
+                .andDo(document("groups/join-apply-users-fail-invalid-status",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청 내역을 조회할 그룹 ID")
+                        ),
+                        queryParameters(
+                                parameterWithName("status").description("조회할 가입 신청 상태(PENDING, APPROVED, REJECTED, CANCELED)"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, never()).joinApplyUser(
+                any(Long.class),
+                any(Long.class),
+                any(JoinApplyStatus.class),
+                any(Long.class),
+                anyInt()
+        );
     }
 
     private void mockCsrfValid() {
