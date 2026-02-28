@@ -20,11 +20,17 @@ import org.triple.backend.group.repository.JoinApplyJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN_KEY;
@@ -50,6 +56,9 @@ public class JoinApplyIntegrationTest {
 
     @Autowired
     private UserGroupJpaRepository userGroupJpaRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
@@ -377,5 +386,202 @@ public class JoinApplyIntegrationTest {
         assertThat(rejoinedUserGroup.getLeftAt()).isNull();
         assertThat(userGroupJpaRepository.count()).isEqualTo(2);
         assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("오너는 상태 조건으로 가입 신청 사용자 목록을 커서 조회할 수 있다")
+    void 오너는_상태_조건으로_가입_신청_사용자_목록을_커서_조회할_수_있다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-list-cursor")
+                        .nickname("오너")
+                        .email("owner-list-cursor@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        Group group = Group.create(GroupKind.PUBLIC, "조회커서모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        for (int i = 1; i <= 5; i++) {
+            User applicant = userJpaRepository.save(
+                    User.builder()
+                            .providerId("kakao-list-cursor-applicant-" + i)
+                            .nickname("지원자" + i)
+                            .email("list-cursor-applicant-" + i + "@test.com")
+                            .profileUrl("http://img")
+                            .build()
+            );
+            joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+        }
+
+        // when
+        String firstJson = mockMvc.perform(get("/groups/{groupId}/join-applies", savedGroup.getId())
+                        .param("status", "PENDING")
+                        .param("size", "2")
+                        .sessionAttr(USER_SESSION_KEY, owner.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users", hasSize(2)))
+                .andExpect(jsonPath("$.users[0].joinApplyId").isNumber())
+                .andExpect(jsonPath("$.users[*].status", everyItem(is("PENDING"))))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.nextCursor").isNumber())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode firstRoot = objectMapper.readTree(firstJson);
+        long nextCursor = firstRoot.get("nextCursor").asLong();
+        Set<String> firstNicknames = Set.of(
+                firstRoot.get("users").get(0).get("nickname").asText(),
+                firstRoot.get("users").get(1).get("nickname").asText()
+        );
+
+        String secondJson = mockMvc.perform(get("/groups/{groupId}/join-applies", savedGroup.getId())
+                        .param("status", "PENDING")
+                        .param("cursor", String.valueOf(nextCursor))
+                        .param("size", "2")
+                        .sessionAttr(USER_SESSION_KEY, owner.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users", hasSize(2)))
+                .andExpect(jsonPath("$.users[0].joinApplyId").isNumber())
+                .andExpect(jsonPath("$.users[*].status", everyItem(is("PENDING"))))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode secondRoot = objectMapper.readTree(secondJson);
+        Set<String> secondNicknames = Set.of(
+                secondRoot.get("users").get(0).get("nickname").asText(),
+                secondRoot.get("users").get(1).get("nickname").asText()
+        );
+
+        // then
+        assertThat(secondNicknames).doesNotContainAnyElementsOf(firstNicknames);
+    }
+
+    @Test
+    @DisplayName("status 미입력 시 전체 상태의 가입 신청 사용자 목록을 조회한다")
+    void status_미입력_시_전체_상태의_가입_신청_사용자_목록을_조회한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-list-all")
+                        .nickname("오너")
+                        .email("owner-list-all@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        Group group = Group.create(GroupKind.PUBLIC, "전체조회모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        User pendingUser = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-list-all-pending")
+                        .nickname("대기지원자")
+                        .email("list-all-pending@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User approvedUser = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-list-all-approved")
+                        .nickname("승인지원자")
+                        .email("list-all-approved@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User canceledUser = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-list-all-canceled")
+                        .nickname("취소지원자")
+                        .email("list-all-canceled@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        joinApplyJpaRepository.saveAndFlush(JoinApply.create(pendingUser, savedGroup));
+        JoinApply approved = joinApplyJpaRepository.saveAndFlush(JoinApply.create(approvedUser, savedGroup));
+        approved.approve();
+        joinApplyJpaRepository.saveAndFlush(approved);
+        JoinApply canceled = joinApplyJpaRepository.saveAndFlush(JoinApply.create(canceledUser, savedGroup));
+        canceled.cancel();
+        joinApplyJpaRepository.saveAndFlush(canceled);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users", hasSize(3)))
+                .andExpect(jsonPath("$.users[0].joinApplyId").isNumber())
+                .andExpect(jsonPath("$.users[*].status", hasItems("PENDING", "APPROVED", "CANCELED")))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.nextCursor").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자가 가입 신청 사용자 목록을 조회하면 403을 반환한다")
+    void 오너가_아닌_사용자가_가입_신청_사용자_목록을_조회하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-list-forbidden")
+                        .nickname("오너")
+                        .email("owner-list-forbidden@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-list-forbidden")
+                        .nickname("멤버")
+                        .email("member-list-forbidden@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User applicant = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-applicant-list-forbidden")
+                        .nickname("지원자")
+                        .email("applicant-list-forbidden@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "권한조회모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+        joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", savedGroup.getId())
+                        .param("status", "PENDING")
+                        .sessionAttr(USER_SESSION_KEY, member.getId()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 가입 신청 사용자 목록을 조회하면 401을 반환한다")
+    void 비로그인_사용자가_가입_신청_사용자_목록을_조회하면_401을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-list-unauthorized")
+                        .nickname("오너")
+                        .email("owner-list-unauthorized@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        Group group = Group.create(GroupKind.PUBLIC, "비로그인조회모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/join-applies", savedGroup.getId())
+                        .param("status", "PENDING"))
+                .andExpect(status().isUnauthorized());
     }
 }
