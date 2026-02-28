@@ -351,7 +351,7 @@ class InvoiceIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("여행장만 청구서를 생성할 수 있습니다."));
+                .andExpect(jsonPath("$.message").value("여행장 권한이 필요합니다."));
     }
 
     @Test
@@ -585,7 +585,7 @@ class InvoiceIntegrationTest {
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("여행장만 청구서를 생성할 수 있습니다."));
+                .andExpect(jsonPath("$.message").value("여행장 권한이 필요합니다."));
     }
 
     @Test
