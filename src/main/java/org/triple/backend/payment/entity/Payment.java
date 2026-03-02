@@ -43,6 +43,8 @@ public class Payment extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
+    private String name;
+
     @Enumerated(EnumType.STRING)
     private PaymentMethod method;
 
@@ -73,6 +75,7 @@ public class Payment extends BaseEntity {
             final Invoice invoice,
             final User user,
             final PgProvider pgProvider,
+            final String name,
             final PaymentMethod method,
             final String orderId,
             final BigDecimal requestedAmount
@@ -88,6 +91,7 @@ public class Payment extends BaseEntity {
                 .invoice(invoice)
                 .user(user)
                 .pgProvider(pgProvider)
+                .name(name)
                 .method(method)
                 .orderId(orderId)
                 .requestedAmount(requestedAmount)
