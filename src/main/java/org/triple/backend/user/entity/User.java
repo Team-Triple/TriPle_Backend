@@ -10,6 +10,7 @@ import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.invoice.entity.InvoiceUser;
+import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.travel.entity.UserTravelItinerary;
 
 import java.time.LocalDate;
@@ -62,4 +63,8 @@ public class User extends BaseEntity {
     @OneToMany(mappedBy = "user")
     @Builder.Default
     private List<InvoiceUser> invoiceUsers = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    @Builder.Default
+    private List<Payment> payments = new ArrayList<>();
 }
