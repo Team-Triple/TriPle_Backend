@@ -2,9 +2,12 @@ package org.triple.backend.group.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
+import org.triple.backend.group.dto.response.JoinApplyUserResponseDto;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
@@ -20,12 +23,18 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.util.List;
+
+import static org.triple.backend.group.dto.response.JoinApplyUserResponseDto.*;
 import static org.triple.backend.group.entity.userGroup.JoinStatus.JOINED;
 import static org.triple.backend.group.exception.JoinApplyErrorCode.*;
 
 @Service
 @RequiredArgsConstructor
 public class JoinApplyService {
+
+    private static final int MIN_PAGE_SIZE = 1;
+    private static final int MAX_PAGE_SIZE = 10;
 
     private final UserJpaRepository userJpaRepository;
     private final GroupJpaRepository groupJpaRepository;
@@ -98,5 +107,53 @@ public class JoinApplyService {
 
         findGroup.addCurrentMemberCount();
         joinApply.approve();
+    }
+
+    @Transactional(readOnly = true)
+    public JoinApplyUserResponseDto joinApplyUser(final Long groupId, final Long userId, final JoinApplyStatus status, final Long cursor, final int size) {
+        if(!groupJpaRepository.existsById(groupId)) {
+            throw new BusinessException(GroupErrorCode.GROUP_NOT_FOUND);
+        }
+
+        if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRoleAndJoinStatus(groupId, userId, Role.OWNER, JoinStatus.JOINED)) {
+            throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
+        }
+
+        int pageSize = normalizePageSize(size);
+        Pageable pageable = PageRequest.of(0, pageSize + 1);
+
+        List<JoinApply> joinApplies;
+        if (status == null) {
+            joinApplies = cursor == null
+                    ? joinApplyJpaRepository.findFirstPageByGroupId(groupId, pageable)
+                    : joinApplyJpaRepository.findNextPageByGroupId(groupId, cursor, pageable);
+        } else {
+            joinApplies = cursor == null
+                    ? joinApplyJpaRepository.findFirstPageByGroupIdAndStatus(groupId, status, pageable)
+                    : joinApplyJpaRepository.findNextPageByGroupIdAndStatus(groupId, status, cursor, pageable);
+        }
+
+        boolean hasNext = joinApplies.size() > pageSize;
+        if (hasNext) {
+            joinApplies = joinApplies.subList(0, pageSize);
+        }
+
+        List<UserDto> users = joinApplies
+                .stream()
+                .map(ja -> new UserDto(
+                        ja.getId(),
+                        ja.getUser().getNickname(),
+                        ja.getUser().getDescription(),
+                        ja.getUser().getProfileUrl(),
+                        ja.getJoinApplyStatus()
+                ))
+                .toList();
+
+        Long nextCursor = hasNext ? joinApplies.get(joinApplies.size() - 1).getId() : null;
+        return new JoinApplyUserResponseDto(users, nextCursor, hasNext);
+    }
+
+    private int normalizePageSize(final int size) {
+        return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
     }
 }

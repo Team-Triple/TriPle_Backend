@@ -28,10 +28,12 @@ import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -368,6 +370,56 @@ class InvoiceIntegrationTest {
         mockMvc.perform(patch("/invoices/{invoiceId}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("여행 멤버는 여행 일정 기준으로 청구서를 조회할 수 있다.")
+    void 여행_멤버는_여행_일정_기준으로_청구서를_조회할_수_있다() throws Exception {
+        User 생성자 = saveUser("read-creator");
+        User 멤버1 = saveUser("read-member-1");
+        User 멤버2 = saveUser("read-member-2");
+        Group 그룹 = saveGroup("조회 그룹");
+        TravelItinerary 여행일정 = saveTravelItinerary(그룹, "조회 여행");
+        saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
+        saveTravelMembership(멤버1, 여행일정, UserRole.MEMBER);
+        saveTravelMembership(멤버2, 여행일정, UserRole.MEMBER);
+        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버1, new BigDecimal("7000")));
+        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버2, new BigDecimal("3000")));
+
+        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 여행일정.getId())
+                        .sessionAttr(USER_SESSION_KEY, 멤버1.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("청구서"))
+                .andExpect(jsonPath("$.creator.userId").value(생성자.getId()))
+                .andExpect(jsonPath("$.invoiceMembers.length()").value(2))
+                .andExpect(jsonPath("$.remainingAmount").value(10000))
+                .andExpect(jsonPath("$.isDone").value(false));
+    }
+
+    @Test
+    @DisplayName("여행 일정 멤버가 아니면 청구서 조회 시 404를 반환한다.")
+    void 여행_일정_멤버가_아니면_청구서_조회_시_404를_반환한다() throws Exception {
+        User 생성자 = saveUser("forbidden-creator");
+        User 멤버 = saveUser("forbidden-member");
+        User 외부인 = saveUser("forbidden-outsider");
+        Group 그룹 = saveGroup("권한 그룹");
+        TravelItinerary 여행일정 = saveTravelItinerary(그룹, "권한 여행");
+        saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
+        saveTravelMembership(멤버, 여행일정, UserRole.MEMBER);
+        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버, new BigDecimal("10000")));
+
+        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 여행일정.getId())
+                        .sessionAttr(USER_SESSION_KEY, 외부인.getId()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 청구서 조회를 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_청구서_조회를_요청하면_401을_반환한다() throws Exception {
+        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 1L))
                 .andExpect(status().isUnauthorized());
     }
 

@@ -1,12 +1,11 @@
 package org.triple.backend.group.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
+import org.triple.backend.group.dto.response.JoinApplyUserResponseDto;
+import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
 import org.triple.backend.group.service.JoinApplyService;
 
 @RestController
@@ -26,5 +25,15 @@ public class JoinApplyController {
     @PostMapping("/{groupId}/join-applies/{joinApplyId}")
     public void joinApplyApprove(@PathVariable final Long groupId, @PathVariable Long joinApplyId, @LoginUser final Long userId) {
         joinApplyService.approve(groupId, userId, joinApplyId);
+    }
+
+    @LoginRequired
+    @GetMapping("/{groupId}/join-applies")
+    public JoinApplyUserResponseDto joinApplyUser(@PathVariable final Long groupId,
+                                                  @LoginUser final Long userId,
+                                                  @RequestParam(required = false) final JoinApplyStatus status,
+                                                  @RequestParam(required = false) final Long cursor,
+                                                  @RequestParam(defaultValue = "10") final int size) {
+        return joinApplyService.joinApplyUser(groupId, userId, status, cursor, size);
     }
 }
