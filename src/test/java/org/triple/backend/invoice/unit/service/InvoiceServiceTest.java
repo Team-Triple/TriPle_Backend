@@ -34,6 +34,7 @@ import org.triple.backend.invoice.service.InvoiceService;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
+import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
@@ -689,6 +690,152 @@ class InvoiceServiceTest {
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
+                });
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)은 청구서를 확인(CONFIRM)할 수 있다.")
+    void 여행장_LEADER은_청구서를_확인할_수_있다() {
+        // given
+        User leader = saveUser("leader-check");
+        Group group = saveGroup("확인 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+
+        // when
+        invoiceService.check(leader.getId(), invoice.getId());
+
+        // then
+        Invoice confirmedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(confirmedInvoice.getInvoiceStatus()).isEqualTo(InvoiceStatus.CONFIRM);
+    }
+
+    @Test
+    @DisplayName("UNCONFIRM 상태가 아니면 청구서를 확인할 수 없다.")
+    void UNCONFIRM_상태가_아니면_청구서를_확인할_수_없다() {
+        // given
+        User leader = saveUser("leader-check-status");
+        Group group = saveGroup("확인 상태 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 상태 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.CONFIRM, "이미 확정된 청구서");
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.check(leader.getId(), invoice.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS);
+                });
+    }
+
+    @Test
+    @DisplayName("결제 내역이 있는 청구서는 확인할 수 없다.")
+    void 결제_내역이_있는_청구서는_확인할_수_없다() {
+        // given
+        User leader = saveUser("leader-check-payment");
+        Group group = saveGroup("확인 결제 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 결제 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "결제 존재 청구서");
+
+        entityManager.createNativeQuery("insert into payment (invoice_id, payment_status) values (?, ?)")
+                .setParameter(1, invoice.getId())
+                .setParameter(2, "READY")
+                .executeUpdate();
+        entityManager.flush();
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.check(leader.getId(), invoice.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.CHECK_FORBIDDEN_PAYMENT_EXISTS);
+                });
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아니면 청구서를 확인할 수 없다.")
+    void 그룹_멤버가_아니면_청구서를_확인할_수_없다() {
+        // given
+        User leader = saveUser("leader-check-group-member");
+        User outsider = saveUser("outsider-check-group-member");
+        Group group = saveGroup("확인 그룹 멤버 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 그룹 멤버 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.check(outsider.getId(), invoice.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+                });
+    }
+
+    @Test
+    @DisplayName("여행 멤버십이 없으면 청구서를 확인할 수 없다.")
+    void 여행_멤버십이_없으면_청구서를_확인할_수_없다() {
+        // given
+        User leader = saveUser("leader-check-travel-membership");
+        User groupMemberWithoutTravelMembership = saveUser("group-member-without-travel-membership");
+        Group group = saveGroup("확인 여행 멤버십 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(groupMemberWithoutTravelMembership, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 여행 멤버십 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.check(groupMemberWithoutTravelMembership.getId(), invoice.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
+                });
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서를 확인할 수 없다.")
+    void 여행장_LEADER가_아니면_청구서를_확인할_수_없다() {
+        // given
+        User leader = saveUser("leader-check-not-leader");
+        User member = saveUser("member-check-not-leader");
+        Group group = saveGroup("확인 리더 권한 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 리더 권한 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.check(member.getId(), invoice.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+                });
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 청구서는 확인할 수 없다.")
+    void 존재하지_않는_청구서는_확인할_수_없다() {
+        // given
+        User leader = saveUser("leader-check-not-found");
+
+        // when & then
+        assertThatThrownBy(() -> invoiceService.check(leader.getId(), 999L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_FOUND_INVOICE);
                 });
     }
 

@@ -54,4 +54,10 @@ public class InvoiceController {
     public void delete(@LoginUser final Long userId, @PathVariable final Long invoiceId) {
         invoiceService.delete(userId, invoiceId);
     }
+
+    @LoginRequired
+    @PostMapping("/{invoiceId}/check")
+    public void check(@LoginUser final Long userId, @PathVariable final Long invoiceId) {
+        invoiceService.check(userId, invoiceId);
+    }
 }

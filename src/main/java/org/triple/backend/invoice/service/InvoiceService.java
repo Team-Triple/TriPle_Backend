@@ -101,8 +101,8 @@ public class InvoiceService {
     public InvoiceUpdateResponseDto updateMetaInfo(final Long userId, final Long invoiceId, final InvoiceUpdateRequestDto dto) {
         Invoice invoice = invoiceJpaRepository.findByIdForUpdateWithGroupAndTravelItinerary(invoiceId)
                 .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
-        validateUpdatableStatusOrThrow(invoice);
-        validateUpdateAuthorityOrThrow(userId, invoice);
+        validateStatusOrThrow(invoice, InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
+        validateLeaderAuthorityOrThrow(userId, invoice);
 
         invoice.update(dto.title(), dto.description(), dto.dueAt());
 
@@ -121,12 +121,9 @@ public class InvoiceService {
         Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
 
-        validateUpdatableStatusOrThrow(invoice);
-        validateUpdateAuthorityOrThrow(userId, invoice);
-
-        if(paymentJpaRepository.existsByInvoiceId(invoiceId)) {
-            throw new BusinessException(InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
-        }
+        validateStatusOrThrow(invoice, InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
+        validateLeaderAuthorityOrThrow(userId, invoice);
+        validateNoPaymentOrThrow(invoiceId, InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
 
         Map<Long, RecipientAmountDto> recipientByUserId = toRecipientMap(dto.recipients());
         validateTotalAmount(dto.recipients(), dto.totalAmount());
@@ -144,13 +141,13 @@ public class InvoiceService {
         return InvoiceAdjustResponseDto.from(invoice, invoiceUsers);
     }
 
-    private void validateUpdatableStatusOrThrow(final Invoice invoice) {
+    private void validateStatusOrThrow(final Invoice invoice, final InvoiceErrorCode errorCode) {
         if (invoice.getInvoiceStatus() != InvoiceStatus.UNCONFIRM) {
-            throw new BusinessException(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
+            throw new BusinessException(errorCode);
         }
     }
 
-    private void validateUpdateAuthorityOrThrow(final Long userId, final Invoice invoice) {
+    private void validateLeaderAuthorityOrThrow(final Long userId, final Invoice invoice) {
         if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(invoice.getGroup().getId(), userId, JoinStatus.JOINED)) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
@@ -238,6 +235,12 @@ public class InvoiceService {
         }
     }
 
+    private void validateNoPaymentOrThrow(final Long invoiceId, final InvoiceErrorCode errorCode) {
+        if (paymentJpaRepository.existsByInvoiceId(invoiceId)) {
+            throw new BusinessException(errorCode);
+        }
+    }
+
     @Transactional
     public void delete(final Long userId, final Long invoiceId) {
         Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId)
@@ -257,5 +260,14 @@ public class InvoiceService {
 
         invoiceUserJpaRepository.deleteAllByInvoiceIdInBatch(invoiceId);
         invoice.markDeleted();
+    }
+
+    @Transactional
+    public void check(final Long userId, final Long invoiceId) {
+        Invoice invoice = invoiceJpaRepository.findByIdForUpdateWithGroupAndTravelItinerary(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+        validateLeaderAuthorityOrThrow(userId, invoice);
+        validateStatusOrThrow(invoice, InvoiceErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS);
+        validateNoPaymentOrThrow(invoiceId, InvoiceErrorCode.CHECK_FORBIDDEN_PAYMENT_EXISTS);
+        invoice.confirm();
     }
 }

@@ -353,7 +353,7 @@ class InvoiceIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("여행장만 청구서를 생성할 수 있습니다."));
+                .andExpect(jsonPath("$.message").value("여행장 권한이 필요합니다."));
     }
 
     @Test
@@ -543,6 +543,157 @@ class InvoiceIntegrationTest {
                         .content(body))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 수정할 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)은 청구서를 확인(CONFIRM)할 수 있다.")
+    void 여행장_LEADER은_청구서를_확인할_수_있다() throws Exception {
+        // given
+        User leader = saveUser("leader-check");
+        Group group = saveGroup("확인 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        Invoice confirmedInvoice = invoiceJpaRepository.findById(invoice.getId()).orElseThrow();
+        assertThat(confirmedInvoice.getInvoiceStatus()).isEqualTo(InvoiceStatus.CONFIRM);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 청구서 확인을 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_청구서_확인을_요청하면_401을_반환한다() throws Exception {
+        mockMvc.perform(post("/invoices/{invoiceId}/check", 1L))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("그룹 멤버가 아니면 청구서 확인 요청 시 403을 반환한다.")
+    void 그룹_멤버가_아니면_청구서_확인_요청_시_403을_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-check-403-group");
+        User outsider = saveUser("outsider-check-403-group");
+        Group group = saveGroup("확인 권한 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 권한 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
+    }
+
+    @Test
+    @DisplayName("여행 멤버십이 없으면 청구서 확인 요청 시 404를 반환한다.")
+    void 여행_멤버십이_없으면_청구서_확인_요청_시_404를_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-check-404-travel");
+        User groupMemberWithoutTravel = saveUser("group-member-without-travel");
+        Group group = saveGroup("확인 여행 멤버십 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(groupMemberWithoutTravel, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 여행 멤버십 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, groupMemberWithoutTravel.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("여행 내 해당 유저를 찾을 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서 확인 요청 시 403을 반환한다.")
+    void 여행장_LEADER가_아니면_청구서_확인_요청_시_403을_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-check-403-leader");
+        User member = saveUser("member-check-403-leader");
+        Group group = saveGroup("확인 리더 권한 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 리더 권한 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("여행장 권한이 필요합니다."));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 청구서 확인 요청 시 404를 반환한다.")
+    void 존재하지_않는_청구서_확인_요청_시_404를_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-check-404-invoice");
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", 999L)
+                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 청구서 입니다."));
+    }
+
+    @Test
+    @DisplayName("확인할 수 없는 상태의 청구서 확인 요청 시 409를 반환한다.")
+    void 확인할_수_없는_상태의_청구서_확인_요청_시_409를_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-check-409-status");
+        Group group = saveGroup("확인 상태 검증 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 상태 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.CONFIRM, "이미 확정된 청구서");
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("청구서를 확인할 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("결제 내역이 있는 청구서 확인 요청 시 409를 반환한다.")
+    void 결제_내역이_있는_청구서_확인_요청_시_409를_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-check-409-payment");
+        Group group = saveGroup("확인 결제 검증 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 결제 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        jdbcTemplate.update("insert into payment (invoice_id, payment_status) values (?, ?)", invoice.getId(), "READY");
+
+        // when & then
+        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 확인할 수 없습니다."));
     }
 
     @Test
