@@ -1,9 +1,11 @@
 package org.triple.backend.invoice.repository;
 
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
 
@@ -16,6 +18,7 @@ public interface InvoiceJpaRepository extends JpaRepository<Invoice, Long> {
     Optional<Invoice> findByIdForUpdateWithGroupAndTravelItinerary(Long invoiceId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "1000"))
     @Query("select i from Invoice i where i.id = :invoiceId")
     Optional<Invoice> findByIdForUpdate(Long invoiceId);
 
