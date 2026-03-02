@@ -34,17 +34,17 @@ public class File extends BaseEntity {
 
     private static Long validateOwnerId(final Long ownerId) {
         if (ownerId == null || ownerId <= 0) {
-            throw new IllegalArgumentException("ownerId must be greater than 0.");
+            throw new IllegalArgumentException("ownerId는 0보다 커야 합니다.");
         }
         return ownerId;
     }
 
     private static String validateUploadedUrl(final String uploadedUrl) {
         if (uploadedUrl == null || uploadedUrl.isBlank()) {
-            throw new IllegalArgumentException("uploadedUrl must not be null or blank.");
+            throw new IllegalArgumentException("uploadedUrl은 null이거나 공백일 수 없습니다.");
         }
         if (uploadedUrl.length() > 255) {
-            throw new IllegalArgumentException("uploadedUrl length must be 255 or less.");
+            throw new IllegalArgumentException("uploadedUrl 길이는 255자 이하여야 합니다.");
         }
         return uploadedUrl;
     }

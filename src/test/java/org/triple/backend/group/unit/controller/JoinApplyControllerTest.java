@@ -73,9 +73,93 @@ public class JoinApplyControllerTest extends ControllerTest {
     void 비로그인_사용자는_그룹_가입_신청_시_401을_반환한다() throws Exception {
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies", 1L))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("groups/join-apply-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
 
         verify(joinApplyService, never()).joinApply(any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("로그인 사용자의 CSRF 토큰이 유효하지 않으면 그룹 가입 신청 요청은 403을 반환한다")
+    void 로그인_사용자의_CSRF_토큰이_유효하지_않으면_그룹_가입_신청_요청은_403을_반환한다() throws Exception {
+        when(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).thenReturn(false);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies", 1L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
+                .andDo(document("groups/join-apply-fail-invalid-csrf-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, never()).joinApply(any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("이미 가입 신청된 그룹에 가입 신청 요청 시 409를 반환한다")
+    void 이미_가입_신청된_그룹에_가입_신청_요청_시_409를_반환한다() throws Exception {
+        mockCsrfValid();
+        doThrow(new BusinessException(JoinApplyErrorCode.ALREADY_APPLY_JOIN_REQUEST))
+                .when(joinApplyService).joinApply(1L, 1L);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies", 1L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("이미 가입이 요청된 그룹입니다."))
+                .andDo(document("groups/join-apply-fail-already-applied",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).joinApply(1L, 1L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 그룹 가입 신청 요청 시 404를 반환한다")
+    void 존재하지_않는_그룹_가입_신청_요청_시_404를_반환한다() throws Exception {
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.GROUP_NOT_FOUND))
+                .when(joinApplyService).joinApply(1L, 1L);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies", 1L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 그룹 입니다."))
+                .andDo(document("groups/join-apply-fail-group-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).joinApply(1L, 1L);
     }
 
     @Test
@@ -112,7 +196,19 @@ public class JoinApplyControllerTest extends ControllerTest {
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", 1L, 2L)
                         .with(loginSessionAndCsrf()))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("이미 가입된 그룹입니다."))
+                .andDo(document("groups/join-apply-approve-fail-already-joined",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 승인할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("승인할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
     }
 
     @Test
@@ -120,9 +216,97 @@ public class JoinApplyControllerTest extends ControllerTest {
     void 비로그인_사용자는_그룹_가입_승인_시_401을_반환한다() throws Exception {
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", 1L, 2L))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("groups/join-apply-approve-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 승인할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("승인할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
 
         verify(joinApplyService, never()).approve(any(Long.class), any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("로그인 사용자의 CSRF 토큰이 유효하지 않으면 그룹 가입 승인 요청은 403을 반환한다")
+    void 로그인_사용자의_CSRF_토큰이_유효하지_않으면_그룹_가입_승인_요청은_403을_반환한다() throws Exception {
+        when(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).thenReturn(false);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
+                .andDo(document("groups/join-apply-approve-fail-invalid-csrf-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 승인할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("승인할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, never()).approve(any(Long.class), any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자의 그룹 가입 승인 요청 시 403을 반환한다")
+    void 오너가_아닌_사용자의_그룹_가입_승인_요청_시_403을_반환한다() throws Exception {
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
+                .when(joinApplyService).approve(1L, 1L, 2L);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 수정/삭제 권한이 없습니다."))
+                .andDo(document("groups/join-apply-approve-fail-not-group-owner",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 승인할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("승인할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).approve(1L, 1L, 2L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 가입 신청 승인 요청 시 404를 반환한다")
+    void 존재하지_않는_가입_신청_승인_요청_시_404를_반환한다() throws Exception {
+        mockCsrfValid();
+        doThrow(new BusinessException(JoinApplyErrorCode.JOIN_APPLY_NOT_FOUND))
+                .when(joinApplyService).approve(1L, 1L, 2L);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 가입 신청입니다."))
+                .andDo(document("groups/join-apply-approve-fail-join-apply-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 승인할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("승인할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).approve(1L, 1L, 2L);
     }
 
     @Test

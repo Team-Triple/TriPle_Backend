@@ -52,7 +52,7 @@ public class FileService {
         } catch (RuntimeException e) {
             throw new FinalizeUploadException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Failed to validate upload completion.",
+                    "업로드 완료 검증에 실패했습니다.",
                     e
             );
         }
@@ -71,7 +71,7 @@ public class FileService {
         } catch (RuntimeException e) {
             throw new FinalizeUploadException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Failed to finalize upload.",
+                    "업로드 완료 처리에 실패했습니다.",
                     e
             );
         }
@@ -90,7 +90,7 @@ public class FileService {
             deleteUploadedObject(uploadedKey, e);
             throw new FinalizeUploadException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Failed to save file metadata.",
+                    "파일 메타데이터 저장에 실패했습니다.",
                     e
             );
         }
@@ -120,6 +120,6 @@ public class FileService {
     }
 
     private String resolveMessage(RuntimeException e) {
-        return e.getMessage() == null ? "Request processing failed." : e.getMessage();
+        return e.getMessage() == null ? "요청 처리에 실패했습니다." : e.getMessage();
     }
 }

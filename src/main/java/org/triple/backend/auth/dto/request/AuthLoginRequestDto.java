@@ -5,10 +5,10 @@ import jakarta.validation.constraints.NotNull;
 import org.triple.backend.auth.oauth.OauthProvider;
 
 public record AuthLoginRequestDto(
-        @NotBlank
+        @NotBlank(message = "인가 코드는 필수입니다.")
         String code,
 
-        @NotNull
+        @NotNull(message = "OAuth Provider는 필수입니다.")
         OauthProvider provider
 ) {
 }

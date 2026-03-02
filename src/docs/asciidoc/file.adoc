@@ -11,8 +11,26 @@ include::{snippets}/files/upload-presign/request-fields.adoc[]
 include::{snippets}/files/upload-presign/http-response.adoc[]
 include::{snippets}/files/upload-presign/response-fields.adoc[]
 
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/files/upload-presign-fail-unauthorized/http-response.adoc[]
+
+=== 실패: CSRF 토큰 불일치 (403)
+include::{snippets}/files/upload-presign-fail-invalid-csrf-token/http-response.adoc[]
+
+=== 실패: 잘못된 요청 값 (400)
+include::{snippets}/files/upload-presign-fail-bad-request/http-response.adoc[]
+
 == 업로드 완료 처리
 include::{snippets}/files/upload-complete/http-request.adoc[]
 include::{snippets}/files/upload-complete/request-fields.adoc[]
 include::{snippets}/files/upload-complete/http-response.adoc[]
 include::{snippets}/files/upload-complete/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/files/upload-complete-fail-unauthorized/http-response.adoc[]
+
+=== 실패: CSRF 토큰 불일치 (403)
+include::{snippets}/files/upload-complete-fail-invalid-csrf-token/http-response.adoc[]
+
+=== 실패: 잘못된 요청 값 (400)
+include::{snippets}/files/upload-complete-fail-bad-request/http-response.adoc[]

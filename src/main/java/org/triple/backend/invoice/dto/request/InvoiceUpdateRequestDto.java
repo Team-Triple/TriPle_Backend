@@ -8,14 +8,14 @@ import java.time.LocalDateTime;
 
 public record InvoiceUpdateRequestDto(
 
-        @NotBlank
+        @NotBlank(message = "청구서 제목은 필수입니다.")
         String title,
 
-        @NotBlank
+        @NotBlank(message = "청구서 설명은 필수입니다.")
         String description,
 
-        @Future
-        @NotNull
+        @Future(message = "납부 기한은 현재 시각 이후여야 합니다.")
+        @NotNull(message = "납부 기한은 필수입니다.")
         LocalDateTime dueAt
 ) {
 }

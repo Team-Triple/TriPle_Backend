@@ -12,11 +12,13 @@ import org.triple.backend.auth.controller.AuthController;
 import org.triple.backend.auth.cookie.CookieManager;
 import org.triple.backend.auth.dto.request.AuthLoginRequestDto;
 import org.triple.backend.auth.dto.response.AuthLoginResponseDto;
+import org.triple.backend.auth.exception.AuthErrorCode;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.auth.service.AuthService;
 import org.triple.backend.auth.session.CsrfTokenManager;
 import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.common.ControllerTest;
+import org.triple.backend.global.error.BusinessException;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -126,9 +128,117 @@ public class AuthControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("지원하지 않는 OAuth Provider로 로그인 요청 시 401을 반환한다.")
+    void 지원하지_않는_OAuth_Provider로_로그인_요청_시_401을_반환한다() throws Exception {
+        // given
+        AuthLoginRequestDto req = new AuthLoginRequestDto("test-code", OauthProvider.GOOGLE);
+        given(authService.login(eq(req), any(HttpServletRequest.class)))
+                .willThrow(new BusinessException(AuthErrorCode.UNSUPPORTED_OAUTH_PROVIDER));
+
+        // when & then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("지원하지 않는 프로바이더 입니다."))
+                .andDo(document("auth/login-fail-unsupported-provider",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("code").description("카카오 인가 코드"),
+                                fieldWithPath("provider").description("OAuth Provider")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+    }
+
+    @Test
+    @DisplayName("카카오 인증 토큰 발급 실패 시 로그인 요청은 401을 반환한다.")
+    void 카카오_인증_토큰_발급_실패_시_로그인_요청은_401을_반환한다() throws Exception {
+        // given
+        AuthLoginRequestDto req = new AuthLoginRequestDto("test-code", OauthProvider.KAKAO);
+        given(authService.login(eq(req), any(HttpServletRequest.class)))
+                .willThrow(new BusinessException(AuthErrorCode.FAILED_ISSUE_KAKAO_ACCESS_TOKEN));
+
+        // when & then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("카카오 인증 토큰 발급을 실패했습니다."))
+                .andDo(document("auth/login-fail-issue-kakao-access-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("code").description("카카오 인가 코드"),
+                                fieldWithPath("provider").description("OAuth Provider")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+    }
+
+    @Test
+    @DisplayName("카카오 사용자 정보 조회 실패 시 로그인 요청은 401을 반환한다.")
+    void 카카오_사용자_정보_조회_실패_시_로그인_요청은_401을_반환한다() throws Exception {
+        // given
+        AuthLoginRequestDto req = new AuthLoginRequestDto("test-code", OauthProvider.KAKAO);
+        given(authService.login(eq(req), any(HttpServletRequest.class)))
+                .willThrow(new BusinessException(AuthErrorCode.FAILED_FIND_KAKAO_USER_INFO));
+
+        // when & then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("카카오 사용자 정보 조회를 실패했습니다."))
+                .andDo(document("auth/login-fail-find-kakao-user-info",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("code").description("카카오 인가 코드"),
+                                fieldWithPath("provider").description("OAuth Provider")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+    }
+
+    @Test
+    @DisplayName("로그인 요청 바디가 유효하지 않으면 400을 반환한다.")
+    void 로그인_요청_바디가_유효하지_않으면_400을_반환한다() throws Exception {
+        // given
+        String invalidBody = """
+                {"code":"","provider":null}
+                """;
+
+        // when & then
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andDo(document("auth/login-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("code").description("카카오 인가 코드"),
+                                fieldWithPath("provider").description("OAuth Provider")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+
+        verify(authService, never()).login(any(AuthLoginRequestDto.class), any(HttpServletRequest.class));
+    }
+
+    @Test
     @DisplayName("로그아웃 시 세션 무효화와 login_status/JSESSIONID 쿠키 만료를 수행한다")
     void 로그아웃_시_세션_무효화와_쿠키_만료를_수행한다() throws Exception {
         // given
+        given(sessionManager.getUserIdOrThrow(any(HttpServletRequest.class)))
+                .willReturn(1L);
         given(csrfTokenManager.isValid(any(HttpServletRequest.class), eq(CSRF_TOKEN)))
                 .willReturn(true);
 
@@ -164,6 +274,8 @@ public class AuthControllerTest extends ControllerTest {
     @DisplayName("로그인 세션이 있고 CSRF 토큰이 유효하지 않으면 로그아웃은 403을 반환한다")
     void 로그인_세션이_있고_CSRF_토큰이_유효하지_않으면_로그아웃은_403을_반환한다() throws Exception {
         // given
+        given(sessionManager.getUserIdOrThrow(any(HttpServletRequest.class)))
+                .willReturn(1L);
         given(csrfTokenManager.isValid(any(HttpServletRequest.class), any()))
                 .willReturn(false);
 
@@ -171,7 +283,35 @@ public class AuthControllerTest extends ControllerTest {
         mockMvc.perform(post("/auth/logout")
                         .sessionAttr(USER_SESSION_KEY, 1L)
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
+                .andDo(document("auth/logout-fail-invalid-csrf-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+
+        verify(authService, never()).logout(any(HttpServletRequest.class));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 로그아웃 요청 시 401을 반환한다")
+    void 비로그인_사용자가_로그아웃_요청_시_401을_반환한다() throws Exception {
+        // given
+        given(sessionManager.getUserIdOrThrow(any(HttpServletRequest.class)))
+                .willThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
+
+        // when & then
+        mockMvc.perform(post("/auth/logout"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("auth/logout-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
 
         verify(authService, never()).logout(any(HttpServletRequest.class));
     }

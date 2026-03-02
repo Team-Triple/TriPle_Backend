@@ -9,8 +9,8 @@ public record TravelItineraryUpdateRequestDto(
         String title,
         LocalDateTime startAt,
         LocalDateTime endAt,
-        @Size(max = 100, message = "여행 설명은 100글자 제한!") String description,
+        @Size(max = 100, message = "여행 설명은 최대 100자까지 입력할 수 있습니다.") String description,
         String thumbnailUrl,
-        @Min(value = 1, message = "멤버 수는 1~20 제한!") Integer memberLimit
+        @Min(value = 1, message = "멤버 수 제한은 1명 이상이어야 합니다.") Integer memberLimit
 ) {
 }
