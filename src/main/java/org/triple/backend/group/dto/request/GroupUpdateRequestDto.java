@@ -8,20 +8,20 @@ import org.triple.backend.group.entity.group.GroupKind;
 
 public record GroupUpdateRequestDto(
 
-        @NotNull
+        @NotNull(message = "그룹 종류는 필수입니다.")
         GroupKind groupKind,
 
-        @NotBlank
+        @NotBlank(message = "그룹 이름은 필수입니다.")
         String name,
 
-        @NotBlank
+        @NotBlank(message = "그룹 설명은 필수입니다.")
         String description,
 
-        @NotBlank
+        @NotBlank(message = "썸네일 URL은 필수입니다.")
         String thumbNailUrl,
 
-        @Min(1)
-        @Max(50)
+        @Min(value = 1, message = "최대 인원은 1명 이상이어야 합니다.")
+        @Max(value = 50, message = "최대 인원은 50명 이하여야 합니다.")
         int memberLimit
 ) {
 }

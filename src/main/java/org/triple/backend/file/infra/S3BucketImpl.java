@@ -61,7 +61,7 @@ public class S3BucketImpl implements S3Bucket {
             throw new InvalidKeyException("pendingKey는 null이거나 공백일 수 없습니다.");
         }
         if (!pendingKey.startsWith(s3BucketProp.getPrefix().getPending() + userId + "/")) {
-            throw new InvalidKeyException("pendingKey의 prefix 형식이 올바르지 않읍니다.");
+            throw new InvalidKeyException("pendingKey의 prefix 형식이 올바르지 않습니다.");
         }
     }
 

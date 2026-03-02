@@ -24,6 +24,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -115,6 +116,101 @@ class FileControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("비로그인 사용자가 presigned url 발급 요청 시 401을 반환한다")
+    void 비로그인_사용자가_presigned_url_발급_요청_시_401을_반환한다() throws Exception {
+        String body = """
+                {
+                  "presignedUrlRequestDtos": [
+                    {
+                      "fileName": "test.jpg",
+                      "mimeType": "image/jpeg"
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/files/upload-presign")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("files/upload-presign-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+
+        verify(fileServiceFacade, never())
+                .issuePutPresignedUrls(any(PresignedUrlRequestDtos.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("로그인 사용자의 CSRF 토큰이 유효하지 않으면 presigned url 발급 요청은 403을 반환한다")
+    void 로그인_사용자의_CSRF_토큰이_유효하지_않으면_presigned_url_발급_요청은_403을_반환한다() throws Exception {
+        given(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class)))
+                .willReturn(false);
+
+        String body = """
+                {
+                  "presignedUrlRequestDtos": [
+                    {
+                      "fileName": "test.jpg",
+                      "mimeType": "image/jpeg"
+                    }
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/files/upload-presign")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
+                .andDo(document("files/upload-presign-fail-invalid-csrf-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+
+        verify(fileServiceFacade, never())
+                .issuePutPresignedUrls(any(PresignedUrlRequestDtos.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("presigned url 발급 요청 바디가 유효하지 않으면 400을 반환한다")
+    void presigned_url_발급_요청_바디가_유효하지_않으면_400을_반환한다() throws Exception {
+        mockCsrfValid();
+
+        String invalidBody = """
+                {
+                  "presignedUrlRequestDtos": []
+                }
+                """;
+
+        mockMvc.perform(post("/files/upload-presign")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andDo(document("files/upload-presign-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("presignedUrlRequestDtos").type(ARRAY).description("presign issue request list")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+
+        verify(fileServiceFacade, never())
+                .issuePutPresignedUrls(any(PresignedUrlRequestDtos.class), any(Long.class));
+    }
+
+    @Test
     @DisplayName("complete upload returns per-key result")
     void completeUpload() throws Exception {
         FileUploadCompleteResponsesDto response = new FileUploadCompleteResponsesDto(
@@ -163,6 +259,95 @@ class FileControllerTest extends ControllerTest {
 
         verify(fileServiceFacade, times(1))
                 .completeUploads(any(UploadedKeysRequestDto.class), eq(1L));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 업로드 완료 요청 시 401을 반환한다")
+    void 비로그인_사용자가_업로드_완료_요청_시_401을_반환한다() throws Exception {
+        String body = """
+                {
+                  "keys": [
+                    "uploads/pending/1/test.jpg"
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/files/upload-complete")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("files/upload-complete-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+
+        verify(fileServiceFacade, never())
+                .completeUploads(any(UploadedKeysRequestDto.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("로그인 사용자의 CSRF 토큰이 유효하지 않으면 업로드 완료 요청은 403을 반환한다")
+    void 로그인_사용자의_CSRF_토큰이_유효하지_않으면_업로드_완료_요청은_403을_반환한다() throws Exception {
+        given(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class)))
+                .willReturn(false);
+
+        String body = """
+                {
+                  "keys": [
+                    "uploads/pending/1/test.jpg"
+                  ]
+                }
+                """;
+
+        mockMvc.perform(post("/files/upload-complete")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
+                .andDo(document("files/upload-complete-fail-invalid-csrf-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+
+        verify(fileServiceFacade, never())
+                .completeUploads(any(UploadedKeysRequestDto.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("업로드 완료 요청 바디가 유효하지 않으면 400을 반환한다")
+    void 업로드_완료_요청_바디가_유효하지_않으면_400을_반환한다() throws Exception {
+        mockCsrfValid();
+
+        String invalidBody = """
+                {
+                  "keys": []
+                }
+                """;
+
+        mockMvc.perform(post("/files/upload-complete")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andDo(document("files/upload-complete-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("keys").type(ARRAY).description("pending key list")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+
+        verify(fileServiceFacade, never())
+                .completeUploads(any(UploadedKeysRequestDto.class), any(Long.class));
     }
 
     private void mockCsrfValid() {

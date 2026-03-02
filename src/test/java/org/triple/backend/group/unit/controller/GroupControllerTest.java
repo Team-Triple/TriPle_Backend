@@ -95,6 +95,120 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("비로그인 사용자가 그룹 생성 요청 시 401을 반환한다.")
+    void 비로그인_사용자가_그룹_생성_요청_시_401을_반환한다() throws Exception {
+        String body = """
+                {
+                  "name": "여행모임",
+                  "description": "3월 일본 여행",
+                  "memberLimit": 10,
+                  "groupKind": "PUBLIC",
+                  "thumbNailUrl": "https://example.com/thumb.png"
+                }
+                """;
+
+        mockMvc.perform(post("/groups")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("groups/create-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("memberLimit").description("최대 인원(최소 1)"),
+                                fieldWithPath("groupKind").description("그룹 종류 (PUBLIC, PRIVATE)"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, never()).create(any(CreateGroupRequestDto.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("로그인 사용자의 CSRF 토큰이 유효하지 않으면 그룹 생성 요청은 403을 반환한다.")
+    void 로그인_사용자의_CSRF_토큰이_유효하지_않으면_그룹_생성_요청은_403을_반환한다() throws Exception {
+        given(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).willReturn(false);
+
+        String body = """
+                {
+                  "name": "여행모임",
+                  "description": "3월 일본 여행",
+                  "memberLimit": 10,
+                  "groupKind": "PUBLIC",
+                  "thumbNailUrl": "https://example.com/thumb.png"
+                }
+                """;
+
+        mockMvc.perform(post("/groups")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
+                .andDo(document("groups/create-fail-invalid-csrf-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("memberLimit").description("최대 인원(최소 1)"),
+                                fieldWithPath("groupKind").description("그룹 종류 (PUBLIC, PRIVATE)"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, never()).create(any(CreateGroupRequestDto.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("그룹 생성 요청 본문이 유효하지 않으면 400을 반환한다.")
+    void 그룹_생성_요청_본문이_유효하지_않으면_400을_반환한다() throws Exception {
+        mockCsrfValid();
+
+        String invalidBody = """
+                {
+                  "name": " ",
+                  "description": "3월 일본 여행",
+                  "memberLimit": 10,
+                  "groupKind": "PUBLIC",
+                  "thumbNailUrl": "https://example.com/thumb.png"
+                }
+                """;
+
+        mockMvc.perform(post("/groups")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("그룹 이름은 필수입니다."))
+                .andDo(document("groups/create-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("memberLimit").description("최대 인원(최소 1)"),
+                                fieldWithPath("groupKind").description("그룹 종류 (PUBLIC, PRIVATE)"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, never()).create(any(CreateGroupRequestDto.class), any(Long.class));
+    }
+
+    @Test
     @DisplayName("공개 그룹 목록 첫 페이지를 조회한다.")
     void 공개_그룹_목록_첫_페이지를_조회한다() throws Exception {
         // given
@@ -200,7 +314,19 @@ public class GroupControllerTest extends ControllerTest {
                         .param("keyword", keyword)
                         .param("size", "10"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."))
+                .andDo(document("groups/browse-public-fail-invalid-keyword",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        queryParameters(
+                                parameterWithName("keyword").optional().description("검색 키워드(없으면 전체 공개 그룹 조회)"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
 
         verify(groupService, times(1)).search(keyword, null, 10);
     }
@@ -270,7 +396,19 @@ public class GroupControllerTest extends ControllerTest {
     void 비로그인_사용자가_내_그룹_목록을_조회하면_401을_반환한다() throws Exception {
         // when & then
         mockMvc.perform(get("/groups/me"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("groups/my-groups-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        queryParameters(
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
 
         verify(groupService, never()).myGroups(any(), anyInt(), any());
     }
@@ -339,6 +477,30 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.thumbNailUrl").value("https://example.com/guest-thumb.png"))
                 .andExpect(jsonPath("$.role").value("GUEST"));
+
+        verify(groupService, times(1)).menu(isNull(), eq(groupId));
+    }
+
+    @Test
+    @DisplayName("비멤버 사용자가 비공개 그룹 메뉴를 조회하면 403을 반환한다.")
+    void 비멤버_사용자가_비공개_그룹_메뉴를_조회하면_403을_반환한다() throws Exception {
+        Long groupId = 20L;
+        given(groupService.menu(isNull(), eq(groupId)))
+                .willThrow(new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        mockMvc.perform(get("/groups/{groupId}/menu", groupId))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."))
+                .andDo(document("groups/menu-fail-not-group-member",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("메뉴 정보를 조회할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
 
         verify(groupService, times(1)).menu(isNull(), eq(groupId));
     }
@@ -460,6 +622,54 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("존재하지 않는 그룹 상세 조회 시 404를 반환한다.")
+    void 존재하지_않는_그룹_상세_조회_시_404를_반환한다() throws Exception {
+        Long groupId = 999L;
+        given(groupService.detail(eq(groupId), eq(null)))
+                .willThrow(new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
+        mockMvc.perform(get("/groups/{groupId}", groupId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 그룹 입니다."))
+                .andDo(document("groups/detail-fail-group-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("조회할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, times(1)).detail(groupId, null);
+    }
+
+    @Test
+    @DisplayName("비멤버 사용자가 비공개 그룹 상세 조회 시 403을 반환한다.")
+    void 비멤버_사용자가_비공개_그룹_상세_조회_시_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        given(groupService.detail(eq(groupId), eq(null)))
+                .willThrow(new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        mockMvc.perform(get("/groups/{groupId}", groupId))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."))
+                .andDo(document("groups/detail-fail-not-group-member",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("조회할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, times(1)).detail(groupId, null);
+    }
+
+    @Test
     @DisplayName("그룹을 삭제합니다.")
     void 그룹을_삭제합니다() throws Exception {
         // given
@@ -484,6 +694,78 @@ public class GroupControllerTest extends ControllerTest {
 
         verify(groupService, times(1)).delete(groupId, userId);
         verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 그룹 삭제 요청 시 401을 반환한다.")
+    void 비로그인_사용자가_그룹_삭제_요청_시_401을_반환한다() throws Exception {
+        mockMvc.perform(delete("/groups/{groupId}", 1L))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("groups/delete-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("삭제할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, never()).delete(any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자가 그룹 삭제 요청 시 403을 반환한다.")
+    void 오너가_아닌_사용자가_그룹_삭제_요청_시_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
+                .when(groupService).delete(groupId, 1L);
+
+        mockMvc.perform(delete("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 수정/삭제 권한이 없습니다."))
+                .andDo(document("groups/delete-fail-not-group-owner",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("삭제할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, times(1)).delete(groupId, 1L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 그룹 삭제 요청 시 404를 반환한다.")
+    void 존재하지_않는_그룹_삭제_요청_시_404를_반환한다() throws Exception {
+        Long groupId = 999L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.GROUP_NOT_FOUND))
+                .when(groupService).delete(groupId, 1L);
+
+        mockMvc.perform(delete("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 그룹 입니다."))
+                .andDo(document("groups/delete-fail-group-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("삭제할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, times(1)).delete(groupId, 1L);
     }
 
     @Test
@@ -557,6 +839,131 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("비로그인 사용자가 그룹 수정 요청 시 401을 반환한다.")
+    void 비로그인_사용자가_그룹_수정_요청_시_401을_반환한다() throws Exception {
+        String body = """
+                {
+                  "groupKind": "PRIVATE",
+                  "name": "수정모임",
+                  "description": "수정설명",
+                  "thumbNailUrl": "https://example.com/updated.png",
+                  "memberLimit": 20
+                }
+                """;
+
+        mockMvc.perform(patch("/groups/{groupId}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("groups/update-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("수정할 그룹 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("groupKind").description("그룹 종류 (PUBLIC, PRIVATE)"),
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL"),
+                                fieldWithPath("memberLimit").description("최대 인원(1~50)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, never()).update(any(GroupUpdateRequestDto.class), any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자가 그룹 수정 요청 시 403을 반환한다.")
+    void 오너가_아닌_사용자가_그룹_수정_요청_시_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        mockCsrfValid();
+        given(groupService.update(any(GroupUpdateRequestDto.class), eq(groupId), eq(1L)))
+                .willThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER));
+
+        String body = """
+                {
+                  "groupKind": "PRIVATE",
+                  "name": "수정모임",
+                  "description": "수정설명",
+                  "thumbNailUrl": "https://example.com/updated.png",
+                  "memberLimit": 20
+                }
+                """;
+
+        mockMvc.perform(patch("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 수정/삭제 권한이 없습니다."))
+                .andDo(document("groups/update-fail-not-group-owner",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("수정할 그룹 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("groupKind").description("그룹 종류 (PUBLIC, PRIVATE)"),
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL"),
+                                fieldWithPath("memberLimit").description("최대 인원(1~50)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 그룹 수정 요청 시 404를 반환한다.")
+    void 존재하지_않는_그룹_수정_요청_시_404를_반환한다() throws Exception {
+        Long groupId = 999L;
+        mockCsrfValid();
+        given(groupService.update(any(GroupUpdateRequestDto.class), eq(groupId), eq(1L)))
+                .willThrow(new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
+        String body = """
+                {
+                  "groupKind": "PRIVATE",
+                  "name": "수정모임",
+                  "description": "수정설명",
+                  "thumbNailUrl": "https://example.com/updated.png",
+                  "memberLimit": 20
+                }
+                """;
+
+        mockMvc.perform(patch("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 그룹 입니다."))
+                .andDo(document("groups/update-fail-group-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("수정할 그룹 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("groupKind").description("그룹 종류 (PUBLIC, PRIVATE)"),
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL"),
+                                fieldWithPath("memberLimit").description("최대 인원(1~50)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    @Test
     @DisplayName("그룹 소유자는 멤버를 추방할 수 있다.")
     void 그룹_소유자는_멤버를_추방할_수_있다() throws Exception {
         // given
@@ -584,6 +991,58 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("오너가 아닌 사용자가 멤버 추방 요청 시 403을 반환한다.")
+    void 오너가_아닌_사용자가_멤버_추방_요청_시_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        Long targetUserId = 2L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
+                .when(groupService).kick(groupId, 1L, targetUserId);
+
+        mockMvc.perform(delete("/groups/{groupId}/users/{targetUserId}", groupId, targetUserId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 수정/삭제 권한이 없습니다."))
+                .andDo(document("groups/kick-fail-not-group-owner",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("멤버를 추방할 그룹 ID"),
+                                parameterWithName("targetUserId").description("추방할 사용자 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("자기 자신을 추방하려고 하면 403을 반환한다.")
+    void 자기_자신을_추방하려고_하면_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        Long targetUserId = 1L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.CANNOT_KICK_SELF))
+                .when(groupService).kick(groupId, 1L, targetUserId);
+
+        mockMvc.perform(delete("/groups/{groupId}/users/{targetUserId}", groupId, targetUserId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("자기 자신은 추방할 수 없습니다."))
+                .andDo(document("groups/kick-fail-cannot-kick-self",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("멤버를 추방할 그룹 ID"),
+                                parameterWithName("targetUserId").description("추방할 사용자 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    @Test
     @DisplayName("로그인한 멤버는 그룹을 탈퇴할 수 있다.")
     void 로그인한_멤버는_그룹을_탈퇴할_수_있다() throws Exception {
         // given
@@ -606,6 +1065,54 @@ public class GroupControllerTest extends ControllerTest {
 
         verify(groupService, times(1)).leave(groupId, userId);
         verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
+    @DisplayName("그룹 소유자가 탈퇴 요청 시 403을 반환한다.")
+    void 그룹_소유자가_탈퇴_요청_시_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.GROUP_OWNER_NOT_LEAVE))
+                .when(groupService).leave(groupId, 1L);
+
+        mockMvc.perform(delete("/groups/{groupId}/users/me", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 주인은 탈퇴할 수 없습니다."))
+                .andDo(document("groups/leave-fail-owner-not-leave",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("탈퇴할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("이미 탈퇴한 그룹에 대해 탈퇴 요청 시 403을 반환한다.")
+    void 이미_탈퇴한_그룹에_대해_탈퇴_요청_시_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.ALREADY_LEAVE_GROUP))
+                .when(groupService).leave(groupId, 1L);
+
+        mockMvc.perform(delete("/groups/{groupId}/users/me", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("이미 탈퇴한 그룹입니다."))
+                .andDo(document("groups/leave-fail-already-left",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("탈퇴할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
     }
 
     @Test
@@ -636,6 +1143,58 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("자기 자신에게 소유권 이전 요청 시 403을 반환한다.")
+    void 자기_자신에게_소유권_이전_요청_시_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        Long targetUserId = 1L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.CANNOT_OWNER_DEMOTE_SELF))
+                .when(groupService).ownerTransfer(groupId, targetUserId, 1L);
+
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", groupId, targetUserId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 주인은 스스로를 강등시킬 수 없습니다."))
+                .andDo(document("groups/owner-transfer-fail-cannot-demote-self",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("소유권을 이전할 그룹 ID"),
+                                parameterWithName("targetUserId").description("새로운 소유자가 될 사용자 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자의 소유권 이전 요청 시 403을 반환한다.")
+    void 오너가_아닌_사용자의_소유권_이전_요청_시_403을_반환한다() throws Exception {
+        Long groupId = 1L;
+        Long targetUserId = 2L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
+                .when(groupService).ownerTransfer(groupId, targetUserId, 1L);
+
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", groupId, targetUserId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 수정/삭제 권한이 없습니다."))
+                .andDo(document("groups/owner-transfer-fail-not-group-owner",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("소유권을 이전할 그룹 ID"),
+                                parameterWithName("targetUserId").description("새로운 소유자가 될 사용자 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    @Test
     @DisplayName("그룹 수정 요청 본문이 유효하지 않으면 400을 반환한다.")
     void 그룹_수정_요청_본문이_유효하지_않으면_400을_반환한다() throws Exception {
         // given
@@ -657,7 +1216,25 @@ public class GroupControllerTest extends ControllerTest {
                         .with(loginSessionAndCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("그룹 이름은 필수입니다."))
+                .andDo(document("groups/update-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("수정할 그룹 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("groupKind").description("그룹 종류 (PUBLIC, PRIVATE)"),
+                                fieldWithPath("name").description("그룹 이름"),
+                                fieldWithPath("description").description("그룹 설명"),
+                                fieldWithPath("thumbNailUrl").description("썸네일 이미지 URL"),
+                                fieldWithPath("memberLimit").description("최대 인원(1~50)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
 
         verify(groupService, never()).update(any(GroupUpdateRequestDto.class), any(Long.class), any(Long.class));
     }

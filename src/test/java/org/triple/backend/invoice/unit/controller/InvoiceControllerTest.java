@@ -163,7 +163,26 @@ class InvoiceControllerTest extends ControllerTest {
         mockMvc.perform(post("/invoices")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("invoices/create-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("groupId").description("그룹 ID"),
+                                fieldWithPath("travelItineraryId").description("여행 일정 ID"),
+                                fieldWithPath("recipients").description("청구 대상 목록"),
+                                fieldWithPath("recipients[].userId").description("청구 대상 사용자 ID"),
+                                fieldWithPath("recipients[].amount").description("청구 금액"),
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("totalAmount").description("총 청구 금액"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
 
         verify(invoiceService, never()).create(any(), any());
     }
@@ -190,9 +209,119 @@ class InvoiceControllerTest extends ControllerTest {
                         .with(loginSessionAndCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andDo(document("invoices/create-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("groupId").description("그룹 ID"),
+                                fieldWithPath("travelItineraryId").description("여행 일정 ID"),
+                                fieldWithPath("recipients").description("청구 대상 목록"),
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("totalAmount").description("총 청구 금액"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
 
         verify(invoiceService, never()).create(any(), any());
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서 생성 요청 시 403을 반환한다.")
+    void 여행장_LEADER가_아니면_청구서_생성_요청_시_403을_반환한다() throws Exception {
+        mockCsrfValid();
+        given(invoiceService.create(eq(1L), any(InvoiceCreateRequestDto.class)))
+                .willThrow(new BusinessException(InvoiceErrorCode.NOT_TRAVEL_LEADER));
+
+        String body = """
+                {
+                  "groupId": 10,
+                  "travelItineraryId": 20,
+                  "recipients": [ { "userId": 2, "amount": 30000 } ],
+                  "title": "제주 렌트비 정산",
+                  "description": "렌트비 N빵",
+                  "totalAmount": 30000,
+                  "dueAt": "2030-03-31T18:00:00"
+                }
+                """;
+
+        mockMvc.perform(post("/invoices")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("여행장 권한이 필요합니다."))
+                .andDo(document("invoices/create-fail-not-travel-leader",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("groupId").description("그룹 ID"),
+                                fieldWithPath("travelItineraryId").description("여행 일정 ID"),
+                                fieldWithPath("recipients").description("청구 대상 목록"),
+                                fieldWithPath("recipients[].userId").description("청구 대상 사용자 ID"),
+                                fieldWithPath("recipients[].amount").description("청구 금액"),
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("totalAmount").description("총 청구 금액"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("총 금액 불일치 청구서 생성 요청 시 403을 반환한다.")
+    void 총_금액_불일치_청구서_생성_요청_시_403을_반환한다() throws Exception {
+        mockCsrfValid();
+        given(invoiceService.create(eq(1L), any(InvoiceCreateRequestDto.class)))
+                .willThrow(new BusinessException(InvoiceErrorCode.INVALID_TOTAL_AMOUNT));
+
+        String body = """
+                {
+                  "groupId": 10,
+                  "travelItineraryId": 20,
+                  "recipients": [
+                    { "userId": 2, "amount": 10000 },
+                    { "userId": 3, "amount": 10000 }
+                  ],
+                  "title": "제주 렌트비 정산",
+                  "description": "렌트비 N빵",
+                  "totalAmount": 30000,
+                  "dueAt": "2030-03-31T18:00:00"
+                }
+                """;
+
+        mockMvc.perform(post("/invoices")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("총 금액과 대상 금액 합계가 일치하지 않습니다."))
+                .andDo(document("invoices/create-fail-invalid-total-amount",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("groupId").description("그룹 ID"),
+                                fieldWithPath("travelItineraryId").description("여행 일정 ID"),
+                                fieldWithPath("recipients").description("청구 대상 목록"),
+                                fieldWithPath("recipients[].userId").description("청구 대상 사용자 ID"),
+                                fieldWithPath("recipients[].amount").description("청구 금액"),
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("totalAmount").description("총 청구 금액"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
     }
 
     @Test
@@ -272,7 +401,23 @@ class InvoiceControllerTest extends ControllerTest {
         mockMvc.perform(patch("/invoices/{invoiceId}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("invoices/update-meta-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
 
         verify(invoiceService, never()).updateMetaInfo(anyLong(), anyLong(), any(InvoiceUpdateRequestDto.class));
     }
@@ -295,9 +440,142 @@ class InvoiceControllerTest extends ControllerTest {
                         .with(loginSessionAndCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andDo(document("invoices/update-meta-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
 
         verify(invoiceService, never()).updateMetaInfo(anyLong(), anyLong(), any(InvoiceUpdateRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 청구서 메타 정보 수정 요청 시 404를 반환한다.")
+    void 존재하지_않는_청구서_메타_정보_수정_요청_시_404를_반환한다() throws Exception {
+        Long invoiceId = 999L;
+        mockCsrfValid();
+        given(invoiceService.updateMetaInfo(eq(1L), eq(invoiceId), any(InvoiceUpdateRequestDto.class)))
+                .willThrow(new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+
+        String body = """
+                {
+                  "title": "수정된 정산 제목",
+                  "description": "수정된 설명",
+                  "dueAt": "2030-04-01T18:00:00"
+                }
+                """;
+
+        mockMvc.perform(patch("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 청구서 입니다."))
+                .andDo(document("invoices/update-meta-fail-not-found-invoice",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("여행장(LEADER)이 아니면 청구서 메타 정보 수정 요청 시 403을 반환한다.")
+    void 여행장_LEADER가_아니면_청구서_메타_정보_수정_요청_시_403을_반환한다() throws Exception {
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        given(invoiceService.updateMetaInfo(eq(1L), eq(invoiceId), any(InvoiceUpdateRequestDto.class)))
+                .willThrow(new BusinessException(InvoiceErrorCode.NOT_TRAVEL_LEADER));
+
+        String body = """
+                {
+                  "title": "수정된 정산 제목",
+                  "description": "수정된 설명",
+                  "dueAt": "2030-04-01T18:00:00"
+                }
+                """;
+
+        mockMvc.perform(patch("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("여행장 권한이 필요합니다."))
+                .andDo(document("invoices/update-meta-fail-not-travel-leader",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("수정 불가능한 상태의 청구서 메타 정보 수정 요청 시 409를 반환한다.")
+    void 수정_불가능한_상태의_청구서_메타_정보_수정_요청_시_409를_반환한다() throws Exception {
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        given(invoiceService.updateMetaInfo(eq(1L), eq(invoiceId), any(InvoiceUpdateRequestDto.class)))
+                .willThrow(new BusinessException(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS));
+
+        String body = """
+                {
+                  "title": "수정된 정산 제목",
+                  "description": "수정된 설명",
+                  "dueAt": "2030-04-01T18:00:00"
+                }
+                """;
+
+        mockMvc.perform(patch("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("청구서를 수정할 수 없습니다."))
+                .andDo(document("invoices/update-meta-fail-not-allowed-status",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("dueAt").description("납부 기한")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
     }
 
     @Test
@@ -329,7 +607,30 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.creator.userId").value(1L))
                 .andExpect(jsonPath("$.invoiceMembers.length()").value(2))
                 .andExpect(jsonPath("$.remainingAmount").value(0))
-                .andExpect(jsonPath("$.isDone").value(true));
+                .andExpect(jsonPath("$.isDone").value(true))
+                .andDo(document("invoices/search",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("travelItineraryId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("title").description("청구서 제목"),
+                                fieldWithPath("totalAmount").description("총 청구 금액"),
+                                fieldWithPath("dueAt").description("납부 기한"),
+                                fieldWithPath("description").description("청구서 설명"),
+                                fieldWithPath("creator.userId").description("생성자 사용자 ID"),
+                                fieldWithPath("creator.nickname").description("생성자 닉네임"),
+                                fieldWithPath("creator.profileUrl").description("생성자 프로필 URL").optional(),
+                                fieldWithPath("invoiceMembers").description("청구 대상 멤버 목록"),
+                                fieldWithPath("invoiceMembers[].userId").description("청구 대상 사용자 ID"),
+                                fieldWithPath("invoiceMembers[].nickname").description("청구 대상 닉네임"),
+                                fieldWithPath("invoiceMembers[].profileUrl").description("청구 대상 프로필 URL").optional(),
+                                fieldWithPath("invoiceMembers[].remainAmount").description("남은 청구 금액"),
+                                fieldWithPath("remainingAmount").description("전체 남은 청구 금액"),
+                                fieldWithPath("isDone").description("정산 완료 여부")
+                        )
+                ));
 
         verify(invoiceService, times(1)).searchInvoice(1L, 20L);
     }
@@ -339,9 +640,66 @@ class InvoiceControllerTest extends ControllerTest {
     void 비로그인_사용자가_청구서_조회를_요청하면_401을_반환한다() throws Exception {
         // when & then
         mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 20L))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("invoices/search-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("travelItineraryId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
 
         verify(invoiceService, never()).searchInvoice(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("여행 멤버십이 없으면 청구서 조회 요청 시 404를 반환한다.")
+    void 여행_멤버십이_없으면_청구서_조회_요청_시_404를_반환한다() throws Exception {
+        given(invoiceService.searchInvoice(eq(1L), eq(20L)))
+                .willThrow(new BusinessException(InvoiceErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
+        mockCsrfValid();
+
+        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 20L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("해당 여행의 참여 멤버가 아닙니다."))
+                .andDo(document("invoices/search-fail-user-travel-itinerary-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("travelItineraryId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 청구서 조회 요청 시 404를 반환한다.")
+    void 존재하지_않는_청구서_조회_요청_시_404를_반환한다() throws Exception {
+        given(invoiceService.searchInvoice(eq(1L), eq(20L)))
+                .willThrow(new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+        mockCsrfValid();
+
+        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 20L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 청구서 입니다."))
+                .andDo(document("invoices/search-fail-not-found-invoice",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("travelItineraryId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
     }
 
     @Test
@@ -753,7 +1111,22 @@ class InvoiceControllerTest extends ControllerTest {
                         .with(loginSessionAndCsrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists())
+                .andDo(document("invoices/update-info-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("totalAmount").description("변경할 총 청구 금액"),
+                                fieldWithPath("recipients").description("변경할 청구 대상 목록(전체 교체)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
 
         verify(invoiceService, never()).updateInfo(anyLong(), anyLong(), any(InvoiceAdjustRequestDto.class));
     }
@@ -773,7 +1146,24 @@ class InvoiceControllerTest extends ControllerTest {
         mockMvc.perform(put("/invoices/{invoiceId}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("invoices/update-info-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(
+                                fieldWithPath("totalAmount").description("변경할 총 청구 금액"),
+                                fieldWithPath("recipients").description("변경할 청구 대상 목록(전체 교체)"),
+                                fieldWithPath("recipients[].userId").description("청구 대상 사용자 ID"),
+                                fieldWithPath("recipients[].amount").description("청구 대상 금액")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
 
         verify(invoiceService, never()).updateInfo(anyLong(), anyLong(), any(InvoiceAdjustRequestDto.class));
     }
@@ -806,11 +1196,15 @@ class InvoiceControllerTest extends ControllerTest {
         // when & then
         mockMvc.perform(post("/invoices/{invoiceId}/check", 1L))
                 .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
                 .andDo(document("invoices/check-fail-unauthorized",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         pathParameters(
                                 parameterWithName("invoiceId").description("확인할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
                         )
                 ));
 
@@ -1001,6 +1395,130 @@ class InvoiceControllerTest extends ControllerTest {
                         preprocessResponse(prettyPrint()),
                         pathParameters(
                                 parameterWithName("invoiceId").description("삭제할 청구서 ID")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).delete(1L, invoiceId);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 청구서 삭제 요청 시 401을 반환한다.")
+    void 비로그인_사용자가_청구서_삭제_요청_시_401을_반환한다() throws Exception {
+        mockMvc.perform(delete("/invoices/{invoiceId}", 1L))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("invoices/delete-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("삭제할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, never()).delete(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("청구서 생성자가 아닌 사용자의 삭제 요청 시 403을 반환한다.")
+    void 청구서_생성자가_아닌_사용자의_삭제_요청_시_403을_반환한다() throws Exception {
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(InvoiceErrorCode.DELETE_UNAUTHORIZED))
+                .given(invoiceService).delete(eq(1L), eq(invoiceId));
+
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("청구서 생성자만 삭제할 수 있습니다."))
+                .andDo(document("invoices/delete-fail-delete-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("삭제할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).delete(1L, invoiceId);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 청구서 삭제 요청 시 404를 반환한다.")
+    void 존재하지_않는_청구서_삭제_요청_시_404를_반환한다() throws Exception {
+        Long invoiceId = 999L;
+        mockCsrfValid();
+        willThrow(new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE))
+                .given(invoiceService).delete(eq(1L), eq(invoiceId));
+
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 청구서 입니다."))
+                .andDo(document("invoices/delete-fail-not-found-invoice",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("삭제할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).delete(1L, invoiceId);
+    }
+
+    @Test
+    @DisplayName("삭제할 수 없는 상태의 청구서 삭제 요청 시 409를 반환한다.")
+    void 삭제할_수_없는_상태의_청구서_삭제_요청_시_409를_반환한다() throws Exception {
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(InvoiceErrorCode.DELETE_FORBIDDEN_STATUS))
+                .given(invoiceService).delete(eq(1L), eq(invoiceId));
+
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("현재 상태에서는 청구서를 삭제할 수 없습니다."))
+                .andDo(document("invoices/delete-fail-forbidden-status",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("삭제할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(invoiceService, times(1)).delete(1L, invoiceId);
+    }
+
+    @Test
+    @DisplayName("결제 내역이 있는 청구서 삭제 요청 시 409를 반환한다.")
+    void 결제_내역이_있는_청구서_삭제_요청_시_409를_반환한다() throws Exception {
+        Long invoiceId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(InvoiceErrorCode.DELETE_FORBIDDEN_PAYMENT_EXISTS))
+                .given(invoiceService).delete(eq(1L), eq(invoiceId));
+
+        mockMvc.perform(delete("/invoices/{invoiceId}", invoiceId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 삭제할 수 없습니다."))
+                .andDo(document("invoices/delete-fail-payment-exists",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("삭제할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
                         )
                 ));
 
