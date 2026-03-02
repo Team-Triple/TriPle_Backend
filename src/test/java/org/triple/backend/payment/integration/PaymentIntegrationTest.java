@@ -38,11 +38,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_HEADER;
 import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_TOKEN_KEY;
+import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 @IntegrationTest
 class PaymentIntegrationTest {
 
-    private static final String USER_SESSION_KEY = AuthConstants.USER_SESSION_KEY;
     private static final String CSRF_TOKEN = "test-token";
 
     @Autowired
