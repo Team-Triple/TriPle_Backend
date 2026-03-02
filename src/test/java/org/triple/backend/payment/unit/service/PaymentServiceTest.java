@@ -4,6 +4,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
@@ -33,6 +37,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -197,6 +207,76 @@ class PaymentServiceTest {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(PaymentErrorCode.PAYMENT_ALREADY_IS_ACTIVE);
                 });
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("동일 사용자의 동일 청구서 결제 생성 요청이 동시에 들어오면 하나만 성공한다.")
+    void 동일_사용자의_동일_청구서_결제_생성_요청이_동시에_들어오면_하나만_성공한다() throws InterruptedException {
+        User payer = saveUser("payer-concurrency");
+        Group group = saveGroup("동시성 결제 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "동시성 결제 여행");
+        Invoice invoice = saveInvoice(group, payer, travelItinerary, InvoiceStatus.CONFIRM, "동시성 결제 청구서");
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, payer, new BigDecimal("10000")));
+
+        PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("1000"), "동시성 결제");
+
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(2);
+        AtomicInteger successCount = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        Runnable task = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                paymentService.create(request, invoice.getId(), payer.getId());
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        try {
+            executorService.submit(task);
+            executorService.submit(task);
+
+            assertThat(ready.await(3, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+
+            long activePaymentConflictCount = failures.stream()
+                    .filter(BusinessException.class::isInstance)
+                    .map(BusinessException.class::cast)
+                    .filter(e -> e.getErrorCode() == PaymentErrorCode.PAYMENT_ALREADY_IS_ACTIVE)
+                    .count();
+
+            long lockFailureCount = failures.stream()
+                    .filter(e -> e instanceof CannotAcquireLockException || e instanceof PessimisticLockingFailureException)
+                    .count();
+
+            assertThat(successCount.get()).isEqualTo(1);
+            assertThat(failures).hasSize(1);
+            assertThat(activePaymentConflictCount + lockFailureCount).isEqualTo(1);
+            assertThat(paymentJpaRepository.count()).isEqualTo(1L);
+            assertThat(paymentJpaRepository.existsByInvoiceIdAndUserIdAndPaymentStatusIn(
+                    invoice.getId(),
+                    payer.getId(),
+                    List.of(PaymentStatus.READY, PaymentStatus.IN_PROGRESS)
+            )).isTrue();
+        } finally {
+            executorService.shutdownNow();
+            paymentJpaRepository.deleteAllInBatch();
+            invoiceUserJpaRepository.deleteAllInBatch();
+            invoiceJpaRepository.deleteAllInBatch();
+            travelItineraryJpaRepository.deleteAllInBatch();
+            groupJpaRepository.deleteAllInBatch();
+            userJpaRepository.deleteAllInBatch();
+        }
     }
 
     private User saveUser(final String providerId) {
