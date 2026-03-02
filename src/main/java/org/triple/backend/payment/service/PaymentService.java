@@ -12,7 +12,7 @@ import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentStatus;
 import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.infra.TossPayment;
-import org.triple.backend.payment.infra.res.ConfirmResponse;
+import org.triple.backend.payment.infra.dto.ConfirmResponse;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 
 @Service

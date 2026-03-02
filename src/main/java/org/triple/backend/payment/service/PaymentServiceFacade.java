@@ -1,6 +1,5 @@
 package org.triple.backend.payment.service;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -14,7 +13,7 @@ import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.infra.exception.ConfirmAnonymousException;
 import org.triple.backend.payment.infra.exception.ConfirmRecoverFailedException;
 import org.triple.backend.payment.infra.exception.ConfirmServerException;
-import org.triple.backend.payment.infra.res.ConfirmResponse;
+import org.triple.backend.payment.infra.dto.ConfirmResponse;
 
 @Slf4j
 @Service

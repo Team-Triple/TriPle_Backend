@@ -1,4 +1,4 @@
-﻿package org.triple.backend.payment.infra;
+package org.triple.backend.payment.infra;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +15,7 @@ import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.infra.exception.ConfirmAnonymousException;
 import org.triple.backend.payment.infra.exception.ConfirmRecoverFailedException;
 import org.triple.backend.payment.infra.exception.ConfirmServerException;
-import org.triple.backend.payment.infra.res.ConfirmResponse;
+import org.triple.backend.payment.infra.dto.ConfirmResponse;
 
 @Slf4j
 @Component

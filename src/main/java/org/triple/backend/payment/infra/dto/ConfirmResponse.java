@@ -1,4 +1,4 @@
-package org.triple.backend.payment.infra.res;
+package org.triple.backend.payment.infra.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
