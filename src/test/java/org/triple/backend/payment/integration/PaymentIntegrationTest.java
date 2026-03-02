@@ -8,7 +8,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
-import org.triple.backend.global.constants.AuthConstants;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.repository.GroupJpaRepository;
@@ -38,11 +37,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_HEADER;
 import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_TOKEN_KEY;
-import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 @IntegrationTest
 class PaymentIntegrationTest {
 
+    private static final String USER_SESSION_KEY = "USER_ID";
     private static final String CSRF_TOKEN = "test-token";
 
     @Autowired
