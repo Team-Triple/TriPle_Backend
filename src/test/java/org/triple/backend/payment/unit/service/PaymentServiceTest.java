@@ -190,6 +190,7 @@ class PaymentServiceTest {
                         .invoice(invoice)
                         .user(payer)
                         .pgProvider(PgProvider.TOSS)
+                        .name("기존 진행중 결제")
                         .method(PaymentMethod.TRANSFER)
                         .orderId(UUID.randomUUID().toString())
                         .requestedAmount(new BigDecimal("1000"))
