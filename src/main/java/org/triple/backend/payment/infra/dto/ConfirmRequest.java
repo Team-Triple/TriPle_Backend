@@ -1,4 +1,4 @@
-package org.triple.backend.payment.infra;
+package org.triple.backend.payment.infra.dto;
 
 import java.math.BigDecimal;
 import org.triple.backend.payment.entity.Payment;
