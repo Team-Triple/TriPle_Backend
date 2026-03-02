@@ -34,7 +34,7 @@ public class PaymentService {
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
     private final InvoiceJpaRepository invoiceJpaRepository;
 
-    @Transactional
+    @Transactional(timeout = 3)
     public PaymentCreateRes create(final PaymentCreateReq dto, final Long invoiceId, final Long userId) {
 
         Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
