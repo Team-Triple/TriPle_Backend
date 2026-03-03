@@ -538,7 +538,7 @@ public class GroupServiceTest {
 
         joinApplyJpaRepository.save(joinApply);
 
-        assertThat(groupJpaRepository.findById(savedGroup.getId())).isPresent();
+        assertThat(groupJpaRepository.findByIdAndIsDeletedFalse(savedGroup.getId())).isPresent();
         assertThat(userGroupJpaRepository.findAll()).hasSize(1);
         assertThat(joinApplyJpaRepository.findAll()).hasSize(1);
 
@@ -546,7 +546,8 @@ public class GroupServiceTest {
         groupService.delete(savedGroup.getId(), owner.getId());
 
         // then
-        assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
+        assertThat(groupJpaRepository.findByIdAndIsDeletedFalse(savedGroup.getId())).isEmpty();
+        assertThat(groupJpaRepository.findById(savedGroup.getId()).orElseThrow().isDeleted()).isTrue();
         assertThat(userGroupJpaRepository.findAll()).isEmpty();
         assertThat(joinApplyJpaRepository.findAll()).isEmpty();
     }
@@ -624,7 +625,8 @@ public class GroupServiceTest {
             assertThat(successCount.get()).isEqualTo(1);
             assertThat(failures).hasSize(1);
             assertThat(groupNotFoundCount).isEqualTo(1);
-            assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
+            assertThat(groupJpaRepository.findByIdAndIsDeletedFalse(savedGroup.getId())).isEmpty();
+            assertThat(groupJpaRepository.findById(savedGroup.getId()).orElseThrow().isDeleted()).isTrue();
         } finally {
             executorService.shutdownNow();
             joinApplyJpaRepository.deleteAllInBatch();
