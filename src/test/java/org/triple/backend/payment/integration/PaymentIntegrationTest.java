@@ -32,7 +32,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+<<<<<<< feat/payment-read-api
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+=======
+>>>>>>> develop
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -325,6 +328,7 @@ class PaymentIntegrationTest {
                 .andExpect(jsonPath("$.message").value("이미 실행중인 결제입니다."));
     }
 
+<<<<<<< feat/payment-read-api
     @Test
     @DisplayName("로그인한 사용자는 결제 목록을 조회할 수 있다.")
     void 로그인한_사용자는_결제_목록을_조회할_수_있다() throws Exception {
@@ -394,6 +398,8 @@ class PaymentIntegrationTest {
                 .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
     }
 
+=======
+>>>>>>> develop
     private User saveUser(final String providerId) {
         return userJpaRepository.save(
                 User.builder()
