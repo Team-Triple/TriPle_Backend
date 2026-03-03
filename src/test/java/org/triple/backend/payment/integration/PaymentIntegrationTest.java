@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -323,6 +324,61 @@ class PaymentIntegrationTest {
                         .content(body))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("이미 실행중인 결제입니다."));
+    }
+
+    @Test
+    @DisplayName("로그인한 사용자는 결제 목록을 조회할 수 있다.")
+    void 로그인한_사용자는_결제_목록을_조회할_수_있다() throws Exception {
+        User payer = saveUser("payer-search-success");
+        Group group = saveGroup("결제 조회 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "결제 조회 여행");
+        Invoice invoice = saveInvoice(group, payer, travelItinerary, InvoiceStatus.CONFIRM, "제주 렌트비");
+        paymentJpaRepository.save(
+                Payment.builder()
+                        .invoice(invoice)
+                        .user(payer)
+                        .name("제주 렌트비")
+                        .pgProvider(PgProvider.TOSS)
+                        .method(PaymentMethod.TRANSFER)
+                        .orderId(UUID.randomUUID().toString())
+                        .requestedAmount(new BigDecimal("3000"))
+                        .paymentStatus(PaymentStatus.READY)
+                        .requestedAt(LocalDateTime.of(2030, 3, 20, 12, 0))
+                        .build()
+        );
+
+        mockMvc.perform(get("/payments")
+                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].invoiceId").value(invoice.getId()))
+                .andExpect(jsonPath("$.items[0].name").value("제주 렌트비"))
+                .andExpect(jsonPath("$.nextCursor").isEmpty())
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 결제 목록 조회를 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_결제_목록_조회를_요청하면_401을_반환한다() throws Exception {
+        mockMvc.perform(get("/payments")
+                        .param("size", "10"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."));
+    }
+
+    @Test
+    @DisplayName("검색어 길이가 20자를 초과하면 결제 목록 조회 시 400을 반환한다.")
+    void 검색어_길이가_20자를_초과하면_결제_목록_조회_시_400을_반환한다() throws Exception {
+        User payer = saveUser("payer-search-invalid");
+
+        mockMvc.perform(get("/payments")
+                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .param("keyword", "aaaaaaaaaaaaaaaaaaaaa")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
     }
 
     private User saveUser(final String providerId) {
