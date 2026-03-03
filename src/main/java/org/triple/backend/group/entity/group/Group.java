@@ -53,6 +53,9 @@ public class Group extends BaseEntity {
 
     private int memberLimit;
 
+    @Builder.Default
+    private boolean isDeleted = false;
+
     public void addMember(User user, Role role) {
         UserGroup userGroup = UserGroup.builder()
                 .user(user)
@@ -74,6 +77,7 @@ public class Group extends BaseEntity {
                 .groupKind(validateKind(kind))
                 .memberLimit(validateMemberLimit(memberLimit))
                 .currentMemberCount(1)
+                .isDeleted(false)
                 .build();
     }
 
@@ -91,6 +95,10 @@ public class Group extends BaseEntity {
         this.description = description;
         this.thumbNailUrl = thumbNailUrl;
         this.memberLimit = memberLimit;
+    }
+
+    public void deleteGroup() {
+        this.isDeleted = true;
     }
 
     private static GroupKind validateKind(final GroupKind kind) {
