@@ -3,6 +3,9 @@ package org.triple.backend.global.error;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -77,5 +80,14 @@ public class ControllerAdvice {
                 .filter(msg -> msg != null && !msg.isBlank())
                 .findFirst()
                 .orElse("요청 값이 올바르지 않습니다.");
+    }
+
+    @ExceptionHandler({
+            CannotAcquireLockException.class,
+            PessimisticLockingFailureException.class
+    })
+    public ResponseEntity<ErrorResponse> handleLockException(Exception e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("요청이 동시에 처리 중입니다. 잠시 후 다시 시도해주세요."));
     }
 }
