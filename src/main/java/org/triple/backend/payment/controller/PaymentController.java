@@ -28,7 +28,8 @@ public class PaymentController {
     @GetMapping
     public PaymentCursorRes search(@RequestParam(required = false) String keyword,
                                    @RequestParam(required = false) Long cursor,
-                                   @RequestParam(defaultValue = "10") int size) {
-        return paymentService.search(keyword, cursor, size);
+                                   @RequestParam(defaultValue = "10") int size,
+                                   @LoginUser final Long userId) {
+        return paymentService.search(keyword, cursor, size, userId);
     }
 }

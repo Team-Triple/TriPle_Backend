@@ -74,11 +74,11 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public PaymentCursorRes search(final String keyword, final Long cursor, final int size) {
+    public PaymentCursorRes search(final String keyword, final Long cursor, final int size, final Long userId) {
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
 
         if (normalizedKeyword.isBlank()) {
-            return browsePayment(cursor, size);
+            return browsePayment(cursor, size, userId);
         }
 
         if (normalizedKeyword.length() > KEYWORD_MAX_LENGTH) {
@@ -89,20 +89,20 @@ public class PaymentService {
         Pageable pageable = PageRequest.of(0, pageSize + 1);
 
         List<Payment> rows = cursor == null
-                ? findFirstPageByKeyword(normalizedKeyword, pageable)
-                : findNextPageByKeyword(normalizedKeyword, cursor, pageable);
+                ? findFirstPageByKeyword(normalizedKeyword, userId, pageable)
+                : findNextPageByKeyword(normalizedKeyword, cursor, userId, pageable);
 
         return toCursorResponse(rows, pageSize);
     }
 
     @Transactional(readOnly = true)
-    public PaymentCursorRes browsePayment(final Long cursor, final int size) {
+    public PaymentCursorRes browsePayment(final Long cursor, final int size, final Long userId) {
         int pageSize = normalizePageSize(size);
         Pageable pageable = PageRequest.of(0, pageSize + 1);
 
         List<Payment> rows = (cursor == null)
-                ? paymentJpaRepository.findFirstPage(pageable)
-                : paymentJpaRepository.findNextPage(cursor, pageable);
+                ? paymentJpaRepository.findFirstPage(userId, pageable)
+                : paymentJpaRepository.findNextPage(userId, cursor, pageable);
 
         return toCursorResponse(rows, pageSize);
     }
@@ -111,22 +111,22 @@ public class PaymentService {
         return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
     }
 
-    private List<Payment> findFirstPageByKeyword(String keyword, Pageable pageable) {
+    private List<Payment> findFirstPageByKeyword(String keyword, Long userId, Pageable pageable) {
         String booleanQuery = toBooleanModeQuery(keyword);
         if (booleanQuery.isBlank()) {
             return List.of();
         }
 
-        return paymentJpaRepository.findFirstPageByKeywordFullText(booleanQuery, pageable);
+        return paymentJpaRepository.findFirstPageByKeywordFullText(booleanQuery, userId, pageable);
     }
 
-    private List<Payment> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable) {
+    private List<Payment> findNextPageByKeyword(String keyword, Long cursor, Long userId, Pageable pageable) {
         String booleanQuery = toBooleanModeQuery(keyword);
         if (booleanQuery.isBlank()) {
             return List.of();
         }
 
-        return paymentJpaRepository.findNextPageByKeywordFullText(booleanQuery, cursor, pageable);
+        return paymentJpaRepository.findNextPageByKeywordFullText(booleanQuery, cursor, userId, pageable);
     }
 
     private String toBooleanModeQuery(String keyword) {
