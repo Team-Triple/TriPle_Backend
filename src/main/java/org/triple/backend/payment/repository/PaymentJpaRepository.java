@@ -47,4 +47,7 @@ public interface PaymentJpaRepository extends JpaRepository<Payment, Long> {
 
     @Query("SELECT p FROM Payment p JOIN FETCH p.invoice WHERE p.id IN :paymentIds ORDER BY p.id DESC")
     List<Payment> findAllWithInvoiceByIdInOrderByIdDesc(List<Long> paymentIds);
+
+    @Query("SELECT p FROM Payment p JOIN FETCH p.user WHERE p.invoice.id = :invoiceId ORDER BY p.requestedAt DESC")
+    List<Payment> findAllByInvoiceIdWithUser(Long invoiceId);
 }

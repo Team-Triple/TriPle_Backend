@@ -21,6 +21,7 @@ import org.triple.backend.payment.entity.PgProvider;
 import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.payment.service.PaymentService;
+import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -51,11 +52,19 @@ class PaymentServiceSearchFullTextTest {
     @Mock
     private InvoiceJpaRepository invoiceJpaRepository;
 
+    @Mock
+    private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
+
     private PaymentService paymentService;
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentService(paymentJpaRepository, invoiceUserJpaRepository, invoiceJpaRepository);
+        paymentService = new PaymentService(
+                paymentJpaRepository,
+                invoiceUserJpaRepository,
+                invoiceJpaRepository,
+                userTravelItineraryJpaRepository
+        );
     }
 
     @Test

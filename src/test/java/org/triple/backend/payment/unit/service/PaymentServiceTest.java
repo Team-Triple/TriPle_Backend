@@ -22,6 +22,7 @@ import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
 import org.triple.backend.payment.dto.response.PaymentCursorRes;
+import org.triple.backend.payment.dto.response.PaymentSearchRes;
 import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentMethod;
 import org.triple.backend.payment.entity.PaymentStatus;
@@ -156,7 +157,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("CONFIRM 청구서의 결제 대상자는 결제 생성 요청을 할 수 있다.")
     void CONFIRM_청구서의_결제_대상자는_결제_생성_요청을_할_수_있다() {
-        // given
         User payer = saveUser("payer-success");
         Group group = saveGroup("결제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "결제 여행");
@@ -165,10 +165,8 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("4000"), "제주 렌트비");
 
-        // when
         PaymentCreateRes response = paymentService.create(request, invoice.getId(), payer.getId());
 
-        // then
         assertThat(response.orderId()).isNotBlank();
         assertThat(response.orderName()).isEqualTo("제주 렌트비");
         assertThat(response.amount()).isEqualByComparingTo("4000");
@@ -197,7 +195,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("CONFIRM 상태가 아닌 청구서는 결제를 생성할 수 없다.")
     void CONFIRM_상태가_아닌_청구서는_결제를_생성할_수_없다() {
-        // given
         User payer = saveUser("payer-not-allowed");
         Group group = saveGroup("결제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "결제 여행");
@@ -206,7 +203,6 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("1000"), "미확정 결제");
 
-        // when & then
         assertThatThrownBy(() -> paymentService.create(request, invoice.getId(), payer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
@@ -218,7 +214,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("남은 금액이 0이면 결제 생성 요청 시 PAYMENT_ALREADY_COMPLETED 예외가 발생한다.")
     void 남은_금액이_0이면_결제_생성_요청_시_PAYMENT_ALREADY_COMPLETED_예외가_발생한다() {
-        // given
         User payer = saveUser("payer-completed");
         Group group = saveGroup("완납 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "완납 여행");
@@ -227,7 +222,6 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("1000"), "완납 결제 시도");
 
-        // when & then
         assertThatThrownBy(() -> paymentService.create(request, invoice.getId(), payer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
@@ -239,7 +233,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("요청 금액이 남은 금액보다 크면 PAYMENT_AMOUNT_EXCEEDS_REMAINING 예외가 발생한다.")
     void 요청_금액이_남은_금액보다_크면_PAYMENT_AMOUNT_EXCEEDS_REMAINING_예외가_발생한다() {
-        // given
         User payer = saveUser("payer-exceeds");
         Group group = saveGroup("초과 결제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "초과 결제 여행");
@@ -248,7 +241,6 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("4000"), "초과 결제 시도");
 
-        // when & then
         assertThatThrownBy(() -> paymentService.create(request, invoice.getId(), payer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
@@ -260,7 +252,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("이미 진행 중인 결제가 있으면 PAYMENT_ALREADY_IS_ACTIVE 예외가 발생한다.")
     void 이미_진행_중인_결제가_있으면_PAYMENT_ALREADY_IS_ACTIVE_예외가_발생한다() {
-        // given
         User payer = saveUser("payer-active");
         Group group = saveGroup("진행중 결제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "진행중 결제 여행");
@@ -281,7 +272,6 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("2000"), "중복 결제 시도");
 
-        // when & then
         assertThatThrownBy(() -> paymentService.create(request, invoice.getId(), payer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
