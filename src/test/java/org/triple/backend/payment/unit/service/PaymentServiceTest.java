@@ -21,10 +21,7 @@ import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
-<<<<<<< feat/payment-read-api
 import org.triple.backend.payment.dto.response.PaymentCursorRes;
-=======
->>>>>>> develop
 import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentMethod;
 import org.triple.backend.payment.entity.PaymentStatus;
@@ -41,15 +38,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-<<<<<<< feat/payment-read-api
-import java.util.concurrent.*;
-=======
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
->>>>>>> develop
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,7 +74,6 @@ class PaymentServiceTest {
     private TravelItineraryJpaRepository travelItineraryJpaRepository;
 
     @Test
-<<<<<<< feat/payment-read-api
     @DisplayName("검색어가 없으면 결제 목록을 커서 기반으로 조회할 수 있다.")
     void 검색어가_없으면_결제_목록을_커서_기반으로_조회할_수_있다() {
         User payer = saveUser("payer-search-browse");
@@ -156,8 +148,6 @@ class PaymentServiceTest {
     }
 
     @Test
-=======
->>>>>>> develop
     @DisplayName("CONFIRM 청구서의 결제 대상자는 결제 생성 요청을 할 수 있다.")
     void CONFIRM_청구서의_결제_대상자는_결제_생성_요청을_할_수_있다() {
         // given
@@ -275,10 +265,6 @@ class PaymentServiceTest {
                         .invoice(invoice)
                         .user(payer)
                         .pgProvider(PgProvider.TOSS)
-<<<<<<< feat/payment-read-api
-                        .name("기존 진행중 결제")
-=======
->>>>>>> develop
                         .method(PaymentMethod.TRANSFER)
                         .orderId(UUID.randomUUID().toString())
                         .requestedAmount(new BigDecimal("1000"))

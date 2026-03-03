@@ -5,12 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentStatus;
-
 import java.util.Collection;
-<<<<<<< feat/payment-read-api
 import java.util.List;
-=======
->>>>>>> develop
 
 public interface PaymentJpaRepository extends JpaRepository<Payment, Long> {
 
@@ -21,7 +17,6 @@ public interface PaymentJpaRepository extends JpaRepository<Payment, Long> {
             Long userId,
             Collection<PaymentStatus> paymentStatuses
     );
-<<<<<<< feat/payment-read-api
 
     @Query("SELECT p FROM Payment p JOIN FETCH p.invoice WHERE p.user.id = :userId ORDER BY p.id desc")
     List<Payment> findFirstPage(Long userId, Pageable pageable);
@@ -52,6 +47,4 @@ public interface PaymentJpaRepository extends JpaRepository<Payment, Long> {
 
     @Query("SELECT p FROM Payment p JOIN FETCH p.invoice WHERE p.id IN :paymentIds ORDER BY p.id DESC")
     List<Payment> findAllWithInvoiceByIdInOrderByIdDesc(List<Long> paymentIds);
-=======
->>>>>>> develop
 }

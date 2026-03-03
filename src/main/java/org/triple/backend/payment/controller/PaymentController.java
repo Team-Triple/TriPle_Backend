@@ -7,10 +7,7 @@ import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
-<<<<<<< feat/payment-read-api
 import org.triple.backend.payment.dto.response.PaymentCursorRes;
-=======
->>>>>>> develop
 import org.triple.backend.payment.service.PaymentService;
 
 @RestController
@@ -26,7 +23,6 @@ public class PaymentController {
                                    @PathVariable final Long invoiceId, @LoginUser Long userId) {
         return paymentService.create(paymentCreateReq, invoiceId, userId);
     }
-<<<<<<< feat/payment-read-api
 
     @LoginRequired
     @GetMapping
@@ -36,6 +32,4 @@ public class PaymentController {
                                    @LoginUser final Long userId) {
         return paymentService.search(keyword, cursor, size, userId);
     }
-=======
->>>>>>> develop
 }
