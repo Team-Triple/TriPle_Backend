@@ -21,6 +21,7 @@ import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
+import org.triple.backend.payment.dto.response.PaymentSearchRes;
 import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentMethod;
 import org.triple.backend.payment.entity.PaymentStatus;
@@ -29,7 +30,10 @@ import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.payment.service.PaymentService;
 import org.triple.backend.travel.entity.TravelItinerary;
+import org.triple.backend.travel.entity.UserRole;
+import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
+import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
@@ -71,6 +75,9 @@ class PaymentServiceTest {
 
     @Autowired
     private TravelItineraryJpaRepository travelItineraryJpaRepository;
+
+    @Autowired
+    private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
     @Test
     @DisplayName("CONFIRM 청구서의 결제 대상자는 결제 생성 요청을 할 수 있다.")
@@ -210,6 +217,84 @@ class PaymentServiceTest {
     }
 
     @Test
+    @DisplayName("여행 멤버는 invoiceId로 결제 목록을 조회할 수 있다.")
+    void travelMemberCanSearchPaymentsByInvoiceId() {
+        User viewer = saveUser("viewer-search-success");
+        User payer = saveUser("payer-search-success");
+        Group group = saveGroup("search-group");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "search-travel");
+        saveTravelMembership(viewer, travelItinerary, UserRole.MEMBER);
+        saveTravelMembership(payer, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, payer, travelItinerary, InvoiceStatus.CONFIRM, "search-invoice");
+
+        Payment oldPayment = paymentJpaRepository.save(
+                Payment.builder()
+                        .invoice(invoice)
+                        .user(payer)
+                        .pgProvider(PgProvider.TOSS)
+                        .method(PaymentMethod.TRANSFER)
+                        .orderId("order-old")
+                        .requestedAmount(new BigDecimal("1000"))
+                        .paymentStatus(PaymentStatus.READY)
+                        .requestedAt(LocalDateTime.of(2030, 3, 1, 9, 0))
+                        .build()
+        );
+        Payment latestPayment = paymentJpaRepository.save(
+                Payment.builder()
+                        .invoice(invoice)
+                        .user(payer)
+                        .pgProvider(PgProvider.TOSS)
+                        .method(PaymentMethod.TRANSFER)
+                        .orderId("order-latest")
+                        .requestedAmount(new BigDecimal("2000"))
+                        .paymentStatus(PaymentStatus.IN_PROGRESS)
+                        .requestedAt(LocalDateTime.of(2030, 3, 1, 10, 0))
+                        .build()
+        );
+
+        PaymentSearchRes response = paymentService.search(invoice.getId(), viewer.getId());
+
+        assertThat(response.invoiceId()).isEqualTo(invoice.getId());
+        assertThat(response.payments()).hasSize(2);
+        assertThat(response.payments().get(0).paymentId()).isEqualTo(latestPayment.getId());
+        assertThat(response.payments().get(0).orderId()).isEqualTo("order-latest");
+        assertThat(response.payments().get(0).requestedAmount()).isEqualByComparingTo("2000");
+        assertThat(response.payments().get(0).paymentStatus()).isEqualTo(PaymentStatus.IN_PROGRESS);
+        assertThat(response.payments().get(1).paymentId()).isEqualTo(oldPayment.getId());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 invoiceId로 결제 조회 시 NOT_FOUND_INVOICE 예외가 발생한다.")
+    void searchPaymentsWithUnknownInvoiceIdThrowsNotFoundInvoice() {
+        User viewer = saveUser("viewer-search-not-found");
+
+        assertThatThrownBy(() -> paymentService.search(999L, viewer.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_FOUND_INVOICE);
+                });
+    }
+
+    @Test
+    @DisplayName("여행 멤버가 아니면 결제 목록 조회 시 PAYMENT_SEARCH_NOT_ALLOWED 예외가 발생한다.")
+    void nonTravelMemberCannotSearchPayments() {
+        User member = saveUser("member-search");
+        User outsider = saveUser("outsider-search");
+        Group group = saveGroup("search-permission-group");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "search-permission-travel");
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(group, member, travelItinerary, InvoiceStatus.CONFIRM, "search-permission-invoice");
+
+        assertThatThrownBy(() -> paymentService.search(invoice.getId(), outsider.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(PaymentErrorCode.PAYMENT_SEARCH_NOT_ALLOWED);
+                });
+    }
+
+    @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DisplayName("동일 사용자의 동일 청구서 결제 생성 요청이 동시에 들어오면 하나만 성공한다.")
     void 동일_사용자의_동일_청구서_결제_생성_요청이_동시에_들어오면_하나만_성공한다() throws InterruptedException {
@@ -316,6 +401,14 @@ class PaymentServiceTest {
                         false
                 )
         );
+    }
+
+    private UserTravelItinerary saveTravelMembership(
+            final User user,
+            final TravelItinerary travelItinerary,
+            final UserRole userRole
+    ) {
+        return userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, userRole));
     }
 
     private Invoice saveInvoice(
