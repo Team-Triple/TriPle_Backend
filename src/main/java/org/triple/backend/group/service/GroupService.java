@@ -88,6 +88,10 @@ public class GroupService {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
         }
 
+        if (group.getCurrentMemberCount() != 1) {
+            throw new BusinessException(GroupErrorCode.CANNOT_DELETE_GROUP_WITH_MEMBERS);
+        }
+
         group.deleteGroup();
         groupJpaRepository.flush();
         joinApplyJpaRepository.bulkDeleteByGroupId(groupId);
