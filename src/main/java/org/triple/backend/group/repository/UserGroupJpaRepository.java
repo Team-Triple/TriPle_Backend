@@ -38,6 +38,7 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
         JOIN ug.group g ON ug.group.id = g.id
         WHERE ug.user.id = :userId 
             AND ug.joinStatus = :joinStatus
+            AND g.isDeleted = false
             AND g.id < :cursor
         ORDER BY g.id desc
     """)
@@ -48,6 +49,7 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
         JOIN ug.group g ON ug.group.id = g.id
         WHERE ug.user.id = :userId
             AND ug.joinStatus = :joinStatus
+            AND g.isDeleted = false
         ORDER BY g.id desc
     """)
     List<Group> findMyGroupsFirstPage(Long userId, JoinStatus joinStatus, Pageable pageable);
