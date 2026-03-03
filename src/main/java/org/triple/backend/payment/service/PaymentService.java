@@ -73,10 +73,11 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public PaymentCursorRes search(final String keyword, final Long cursor, final int size, final Long userId) {
         String normalizedKeyword = keyword == null ? "" : keyword.trim();
-        PagingSpec pagingSpec = createPagingSpec(size);
+        int pageSize = normalizePageSize(size);
+        Pageable pageable = PageRequest.of(0, pageSize + 1);
 
         if (normalizedKeyword.isBlank()) {
-            return browsePayment(cursor, pagingSpec, userId);
+            return browsePayment(cursor, userId, pageable, pageSize);
         }
 
         if (normalizedKeyword.length() > KEYWORD_MAX_LENGTH) {
@@ -87,18 +88,23 @@ public class PaymentService {
                 normalizedKeyword,
                 cursor,
                 userId,
-                pagingSpec.pageable()
+                pageable
         );
 
-        return toCursorResponse(rows, pagingSpec.pageSize());
+        return toCursorResponse(rows, pageSize);
     }
 
-    private PaymentCursorRes browsePayment(final Long cursor, final PagingSpec pagingSpec, final Long userId) {
+    private PaymentCursorRes browsePayment(
+            final Long cursor,
+            final Long userId,
+            final Pageable pageable,
+            final int pageSize
+    ) {
         List<Payment> rows = (cursor == null)
-                ? paymentJpaRepository.findFirstPage(userId, pagingSpec.pageable())
-                : paymentJpaRepository.findNextPage(userId, cursor, pagingSpec.pageable());
+                ? paymentJpaRepository.findFirstPage(userId, pageable)
+                : paymentJpaRepository.findNextPage(userId, cursor, pageable);
 
-        return toCursorResponse(rows, pagingSpec.pageSize());
+        return toCursorResponse(rows, pageSize);
     }
 
     private int normalizePageSize(int size) {
@@ -149,12 +155,6 @@ public class PaymentService {
         return UUID.randomUUID().toString();
     }
 
-    private PagingSpec createPagingSpec(final int size) {
-        int pageSize = normalizePageSize(size);
-        Pageable pageable = PageRequest.of(0, pageSize + 1);
-        return new PagingSpec(pageSize, pageable);
-    }
-
     private PaymentCursorRes toCursorResponse(List<Payment> rows, int pageSize) {
         boolean hasNext = rows.size() > pageSize;
         if (hasNext) {
@@ -163,8 +163,5 @@ public class PaymentService {
 
         Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
         return PaymentCursorRes.from(rows, nextCursor, hasNext);
-    }
-
-    private record PagingSpec(int pageSize, Pageable pageable) {
     }
 }
