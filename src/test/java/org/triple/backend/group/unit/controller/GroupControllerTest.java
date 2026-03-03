@@ -769,6 +769,32 @@ public class GroupControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("그룹에 다른 멤버가 남아있으면 그룹 삭제 요청 시 409를 반환한다.")
+    void 그룹에_다른_멤버가_남아있으면_그룹_삭제_요청_시_409를_반환한다() throws Exception {
+        Long groupId = 1L;
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.CANNOT_DELETE_GROUP_WITH_MEMBERS))
+                .when(groupService).delete(groupId, 1L);
+
+        mockMvc.perform(delete("/groups/{groupId}", groupId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("그룹에 다른 멤버가 있어 삭제할 수 없습니다."))
+                .andDo(document("groups/delete-fail-cannot-delete-with-members",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("삭제할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, times(1)).delete(groupId, 1L);
+    }
+
+    @Test
     @DisplayName("그룹을 수정하면 수정된 그룹 정보를 반환한다.")
     void 그룹을_수정하면_수정된_그룹_정보를_반환한다() throws Exception {
         // given

@@ -692,6 +692,46 @@ public class GroupIntegrationTest {
     }
 
     @Test
+    @DisplayName("그룹에 다른 JOINED 멤버가 남아있으면 그룹 삭제 요청 시 409를 반환한다")
+    void 그룹에_다른_JOINED_멤버가_남아있으면_그룹_삭제_요청_시_409를_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-delete-blocked")
+                        .nickname("상윤")
+                        .email("owner-delete-blocked@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-delete-blocked")
+                        .nickname("민규")
+                        .email("member-delete-blocked@test.com")
+                        .profileUrl("http://img2")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(delete("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("그룹에 다른 멤버가 있어 삭제할 수 없습니다."));
+
+        Group notDeleted = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+        assertThat(notDeleted.isDeleted()).isFalse();
+    }
+
+    @Test
     @DisplayName("로그인한 멤버는 그룹을 탈퇴할 수 있다")
     void 로그인한_멤버는_그룹을_탈퇴할_수_있다() throws Exception {
         // given
