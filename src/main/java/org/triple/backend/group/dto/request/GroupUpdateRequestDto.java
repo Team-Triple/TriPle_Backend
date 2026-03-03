@@ -17,7 +17,6 @@ public record GroupUpdateRequestDto(
         @NotBlank(message = "그룹 설명은 필수입니다.")
         String description,
 
-        @NotBlank(message = "썸네일 URL은 필수입니다.")
         String thumbNailUrl,
 
         @Min(value = 1, message = "최대 인원은 1명 이상이어야 합니다.")

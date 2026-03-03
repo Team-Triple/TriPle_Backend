@@ -570,6 +570,42 @@ public class GroupServiceTest {
     }
 
     @Test
+    @DisplayName("그룹에 JOINED 멤버가 owner 외에 존재하면 그룹 삭제 시 CANNOT_DELETE_GROUP_WITH_MEMBERS 예외가 발생한다")
+    void 그룹에_JOINED_멤버가_owner_외에_존재하면_그룹_삭제_시_CANNOT_DELETE_GROUP_WITH_MEMBERS_예외가_발생한다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-delete-limit")
+                .nickname("상윤")
+                .email("owner-delete-limit@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User member = userJpaRepository.save(User.builder()
+                .providerId("kakao-member-delete-limit")
+                .nickname("민규")
+                .email("member-delete-limit@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.save(group);
+
+        // when & then
+        assertThatThrownBy(() -> groupService.delete(savedGroup.getId(), owner.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(GroupErrorCode.CANNOT_DELETE_GROUP_WITH_MEMBERS);
+                });
+
+        Group notDeleted = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+        assertThat(notDeleted.isDeleted()).isFalse();
+    }
+
+    @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DisplayName("동일한 그룹 삭제 요청이 동시에 들어오면 하나만 성공하고 나머지는 GROUP_NOT_FOUND가 발생한다")
     void 동일한_그룹_삭제_요청이_동시에_들어오면_하나만_성공하고_나머지는_GROUP_NOT_FOUND가_발생한다() throws InterruptedException {
