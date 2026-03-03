@@ -18,7 +18,6 @@ public record CreateGroupRequestDto(
         @NotNull(message = "그룹 종류는 필수입니다.")
         GroupKind groupKind,
 
-        @NotBlank(message = "썸네일 URL은 필수입니다.")
         String thumbNailUrl
 ) {
 }
