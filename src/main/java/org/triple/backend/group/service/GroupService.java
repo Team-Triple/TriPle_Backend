@@ -81,24 +81,24 @@ public class GroupService {
     @Transactional
     public void delete(final Long groupId, final Long userId) {
 
-       groupJpaRepository.findByIdForUpdate(groupId)
+        Group group = groupJpaRepository.findByIdForUpdate(groupId)
                 .orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
         if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRoleAndJoinStatus(groupId, userId, Role.OWNER, JoinStatus.JOINED)) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
         }
 
+        group.deleteGroup();
+        groupJpaRepository.flush();
         joinApplyJpaRepository.bulkDeleteByGroupId(groupId);
         userGroupJpaRepository.bulkDeleteByGroupId(groupId);
-
-        groupJpaRepository.deleteById(groupId);
     }
 
     @Transactional
     public GroupUpdateResponseDto update(final GroupUpdateRequestDto dto, final Long groupId, final Long userId) {
 
         try {
-            Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+            Group group = groupJpaRepository.findByIdAndIsDeletedFalse(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
             if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRoleAndJoinStatus(groupId, userId, Role.OWNER, JoinStatus.JOINED)) {
                 throw new BusinessException(GroupErrorCode.NOT_GROUP_OWNER);
@@ -124,7 +124,7 @@ public class GroupService {
     @Transactional(readOnly = true)
     public GroupDetailResponseDto detail(final Long groupId, final Long userId) {
 
-        Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+        Group group = groupJpaRepository.findByIdAndIsDeletedFalse(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
         UserGroup myUserGroup = userGroupJpaRepository.findByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)
                 .orElse(null);
@@ -354,7 +354,7 @@ public class GroupService {
 
     @Transactional(readOnly = true)
     public GroupMenuResponseDto menu(final Long userId, final Long groupId) {
-        Group group = groupJpaRepository.findById(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+        Group group = groupJpaRepository.findByIdAndIsDeletedFalse(groupId).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
         UserGroup userGroup = null;
 
         if (userId != null) {
