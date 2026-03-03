@@ -16,10 +16,13 @@ import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.payment.controller.PaymentController;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
+import org.triple.backend.payment.dto.response.PaymentSearchRes;
 import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.service.PaymentService;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -38,6 +41,7 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
@@ -241,6 +245,104 @@ class PaymentControllerTest extends ControllerTest {
         );
     }
 
+    @Test
+    @DisplayName("로그인한 사용자는 invoiceId로 결제 내역을 조회할 수 있다.")
+    void loginUserCanSearchPaymentsByInvoiceId() throws Exception {
+        PaymentSearchRes response = new PaymentSearchRes(
+                1L,
+                List.of(
+                        new PaymentSearchRes.PaymentDetail(
+                                1L,
+                                "payer-one",
+                                "order-2",
+                                new BigDecimal("4000"),
+                                org.triple.backend.payment.entity.PaymentStatus.IN_PROGRESS,
+                                LocalDateTime.of(2030, 3, 1, 10, 30)
+                        ),
+                        new PaymentSearchRes.PaymentDetail(
+                                2L,
+                                "payer-two",
+                                "order-1",
+                                new BigDecimal("3000"),
+                                org.triple.backend.payment.entity.PaymentStatus.READY,
+                                LocalDateTime.of(2030, 3, 1, 9, 30)
+                        )
+                )
+        );
+        given(paymentService.search(eq(1L), eq(1L))).willReturn(response);
+
+        mockMvc.perform(get("/payments/{invoiceId}", 1L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invoiceId").value(1L))
+                .andExpect(jsonPath("$.payments.length()").value(2))
+                .andExpect(jsonPath("$.payments[0].userId").value(1L))
+                .andExpect(jsonPath("$.payments[0].userNickname").value("payer-one"))
+                .andExpect(jsonPath("$.payments[0].orderId").value("order-2"))
+                .andExpect(jsonPath("$.payments[0].requestedAmount").value(4000))
+                .andExpect(jsonPath("$.payments[0].paymentStatus").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.payments[0].requestedAt").value("2030-03-01T10:30:00"))
+                .andDo(document("payments/search",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("조회 대상 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("invoiceId").description("청구서 ID"),
+                                fieldWithPath("payments").description("결제 목록"),
+                                fieldWithPath("payments[].userId").description("결제 요청 사용자 ID"),
+                                fieldWithPath("payments[].userNickname").description("결제 요청 사용자 닉네임"),
+                                fieldWithPath("payments[].orderId").description("주문 ID"),
+                                fieldWithPath("payments[].requestedAmount").description("요청 결제 금액"),
+                                fieldWithPath("payments[].paymentStatus").description("결제 상태"),
+                                fieldWithPath("payments[].requestedAt").description("결제 요청 시각")
+                        )
+                ));
+
+        verify(paymentService, times(1)).search(1L, 1L);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 결제 조회를 요청하면 401을 반환한다.")
+    void searchPaymentsWithoutLoginReturns401() throws Exception {
+        mockMvc.perform(get("/payments/{invoiceId}", 1L))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("payments/search-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("조회 대상 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(paymentService, never()).search(any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("조회 권한이 없는 사용자가 결제 조회를 요청하면 403을 반환한다.")
+    void searchPaymentsWithoutPermissionReturns403() throws Exception {
+        assertSearchBusinessFailure(
+                PaymentErrorCode.PAYMENT_SEARCH_NOT_ALLOWED,
+                status().isForbidden(),
+                "payments/search-fail-payment-search-not-allowed"
+        );
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 invoiceId로 결제 조회를 요청하면 404를 반환한다.")
+    void searchPaymentsWithUnknownInvoiceIdReturns404() throws Exception {
+        assertSearchBusinessFailure(
+                InvoiceErrorCode.NOT_FOUND_INVOICE,
+                status().isNotFound(),
+                "payments/search-fail-not-found-invoice"
+        );
+    }
+
     private void assertBusinessFailure(
             final ErrorCode errorCode,
             final ResultMatcher statusMatcher,
@@ -272,6 +374,32 @@ class PaymentControllerTest extends ControllerTest {
                 ));
 
         verify(paymentService, times(1)).create(any(PaymentCreateReq.class), eq(1L), eq(1L));
+    }
+
+    private void assertSearchBusinessFailure(
+            final ErrorCode errorCode,
+            final ResultMatcher statusMatcher,
+            final String snippetId
+    ) throws Exception {
+        given(paymentService.search(eq(1L), eq(1L)))
+                .willThrow(new BusinessException(errorCode));
+
+        mockMvc.perform(get("/payments/{invoiceId}", 1L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(statusMatcher)
+                .andExpect(jsonPath("$.message").value(errorCode.getMessage()))
+                .andDo(document(snippetId,
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("조회 대상 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(paymentService, times(1)).search(eq(1L), eq(1L));
     }
 
     private String validBody() {
