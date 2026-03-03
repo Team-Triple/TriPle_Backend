@@ -33,7 +33,7 @@ public record PaymentCursorRes(
         List<PaymentSummaryDto> res = payments.stream().map(r -> new PaymentSummaryDto(
                 r.getId(),
                 r.getInvoice().getId(),
-                r.getName(),
+                r.getInvoice().getTitle(),
                 r.getPgProvider(),
                 r.getMethod(),
                 r.getPaymentStatus(),
