@@ -68,7 +68,7 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public PaymentSearchRes search(final Long invoiceId, final Long userId) {
-        Invoice invoice = invoiceJpaRepository.findById(invoiceId)
+        Invoice invoice = invoiceJpaRepository.findByIdWithTravelItinerary(invoiceId)
                 .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
 
         if (!userTravelItineraryJpaRepository.existsByUserIdAndTravelItineraryId(userId, invoice.getTravelItinerary().getId())) {

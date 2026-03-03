@@ -35,4 +35,12 @@ public interface InvoiceJpaRepository extends JpaRepository<Invoice, Long> {
             Long travelItineraryId,
             InvoiceStatus invoiceStatus
     );
+
+    @Query("""
+           SELECT i
+           FROM Invoice i
+           JOIN FETCH i.travelItinerary
+           WHERE i.id = :invoiceId
+           """)
+    Optional<Invoice> findByIdWithTravelItinerary(Long invoiceId);
 }
