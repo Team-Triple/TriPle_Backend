@@ -3,6 +3,7 @@ package org.triple.backend.payment.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.invoice.entity.Invoice;
@@ -12,6 +13,7 @@ import org.triple.backend.user.entity.User;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Getter
 @Entity
 @Builder
 @AllArgsConstructor
@@ -74,8 +76,8 @@ public class Payment extends BaseEntity {
     public static Payment create(
             final Invoice invoice,
             final User user,
-            final PgProvider pgProvider,
             final String name,
+            final PgProvider pgProvider,
             final PaymentMethod method,
             final String orderId,
             final BigDecimal requestedAmount
@@ -90,8 +92,8 @@ public class Payment extends BaseEntity {
         return Payment.builder()
                 .invoice(invoice)
                 .user(user)
-                .pgProvider(pgProvider)
                 .name(name)
+                .pgProvider(pgProvider)
                 .method(method)
                 .orderId(orderId)
                 .requestedAmount(requestedAmount)
