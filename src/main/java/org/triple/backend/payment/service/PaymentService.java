@@ -2,6 +2,8 @@ package org.triple.backend.payment.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
@@ -13,6 +15,7 @@ import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
+import org.triple.backend.payment.dto.response.PaymentCursorRes;
 import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentMethod;
 import org.triple.backend.payment.entity.PaymentStatus;
@@ -21,6 +24,7 @@ import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +33,9 @@ import java.util.UUID;
 public class PaymentService {
 
     private static final List<PaymentStatus> ACTIVE_STATUSES = List.of(PaymentStatus.READY, PaymentStatus.IN_PROGRESS);
+    private static final int MIN_PAGE_SIZE = 1;
+    private static final int MAX_PAGE_SIZE = 10;
+    private static final int KEYWORD_MAX_LENGTH = 20;
 
     private final PaymentJpaRepository paymentJpaRepository;
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
@@ -37,9 +44,11 @@ public class PaymentService {
     @Transactional(timeout = 3)
     public PaymentCreateRes create(final PaymentCreateReq dto, final Long invoiceId, final Long userId) {
 
-        Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+        Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId)
+                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
 
-        InvoiceUser invoiceUser = invoiceUserJpaRepository.findByUserIdAndInvoiceIdAndInvoiceStatusForUpdate(userId, invoiceId, InvoiceStatus.CONFIRM)
+        InvoiceUser invoiceUser = invoiceUserJpaRepository
+                .findByUserIdAndInvoiceIdAndInvoiceStatusForUpdate(userId, invoiceId, InvoiceStatus.CONFIRM)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_ALLOWED));
 
         validatePaymentAmountOrThrow(dto.amount(), invoiceUser.getRemainAmount());
@@ -49,8 +58,8 @@ public class PaymentService {
         Payment payment = Payment.create(
                 invoice,
                 invoiceUser.getUser(),
-                PgProvider.TOSS,
                 dto.name(),
+                PgProvider.TOSS,
                 PaymentMethod.TRANSFER,
                 orderId,
                 dto.amount()
@@ -62,6 +71,70 @@ public class PaymentService {
         }
 
         return new PaymentCreateRes(orderId, dto.name(), dto.amount());
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentCursorRes search(final String keyword, final Long cursor, final int size) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+
+        if (normalizedKeyword.isBlank()) {
+            return browsePayment(cursor, size);
+        }
+
+        if (normalizedKeyword.length() > KEYWORD_MAX_LENGTH) {
+            throw new BusinessException(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
+        }
+
+        int pageSize = normalizePageSize(size);
+        Pageable pageable = PageRequest.of(0, pageSize + 1);
+
+        List<Payment> rows = cursor == null
+                ? findFirstPageByKeyword(normalizedKeyword, pageable)
+                : findNextPageByKeyword(normalizedKeyword, cursor, pageable);
+
+        return toCursorResponse(rows, pageSize);
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentCursorRes browsePayment(final Long cursor, final int size) {
+        int pageSize = normalizePageSize(size);
+        Pageable pageable = PageRequest.of(0, pageSize + 1);
+
+        List<Payment> rows = (cursor == null)
+                ? paymentJpaRepository.findFirstPage(pageable)
+                : paymentJpaRepository.findNextPage(cursor, pageable);
+
+        return toCursorResponse(rows, pageSize);
+    }
+
+    private int normalizePageSize(int size) {
+        return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+    }
+
+    private List<Payment> findFirstPageByKeyword(String keyword, Pageable pageable) {
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        return paymentJpaRepository.findFirstPageByKeywordFullText(booleanQuery, pageable);
+    }
+
+    private List<Payment> findNextPageByKeyword(String keyword, Long cursor, Pageable pageable) {
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        return paymentJpaRepository.findNextPageByKeywordFullText(booleanQuery, cursor, pageable);
+    }
+
+    private String toBooleanModeQuery(String keyword) {
+        return Arrays.stream(keyword.trim().split("[^\\p{L}\\p{N}]+"))
+                .filter(token -> !token.isBlank())
+                .map(token -> "+" + token + "*")
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
     }
 
     private void validateNoActivePaymentOrThrow(final Long invoiceId, final Long userId) {
@@ -82,5 +155,15 @@ public class PaymentService {
 
     private String getOrderId() {
         return UUID.randomUUID().toString();
+    }
+
+    private PaymentCursorRes toCursorResponse(List<Payment> rows, int pageSize) {
+        boolean hasNext = rows.size() > pageSize;
+        if (hasNext) {
+            rows = rows.subList(0, pageSize);
+        }
+
+        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
+        return PaymentCursorRes.from(rows, nextCursor, hasNext);
     }
 }
