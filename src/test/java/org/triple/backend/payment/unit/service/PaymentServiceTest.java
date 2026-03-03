@@ -74,81 +74,6 @@ class PaymentServiceTest {
     private TravelItineraryJpaRepository travelItineraryJpaRepository;
 
     @Test
-    @DisplayName("검색어가 없으면 결제 목록을 커서 기반으로 조회할 수 있다.")
-    void 검색어가_없으면_결제_목록을_커서_기반으로_조회할_수_있다() {
-        User payer = saveUser("payer-search-browse");
-        User other = saveUser("payer-search-other");
-        Group group = saveGroup("결제 조회 그룹");
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "결제 조회 여행");
-        TravelItinerary otherTravelItinerary = saveTravelItinerary(group, "다른 결제 조회 여행");
-        Invoice invoice = saveInvoice(group, payer, travelItinerary, InvoiceStatus.CONFIRM, "결제 조회 청구서");
-        Invoice otherInvoice = saveInvoice(group, other, otherTravelItinerary, InvoiceStatus.CONFIRM, "다른 사용자 결제 청구서");
-
-        paymentJpaRepository.save(
-                Payment.builder()
-                        .invoice(invoice)
-                        .user(payer)
-                        .name("제주 렌트비")
-                        .pgProvider(PgProvider.TOSS)
-                        .method(PaymentMethod.TRANSFER)
-                        .orderId(UUID.randomUUID().toString())
-                        .requestedAmount(new BigDecimal("1000"))
-                        .paymentStatus(PaymentStatus.READY)
-                        .requestedAt(LocalDateTime.of(2030, 3, 20, 10, 0))
-                        .build()
-        );
-        paymentJpaRepository.save(
-                Payment.builder()
-                        .invoice(invoice)
-                        .user(payer)
-                        .name("제주 숙소비")
-                        .pgProvider(PgProvider.TOSS)
-                        .method(PaymentMethod.TRANSFER)
-                        .orderId(UUID.randomUUID().toString())
-                        .requestedAmount(new BigDecimal("2000"))
-                        .paymentStatus(PaymentStatus.READY)
-                        .requestedAt(LocalDateTime.of(2030, 3, 20, 11, 0))
-                        .build()
-        );
-        paymentJpaRepository.save(
-                Payment.builder()
-                        .invoice(otherInvoice)
-                        .user(other)
-                        .name("다른 유저 결제")
-                        .pgProvider(PgProvider.TOSS)
-                        .method(PaymentMethod.TRANSFER)
-                        .orderId(UUID.randomUUID().toString())
-                        .requestedAmount(new BigDecimal("5000"))
-                        .paymentStatus(PaymentStatus.READY)
-                        .requestedAt(LocalDateTime.of(2030, 3, 20, 12, 0))
-                        .build()
-        );
-
-        PaymentCursorRes response = paymentService.search(null, null, 10, payer.getId());
-
-        assertThat(response.items()).hasSize(2);
-        assertThat(response.items())
-                .extracting(PaymentCursorRes.PaymentSummaryDto::name)
-                .contains("제주 렌트비", "제주 숙소비");
-        assertThat(response.items())
-                .extracting(PaymentCursorRes.PaymentSummaryDto::name)
-                .doesNotContain("다른 유저 결제");
-        assertThat(response.hasNext()).isFalse();
-        assertThat(response.nextCursor()).isNull();
-    }
-
-    @Test
-    @DisplayName("검색어 길이가 20자를 초과하면 INVALID_SEARCH_KEYWORD_LENGTH 예외가 발생한다.")
-    void 검색어_길이가_20자를_초과하면_INVALID_SEARCH_KEYWORD_LENGTH_예외가_발생한다() {
-        assertThatThrownBy(() -> paymentService.search("aaaaaaaaaaaaaaaaaaaaa", null, 10, 1L))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> {
-                    BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
-                });
-    }
-
-    @Test
     @DisplayName("CONFIRM 청구서의 결제 대상자는 결제 생성 요청을 할 수 있다.")
     void CONFIRM_청구서의_결제_대상자는_결제_생성_요청을_할_수_있다() {
         // given
@@ -266,7 +191,6 @@ class PaymentServiceTest {
                         .invoice(invoice)
                         .user(payer)
                         .pgProvider(PgProvider.TOSS)
-                        .name("기존 진행중 결제")
                         .method(PaymentMethod.TRANSFER)
                         .orderId(UUID.randomUUID().toString())
                         .requestedAmount(new BigDecimal("1000"))

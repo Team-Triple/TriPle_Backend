@@ -44,11 +44,9 @@ public class PaymentService {
     @Transactional(timeout = 3)
     public PaymentCreateRes create(final PaymentCreateReq dto, final Long invoiceId, final Long userId) {
 
-        Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId)
-                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+        Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
 
-        InvoiceUser invoiceUser = invoiceUserJpaRepository
-                .findByUserIdAndInvoiceIdAndInvoiceStatusForUpdate(userId, invoiceId, InvoiceStatus.CONFIRM)
+        InvoiceUser invoiceUser = invoiceUserJpaRepository.findByUserIdAndInvoiceIdAndInvoiceStatusForUpdate(userId, invoiceId, InvoiceStatus.CONFIRM)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_ALLOWED));
 
         validatePaymentAmountOrThrow(dto.amount(), invoiceUser.getRemainAmount());
@@ -58,7 +56,6 @@ public class PaymentService {
         Payment payment = Payment.create(
                 invoice,
                 invoiceUser.getUser(),
-                dto.name(),
                 PgProvider.TOSS,
                 PaymentMethod.TRANSFER,
                 orderId,

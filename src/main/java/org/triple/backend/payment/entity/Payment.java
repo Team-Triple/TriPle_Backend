@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
@@ -13,7 +16,6 @@ import org.triple.backend.user.entity.User;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Getter
 @Entity
 @Builder
 @AllArgsConstructor
@@ -45,8 +47,6 @@ public class Payment extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
-    private String name;
-
     @Enumerated(EnumType.STRING)
     private PaymentMethod method;
 
@@ -76,7 +76,6 @@ public class Payment extends BaseEntity {
     public static Payment create(
             final Invoice invoice,
             final User user,
-            final String name,
             final PgProvider pgProvider,
             final PaymentMethod method,
             final String orderId,
@@ -92,7 +91,6 @@ public class Payment extends BaseEntity {
         return Payment.builder()
                 .invoice(invoice)
                 .user(user)
-                .name(name)
                 .pgProvider(pgProvider)
                 .method(method)
                 .orderId(orderId)
