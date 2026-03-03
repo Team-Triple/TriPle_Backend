@@ -14,6 +14,7 @@ import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.entity.InvoiceUser;
+import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.payment.entity.Payment;
@@ -22,7 +23,10 @@ import org.triple.backend.payment.entity.PaymentStatus;
 import org.triple.backend.payment.entity.PgProvider;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.travel.entity.TravelItinerary;
+import org.triple.backend.travel.entity.UserRole;
+import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
+import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
@@ -58,6 +62,9 @@ class PaymentIntegrationTest {
 
     @Autowired
     private TravelItineraryJpaRepository travelItineraryJpaRepository;
+
+    @Autowired
+    private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
     @Autowired
     private InvoiceJpaRepository invoiceJpaRepository;
@@ -414,6 +421,14 @@ class PaymentIntegrationTest {
                         10
                 )
         );
+    }
+
+    private UserTravelItinerary saveTravelMembership(
+            final User user,
+            final TravelItinerary travelItinerary,
+            final UserRole userRole
+    ) {
+        return userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, userRole));
     }
 
     private TravelItinerary saveTravelItinerary(final Group group, final String title) {

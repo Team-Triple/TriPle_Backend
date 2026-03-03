@@ -22,6 +22,7 @@ import org.triple.backend.payment.entity.PaymentStatus;
 import org.triple.backend.payment.entity.PgProvider;
 import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
+import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -40,6 +41,7 @@ public class PaymentService {
     private final PaymentJpaRepository paymentJpaRepository;
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
     private final InvoiceJpaRepository invoiceJpaRepository;
+    private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
     @Transactional(timeout = 3)
     public PaymentCreateRes create(final PaymentCreateReq dto, final Long invoiceId, final Long userId) {
@@ -133,6 +135,19 @@ public class PaymentService {
                 .map(token -> "+" + token + "*")
                 .reduce((left, right) -> left + " " + right)
                 .orElse("");
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentSearchRes search(final Long invoiceId, final Long userId) {
+        Invoice invoice = invoiceJpaRepository.findByIdWithTravelItinerary(invoiceId)
+                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
+
+        if (!userTravelItineraryJpaRepository.existsByUserIdAndTravelItineraryId(userId, invoice.getTravelItinerary().getId())) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_SEARCH_NOT_ALLOWED);
+        }
+
+        List<Payment> payments = paymentJpaRepository.findAllByInvoiceIdWithUser(invoiceId);
+        return PaymentSearchRes.from(invoiceId, payments);
     }
 
     private void validateNoActivePaymentOrThrow(final Long invoiceId, final Long userId) {

@@ -48,6 +48,7 @@ import static org.springframework.restdocs.request.RequestDocumentation.pathPara
 import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
@@ -403,6 +404,32 @@ class PaymentControllerTest extends ControllerTest {
                 ));
 
         verify(paymentService, times(1)).create(any(PaymentCreateReq.class), eq(1L), eq(1L));
+    }
+
+    private void assertSearchBusinessFailure(
+            final ErrorCode errorCode,
+            final ResultMatcher statusMatcher,
+            final String snippetId
+    ) throws Exception {
+        given(paymentService.search(eq(1L), eq(1L)))
+                .willThrow(new BusinessException(errorCode));
+
+        mockMvc.perform(get("/payments/{invoiceId}", 1L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(statusMatcher)
+                .andExpect(jsonPath("$.message").value(errorCode.getMessage()))
+                .andDo(document(snippetId,
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("invoiceId").description("조회 대상 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(paymentService, times(1)).search(eq(1L), eq(1L));
     }
 
     private String validBody() {
