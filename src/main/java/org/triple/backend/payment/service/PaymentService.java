@@ -50,7 +50,6 @@ public class PaymentService {
                 invoice,
                 invoiceUser.getUser(),
                 PgProvider.TOSS,
-                dto.name(),
                 PaymentMethod.TRANSFER,
                 orderId,
                 dto.amount()
