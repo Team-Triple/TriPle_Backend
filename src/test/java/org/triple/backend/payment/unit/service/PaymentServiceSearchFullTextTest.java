@@ -73,7 +73,8 @@ class PaymentServiceSearchFullTextTest {
         assertThat(response.hasNext()).isFalse();
         assertThat(response.nextCursor()).isNull();
         verify(paymentJpaRepository).findFirstPage(eq(USER_ID), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findFirstPageIdsByKeywordFullText(any(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findAllWithInvoiceByIdInOrderByIdDesc(any());
     }
 
     @Test
@@ -92,7 +93,8 @@ class PaymentServiceSearchFullTextTest {
         assertThat(response.hasNext()).isTrue();
         assertThat(response.nextCursor()).isEqualTo(48L);
         verify(paymentJpaRepository).findNextPage(eq(USER_ID), eq(50L), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findNextPageIdsByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findAllWithInvoiceByIdInOrderByIdDesc(any());
     }
 
     @Test
@@ -101,7 +103,9 @@ class PaymentServiceSearchFullTextTest {
         Payment p1 = newPayment(30L, 100L, "제주 렌트비");
         Payment p2 = newPayment(29L, 101L, "제주 숙소비");
 
-        when(paymentJpaRepository.findFirstPageByKeywordFullText(eq("+제주* +결제*"), eq(USER_ID), any(Pageable.class)))
+        when(paymentJpaRepository.findFirstPageIdsByKeywordFullText(eq("+제주* +결제*"), eq(USER_ID), any(Pageable.class)))
+                .thenReturn(List.of(30L, 29L));
+        when(paymentJpaRepository.findAllWithInvoiceByIdInOrderByIdDesc(eq(List.of(30L, 29L))))
                 .thenReturn(List.of(p1, p2));
 
         PaymentCursorRes response = paymentService.search(" 제주!! 결제? ", null, 10, USER_ID);
@@ -119,7 +123,9 @@ class PaymentServiceSearchFullTextTest {
     void FULLTEXT_검색은_구두점을_단어_경계로_처리해_boolean_mode_쿼리로_변환한다() {
         Payment p1 = newPayment(31L, 102L, "jeju-transfer plan");
 
-        when(paymentJpaRepository.findFirstPageByKeywordFullText(eq("+jeju* +transfer* +plan*"), eq(USER_ID), any(Pageable.class)))
+        when(paymentJpaRepository.findFirstPageIdsByKeywordFullText(eq("+jeju* +transfer* +plan*"), eq(USER_ID), any(Pageable.class)))
+                .thenReturn(List.of(31L));
+        when(paymentJpaRepository.findAllWithInvoiceByIdInOrderByIdDesc(eq(List.of(31L))))
                 .thenReturn(List.of(p1));
 
         PaymentCursorRes response = paymentService.search("jeju-transfer, plan", null, 10, USER_ID);
@@ -135,7 +141,9 @@ class PaymentServiceSearchFullTextTest {
         Payment p2 = newPayment(48L, 121L, "결제48");
         Payment p3 = newPayment(47L, 122L, "결제47");
 
-        when(paymentJpaRepository.findNextPageByKeywordFullText(eq("+제주* +결제*"), eq(50L), eq(USER_ID), any(Pageable.class)))
+        when(paymentJpaRepository.findNextPageIdsByKeywordFullText(eq("+제주* +결제*"), eq(50L), eq(USER_ID), any(Pageable.class)))
+                .thenReturn(List.of(49L, 48L, 47L));
+        when(paymentJpaRepository.findAllWithInvoiceByIdInOrderByIdDesc(eq(List.of(49L, 48L, 47L))))
                 .thenReturn(List.of(p1, p2, p3));
 
         PaymentCursorRes response = paymentService.search("제주 결제", 50L, 2, USER_ID);
@@ -145,7 +153,7 @@ class PaymentServiceSearchFullTextTest {
         assertThat(response.nextCursor()).isEqualTo(48L);
 
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(paymentJpaRepository).findNextPageByKeywordFullText(eq("+제주* +결제*"), eq(50L), eq(USER_ID), pageableCaptor.capture());
+        verify(paymentJpaRepository).findNextPageIdsByKeywordFullText(eq("+제주* +결제*"), eq(50L), eq(USER_ID), pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(3);
     }
 
@@ -158,8 +166,9 @@ class PaymentServiceSearchFullTextTest {
         assertThat(response.hasNext()).isFalse();
         assertThat(response.nextCursor()).isNull();
 
-        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), anyLong(), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findFirstPageIdsByKeywordFullText(any(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findNextPageIdsByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findAllWithInvoiceByIdInOrderByIdDesc(any());
     }
 
     @Test
@@ -172,17 +181,18 @@ class PaymentServiceSearchFullTextTest {
                     assertThat(be.getErrorCode()).isEqualTo(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
                 });
 
-        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), anyLong(), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findFirstPageIdsByKeywordFullText(any(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findNextPageIdsByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findAllWithInvoiceByIdInOrderByIdDesc(any());
     }
 
     private Payment newPayment(Long paymentId, Long invoiceId, String name) {
         Invoice invoice = mock(Invoice.class);
         lenient().when(invoice.getId()).thenReturn(invoiceId);
+        lenient().when(invoice.getTitle()).thenReturn(name);
 
         Payment payment = Payment.builder()
                 .invoice(invoice)
-                .name(name)
                 .pgProvider(PgProvider.TOSS)
                 .method(PaymentMethod.TRANSFER)
                 .paymentStatus(PaymentStatus.READY)
