@@ -276,7 +276,6 @@ class PaymentControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.invoiceId").value(1L))
                 .andExpect(jsonPath("$.payments.length()").value(2))
-                .andExpect(jsonPath("$.payments[0].paymentId").value(2L))
                 .andExpect(jsonPath("$.payments[0].userId").value(1L))
                 .andExpect(jsonPath("$.payments[0].userNickname").value("payer-one"))
                 .andExpect(jsonPath("$.payments[0].orderId").value("order-2"))
@@ -292,7 +291,6 @@ class PaymentControllerTest extends ControllerTest {
                         responseFields(
                                 fieldWithPath("invoiceId").description("청구서 ID"),
                                 fieldWithPath("payments").description("결제 목록"),
-                                fieldWithPath("payments[].paymentId").description("결제 ID"),
                                 fieldWithPath("payments[].userId").description("결제 요청 사용자 ID"),
                                 fieldWithPath("payments[].userNickname").description("결제 요청 사용자 닉네임"),
                                 fieldWithPath("payments[].orderId").description("주문 ID"),

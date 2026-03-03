@@ -256,11 +256,9 @@ class PaymentServiceTest {
 
         assertThat(response.invoiceId()).isEqualTo(invoice.getId());
         assertThat(response.payments()).hasSize(2);
-        assertThat(response.payments().get(0).paymentId()).isEqualTo(latestPayment.getId());
         assertThat(response.payments().get(0).orderId()).isEqualTo("order-latest");
         assertThat(response.payments().get(0).requestedAmount()).isEqualByComparingTo("2000");
         assertThat(response.payments().get(0).paymentStatus()).isEqualTo(PaymentStatus.IN_PROGRESS);
-        assertThat(response.payments().get(1).paymentId()).isEqualTo(oldPayment.getId());
     }
 
     @Test
