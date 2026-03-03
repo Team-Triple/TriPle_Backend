@@ -122,8 +122,8 @@ public class GroupJpaRepositoryTest {
     }
 
     @Test
-    @DisplayName("그룹 삭제 시 Group 엔티티가 삭제된다")
-    void 그룹_삭제_시_Group_엔티티가_삭제된다() {
+    @DisplayName("soft delete된 그룹은 활성 조회에서 제외된다")
+    void soft_delete된_그룹은_활성_조회에서_제외된다() {
         // given
         Group group = groupJpaRepository.saveAndFlush(
                 Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10)
@@ -131,11 +131,12 @@ public class GroupJpaRepositoryTest {
         Long groupId = group.getId();
 
         // when
-        groupJpaRepository.deleteById(groupId);
+        group.deleteGroup();
         groupJpaRepository.flush();
 
         // then
-        assertThat(groupJpaRepository.findById(groupId)).isEmpty();
+        assertThat(groupJpaRepository.findByIdAndIsDeletedFalse(groupId)).isEmpty();
+        assertThat(groupJpaRepository.findById(groupId)).isPresent();
     }
 
     @Test
