@@ -56,7 +56,7 @@ public class InvoiceService {
     public InvoiceCreateResponseDto create(final Long userId, final InvoiceCreateRequestDto dto) {
         validateTotalAmount(dto.recipients(), dto.totalAmount());
 
-        Group group = groupJpaRepository.findById(dto.groupId()).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+        Group group = groupJpaRepository.findByIdAndIsDeletedFalse(dto.groupId()).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
         TravelItinerary travelItinerary = travelItineraryJpaRepository.findByIdAndGroupIdAndIsDeletedFalseForUpdate(dto.travelItineraryId(), dto.groupId()).orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
 

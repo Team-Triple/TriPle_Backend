@@ -675,7 +675,7 @@ public class GroupIntegrationTest {
 
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
-        assertThat(groupJpaRepository.findById(savedGroup.getId())).isPresent();
+        assertThat(groupJpaRepository.findByIdAndIsDeletedFalse(savedGroup.getId())).isPresent();
         assertThat(userGroupJpaRepository.findAll()).hasSize(1);
 
         // when
@@ -686,7 +686,8 @@ public class GroupIntegrationTest {
                 .andExpect(status().isOk());
 
         // then
-        assertThat(groupJpaRepository.findById(savedGroup.getId())).isEmpty();
+        assertThat(groupJpaRepository.findByIdAndIsDeletedFalse(savedGroup.getId())).isEmpty();
+        assertThat(groupJpaRepository.findById(savedGroup.getId()).orElseThrow().isDeleted()).isTrue();
         assertThat(userGroupJpaRepository.findAll()).isEmpty();
     }
 

@@ -27,8 +27,19 @@ public class GroupTest {
         assertThat(group.getThumbNailUrl()).isEqualTo("https://example.com/thumb.png");
         assertThat(group.getMemberLimit()).isEqualTo(10);
         assertThat(group.getCurrentMemberCount()).isEqualTo(1);
+        assertThat(group.isDeleted()).isFalse();
         assertThat(group.getUserGroups()).isNotNull();
         assertThat(group.getUserGroups()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("deleteGroup을 호출하면 soft delete 상태가 된다")
+    void deleteGroup을_호출하면_soft_delete_상태가_된다() {
+        Group group = Group.create(GroupKind.PUBLIC, "여행모임", "설명", "thumb", 10);
+
+        group.deleteGroup();
+
+        assertThat(group.isDeleted()).isTrue();
     }
 
     @Test
