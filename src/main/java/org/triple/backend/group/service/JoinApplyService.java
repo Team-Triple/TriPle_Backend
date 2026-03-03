@@ -111,7 +111,7 @@ public class JoinApplyService {
 
     @Transactional(readOnly = true)
     public JoinApplyUserResponseDto joinApplyUser(final Long groupId, final Long userId, final JoinApplyStatus status, final Long cursor, final int size) {
-        if(!groupJpaRepository.existsById(groupId)) {
+        if(!groupJpaRepository.existsByIdAndIsDeletedFalse(groupId)) {
             throw new BusinessException(GroupErrorCode.GROUP_NOT_FOUND);
         }
 
