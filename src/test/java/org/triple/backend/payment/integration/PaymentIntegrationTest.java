@@ -330,9 +330,12 @@ class PaymentIntegrationTest {
     @DisplayName("로그인한 사용자는 결제 목록을 조회할 수 있다.")
     void 로그인한_사용자는_결제_목록을_조회할_수_있다() throws Exception {
         User payer = saveUser("payer-search-success");
+        User other = saveUser("payer-search-other");
         Group group = saveGroup("결제 조회 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "결제 조회 여행");
+        TravelItinerary otherTravelItinerary = saveTravelItinerary(group, "타인 결제 조회 여행");
         Invoice invoice = saveInvoice(group, payer, travelItinerary, InvoiceStatus.CONFIRM, "제주 렌트비");
+        Invoice otherInvoice = saveInvoice(group, other, otherTravelItinerary, InvoiceStatus.CONFIRM, "타인 결제 청구서");
         paymentJpaRepository.save(
                 Payment.builder()
                         .invoice(invoice)
@@ -344,6 +347,19 @@ class PaymentIntegrationTest {
                         .requestedAmount(new BigDecimal("3000"))
                         .paymentStatus(PaymentStatus.READY)
                         .requestedAt(LocalDateTime.of(2030, 3, 20, 12, 0))
+                        .build()
+        );
+        paymentJpaRepository.save(
+                Payment.builder()
+                        .invoice(otherInvoice)
+                        .user(other)
+                        .name("타인 결제")
+                        .pgProvider(PgProvider.TOSS)
+                        .method(PaymentMethod.TRANSFER)
+                        .orderId(UUID.randomUUID().toString())
+                        .requestedAmount(new BigDecimal("7000"))
+                        .paymentStatus(PaymentStatus.READY)
+                        .requestedAt(LocalDateTime.of(2030, 3, 20, 13, 0))
                         .build()
         );
 

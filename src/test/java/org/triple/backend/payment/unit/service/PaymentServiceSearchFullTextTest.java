@@ -29,6 +29,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -38,6 +39,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentServiceSearchFullTextTest {
+
+    private static final Long USER_ID = 1L;
 
     @Mock
     private PaymentJpaRepository paymentJpaRepository;
@@ -61,16 +64,16 @@ class PaymentServiceSearchFullTextTest {
         Payment p1 = newPayment(30L, 100L, "제주 렌트비");
         Payment p2 = newPayment(29L, 101L, "제주 숙소비");
 
-        when(paymentJpaRepository.findFirstPage(any(Pageable.class)))
+        when(paymentJpaRepository.findFirstPage(eq(USER_ID), any(Pageable.class)))
                 .thenReturn(List.of(p1, p2));
 
-        PaymentCursorRes response = paymentService.search(null, null, 10);
+        PaymentCursorRes response = paymentService.search(null, null, 10, USER_ID);
 
         assertThat(response.items()).hasSize(2);
         assertThat(response.hasNext()).isFalse();
         assertThat(response.nextCursor()).isNull();
-        verify(paymentJpaRepository).findFirstPage(any(Pageable.class));
-        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), any(Pageable.class));
+        verify(paymentJpaRepository).findFirstPage(eq(USER_ID), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), anyLong(), any(Pageable.class));
     }
 
     @Test
@@ -80,16 +83,16 @@ class PaymentServiceSearchFullTextTest {
         Payment p2 = newPayment(48L, 121L, "결제48");
         Payment p3 = newPayment(47L, 122L, "결제47");
 
-        when(paymentJpaRepository.findNextPage(eq(50L), any(Pageable.class)))
+        when(paymentJpaRepository.findNextPage(eq(USER_ID), eq(50L), any(Pageable.class)))
                 .thenReturn(List.of(p1, p2, p3));
 
-        PaymentCursorRes response = paymentService.search(" ", 50L, 2);
+        PaymentCursorRes response = paymentService.search(" ", 50L, 2, USER_ID);
 
         assertThat(response.items()).hasSize(2);
         assertThat(response.hasNext()).isTrue();
         assertThat(response.nextCursor()).isEqualTo(48L);
-        verify(paymentJpaRepository).findNextPage(eq(50L), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), any(), any(Pageable.class));
+        verify(paymentJpaRepository).findNextPage(eq(USER_ID), eq(50L), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
     }
 
     @Test
@@ -98,10 +101,10 @@ class PaymentServiceSearchFullTextTest {
         Payment p1 = newPayment(30L, 100L, "제주 렌트비");
         Payment p2 = newPayment(29L, 101L, "제주 숙소비");
 
-        when(paymentJpaRepository.findFirstPageByKeywordFullText(eq("+제주* +결제*"), any(Pageable.class)))
+        when(paymentJpaRepository.findFirstPageByKeywordFullText(eq("+제주* +결제*"), eq(USER_ID), any(Pageable.class)))
                 .thenReturn(List.of(p1, p2));
 
-        PaymentCursorRes response = paymentService.search(" 제주!! 결제? ", null, 10);
+        PaymentCursorRes response = paymentService.search(" 제주!! 결제? ", null, 10, USER_ID);
 
         assertThat(response.items()).hasSize(2);
         assertThat(response.hasNext()).isFalse();
@@ -116,10 +119,10 @@ class PaymentServiceSearchFullTextTest {
     void FULLTEXT_검색은_구두점을_단어_경계로_처리해_boolean_mode_쿼리로_변환한다() {
         Payment p1 = newPayment(31L, 102L, "jeju-transfer plan");
 
-        when(paymentJpaRepository.findFirstPageByKeywordFullText(eq("+jeju* +transfer* +plan*"), any(Pageable.class)))
+        when(paymentJpaRepository.findFirstPageByKeywordFullText(eq("+jeju* +transfer* +plan*"), eq(USER_ID), any(Pageable.class)))
                 .thenReturn(List.of(p1));
 
-        PaymentCursorRes response = paymentService.search("jeju-transfer, plan", null, 10);
+        PaymentCursorRes response = paymentService.search("jeju-transfer, plan", null, 10, USER_ID);
 
         assertThat(response.items()).hasSize(1);
         assertThat(response.items().get(0).name()).isEqualTo("jeju-transfer plan");
@@ -132,45 +135,45 @@ class PaymentServiceSearchFullTextTest {
         Payment p2 = newPayment(48L, 121L, "결제48");
         Payment p3 = newPayment(47L, 122L, "결제47");
 
-        when(paymentJpaRepository.findNextPageByKeywordFullText(eq("+제주* +결제*"), eq(50L), any(Pageable.class)))
+        when(paymentJpaRepository.findNextPageByKeywordFullText(eq("+제주* +결제*"), eq(50L), eq(USER_ID), any(Pageable.class)))
                 .thenReturn(List.of(p1, p2, p3));
 
-        PaymentCursorRes response = paymentService.search("제주 결제", 50L, 2);
+        PaymentCursorRes response = paymentService.search("제주 결제", 50L, 2, USER_ID);
 
         assertThat(response.items()).hasSize(2);
         assertThat(response.hasNext()).isTrue();
         assertThat(response.nextCursor()).isEqualTo(48L);
 
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(paymentJpaRepository).findNextPageByKeywordFullText(eq("+제주* +결제*"), eq(50L), pageableCaptor.capture());
+        verify(paymentJpaRepository).findNextPageByKeywordFullText(eq("+제주* +결제*"), eq(50L), eq(USER_ID), pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(3);
     }
 
     @Test
     @DisplayName("FULLTEXT 검색어가 특수문자만 있으면 빈 결과를 반환한다")
     void FULLTEXT_검색어가_특수문자만_있으면_빈_결과를_반환한다() {
-        PaymentCursorRes response = paymentService.search(" !!! ??? ", null, 10);
+        PaymentCursorRes response = paymentService.search(" !!! ??? ", null, 10, USER_ID);
 
         assertThat(response.items()).isEmpty();
         assertThat(response.hasNext()).isFalse();
         assertThat(response.nextCursor()).isNull();
 
-        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), any(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
     }
 
     @Test
     @DisplayName("검색어 길이가 20자를 초과하면 INVALID_SEARCH_KEYWORD_LENGTH 예외가 발생한다")
     void 검색어_길이가_20자를_초과하면_INVALID_SEARCH_KEYWORD_LENGTH_예외가_발생한다() {
-        assertThatThrownBy(() -> paymentService.search("aaaaaaaaaaaaaaaaaaaaa", null, 10))
+        assertThatThrownBy(() -> paymentService.search("aaaaaaaaaaaaaaaaaaaaa", null, 10, USER_ID))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
                 });
 
-        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), any(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findFirstPageByKeywordFullText(any(), anyLong(), any(Pageable.class));
+        verify(paymentJpaRepository, never()).findNextPageByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
     }
 
     private Payment newPayment(Long paymentId, Long invoiceId, String name) {

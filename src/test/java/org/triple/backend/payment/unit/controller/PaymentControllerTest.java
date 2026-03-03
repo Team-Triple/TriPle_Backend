@@ -29,6 +29,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -271,7 +272,7 @@ class PaymentControllerTest extends ControllerTest {
                 null,
                 false
         );
-        given(paymentService.search(eq("제주"), eq(null), eq(10))).willReturn(response);
+        given(paymentService.search(eq("제주"), eq(null), eq(10), eq(1L))).willReturn(response);
 
         mockMvc.perform(get("/payments")
                         .with(loginSessionAndCsrf())
@@ -316,7 +317,7 @@ class PaymentControllerTest extends ControllerTest {
                         )
                 ));
 
-        verify(paymentService, times(1)).search("제주", null, 10);
+        verify(paymentService, times(1)).search("제주", null, 10, 1L);
     }
 
     @Test
@@ -339,14 +340,14 @@ class PaymentControllerTest extends ControllerTest {
                         )
                 ));
 
-        verify(paymentService, never()).search(any(), any(), anyInt());
+        verify(paymentService, never()).search(any(), any(), anyInt(), anyLong());
     }
 
     @Test
     @DisplayName("검색어 길이가 20자를 초과하면 400을 반환한다.")
     void 검색어_길이가_20자를_초과하면_400을_반환한다() throws Exception {
         String keyword = "aaaaaaaaaaaaaaaaaaaaa";
-        given(paymentService.search(eq(keyword), eq(null), eq(10)))
+        given(paymentService.search(eq(keyword), eq(null), eq(10), eq(1L)))
                 .willThrow(new BusinessException(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH));
 
         mockMvc.perform(get("/payments")
@@ -368,7 +369,7 @@ class PaymentControllerTest extends ControllerTest {
                         )
                 ));
 
-        verify(paymentService, times(1)).search(keyword, null, 10);
+        verify(paymentService, times(1)).search(keyword, null, 10, 1L);
     }
 
     private void assertBusinessFailure(
