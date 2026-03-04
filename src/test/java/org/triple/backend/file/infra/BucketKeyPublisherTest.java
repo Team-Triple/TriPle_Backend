@@ -2,10 +2,10 @@ package org.triple.backend.file.infra;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.triple.backend.file.config.S3BucketProperties;
-import org.triple.backend.file.config.S3PrefixProperties;
-import org.triple.backend.file.config.S3PresignProperties;
-import org.triple.backend.file.config.S3UploadPolicyProperties;
+import org.triple.backend.file.config.property.S3BucketProperties;
+import org.triple.backend.file.config.property.S3PrefixProperties;
+import org.triple.backend.file.config.property.S3PresignProperties;
+import org.triple.backend.file.config.property.S3UploadPolicyProperties;
 import software.amazon.awssdk.regions.Region;
 
 import java.util.List;

@@ -8,10 +8,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
-import org.triple.backend.file.config.S3BucketProperties;
-import org.triple.backend.file.config.S3PrefixProperties;
-import org.triple.backend.file.config.S3PresignProperties;
-import org.triple.backend.file.config.S3UploadPolicyProperties;
+import org.triple.backend.file.config.property.S3BucketProperties;
+import org.triple.backend.file.config.property.S3PrefixProperties;
+import org.triple.backend.file.config.property.S3PresignProperties;
+import org.triple.backend.file.config.property.S3UploadPolicyProperties;
 import org.triple.backend.file.infra.exception.CopyFailedException;
 import org.triple.backend.file.infra.exception.DeleteFailedException;
 import org.triple.backend.file.infra.exception.InvalidKeyException;
@@ -86,7 +86,7 @@ class S3BucketImplTest {
     @DisplayName("받은 mimeType이 허용값이 아니면 예외를 반환한다.")
     void 받은_mimeType이_허용값이_아니면_예외를_반환한다() {
         given(s3BucketProperties.getUploadPolicy()).willReturn(s3UploadPolicyProperties);
-        given(s3UploadPolicyProperties.getAllowedContentTypes()).willReturn(List.of("image/jpeg", "image/png"));
+        given(s3UploadPolicyProperties.allowedContentTypes()).willReturn(List.of("image/jpeg", "image/png"));
 
         assertThatThrownBy(() -> s3BucketImpl.validateContentType("image/gif"))
                 .isInstanceOf(InvalidKeyException.class)
@@ -98,7 +98,7 @@ class S3BucketImplTest {
     @DisplayName("받은 mimeType이 허용값이면 예외를 반환하지 않는다.")
     void 받은_mimeType이_허용값이면_예외를_반환하지_않는다() {
         given(s3BucketProperties.getUploadPolicy()).willReturn(s3UploadPolicyProperties);
-        given(s3UploadPolicyProperties.getAllowedContentTypes()).willReturn(List.of("image/jpeg", "image/png"));
+        given(s3UploadPolicyProperties.allowedContentTypes()).willReturn(List.of("image/jpeg", "image/png"));
 
         assertThatCode(() -> s3BucketImpl.validateContentType("image/jpeg"))
                 .doesNotThrowAnyException();
@@ -113,7 +113,7 @@ class S3BucketImplTest {
 
         given(s3BucketProperties.getBucket()).willReturn(bucket);
         given(s3BucketProperties.getPresign()).willReturn(s3PresignProperties);
-        given(s3PresignProperties.getPutExpireSeconds()).willReturn(180);
+        given(s3PresignProperties.putExpireSeconds()).willReturn(180);
 
         PresignedPutObjectRequest presignedPutObjectRequest = org.mockito.Mockito.mock(PresignedPutObjectRequest.class);
         given(presignedPutObjectRequest.url()).willReturn(new URL("https://example.com/upload"));
@@ -150,7 +150,7 @@ class S3BucketImplTest {
     @DisplayName("pendingKey prefix와 userId가 일치하지 않으면 예외를 반환한다.")
     void pendingKey_prefix와_userId가_일치하지_않으면_예외를_반환한다() {
         given(s3BucketProperties.getPrefix()).willReturn(s3PrefixProperties);
-        given(s3PrefixProperties.getPending()).willReturn("uploads/pending/");
+        given(s3PrefixProperties.pending()).willReturn("uploads/pending/");
 
         assertThatThrownBy(() -> s3BucketImpl.validatePendingKey("uploads/pending/2/test.jpg", 1L))
                 .isInstanceOf(InvalidKeyException.class)
@@ -162,7 +162,7 @@ class S3BucketImplTest {
     @DisplayName("pendingKey prefix와 userId가 일치하면 검증을 통과한다.")
     void pendingKey_prefix와_userId가_일치하면_검증을_통과한다() {
         given(s3BucketProperties.getPrefix()).willReturn(s3PrefixProperties);
-        given(s3PrefixProperties.getPending()).willReturn("uploads/pending/");
+        given(s3PrefixProperties.pending()).willReturn("uploads/pending/");
 
         assertThatCode(() -> s3BucketImpl.validatePendingKey("uploads/pending/1/test.jpg", 1L))
                 .doesNotThrowAnyException();

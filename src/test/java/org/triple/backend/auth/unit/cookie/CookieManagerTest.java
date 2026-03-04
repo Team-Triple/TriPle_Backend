@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpHeaders;
+import org.triple.backend.auth.config.property.CookieProperties;
 import org.triple.backend.auth.cookie.CookieManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,7 +13,9 @@ import static org.mockito.Mockito.*;
 
 public class CookieManagerTest {
 
-    private final CookieManager cookieManager = new CookieManager();
+    private final CookieManager cookieManager = new CookieManager(
+            new CookieProperties("/", "None", true, true)
+    );
 
     @Test
     @DisplayName("addLoginCookie는 login_status=true 쿠키를 Set-Cookie 헤더로 추가한다")

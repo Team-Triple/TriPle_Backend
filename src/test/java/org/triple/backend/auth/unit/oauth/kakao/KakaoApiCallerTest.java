@@ -13,8 +13,8 @@ import org.springframework.web.client.RestClient;
 import org.triple.backend.auth.dto.response.KakaoTokenResponseDto;
 import org.triple.backend.auth.exception.OauthTransientException;
 import org.triple.backend.auth.oauth.kakao.KakaoApiCaller;
-import org.triple.backend.auth.oauth.kakao.KakaoOauthProperties;
 import org.triple.backend.global.error.BusinessException;
+import org.triple.backend.auth.config.property.KakaoOauthProperties;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
