@@ -1,5 +1,6 @@
 package org.triple.backend.group.unit.sevice;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,9 @@ public class JoinApplyServiceTest {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("가입 신청을 성공하면 PENDING 상태의 신청이 저장된다")
@@ -431,6 +435,8 @@ public class JoinApplyServiceTest {
         joinApplyService.reject(savedGroup.getId(), owner.getId(), joinApply.getId());
 
         // then
+        // Bulk update bypasses the persistence context; clear to read the latest row state.
+        entityManager.clear();
         JoinApply rejectedJoinApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
         Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
 
