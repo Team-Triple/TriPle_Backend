@@ -17,6 +17,7 @@ import org.triple.backend.global.error.ErrorCode;
 import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.payment.controller.PaymentController;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
+import org.triple.backend.payment.dto.response.PaymentConfirmRes;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
 import org.triple.backend.payment.dto.response.PaymentCursorRes;
 import org.triple.backend.payment.entity.PaymentMethod;
@@ -24,6 +25,7 @@ import org.triple.backend.payment.entity.PaymentStatus;
 import org.triple.backend.payment.entity.PgProvider;
 import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.service.PaymentService;
+import org.triple.backend.payment.service.PaymentServiceFacade;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -50,7 +52,6 @@ import static org.springframework.restdocs.request.RequestDocumentation.pathPara
 import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
@@ -64,6 +65,9 @@ class PaymentControllerTest extends ControllerTest {
     private PaymentService paymentService;
 
     @MockitoBean
+    private PaymentServiceFacade paymentServiceFacade;
+
+    @MockitoBean
     private CsrfTokenManager csrfTokenManager;
 
     @MockitoBean
@@ -72,6 +76,41 @@ class PaymentControllerTest extends ControllerTest {
     @BeforeEach
     void setUp() {
         when(userIdentityResolver.resolve(any())).thenReturn(1L);
+    }
+
+    @Test
+    @DisplayName("로그인한 사용자는 결제 승인 요청을 할 수 있다.")
+    void 로그인한_사용자는_결제_승인_요청을_할_수_있다() throws Exception {
+        PaymentConfirmRes response = new PaymentConfirmRes(
+                "order-1",
+                new BigDecimal("10000"),
+                "https://receipt",
+                PaymentStatus.DONE
+        );
+        given(paymentServiceFacade.confirm(any(), eq(1L), eq(1L))).willReturn(response);
+        mockCsrfValid();
+
+        String confirmBody = """
+                {
+                  "method": "CARD",
+                  "orderId": "order-1",
+                  "paymentKey": "payment-key-1",
+                  "requestedAmount": 10000,
+                  "pgProvider": "TOSS"
+                }
+                """;
+
+        mockMvc.perform(post("/payments/{invoiceId}/confirm", 1L)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(confirmBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value("order-1"))
+                .andExpect(jsonPath("$.amount").value(10000))
+                .andExpect(jsonPath("$.receiptUrl").value("https://receipt"))
+                .andExpect(jsonPath("$.status").value("DONE"));
+
+        verify(paymentServiceFacade, times(1)).confirm(any(), eq(1L), eq(1L));
     }
 
     @Test
