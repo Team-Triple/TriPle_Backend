@@ -16,12 +16,15 @@ import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.auth.oauth.OauthUser;
 import org.triple.backend.auth.service.AuthService;
 import org.triple.backend.auth.session.SessionManager;
+import org.triple.backend.auth.session.UserIdentityResolver;
+import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -29,12 +32,15 @@ import static org.mockito.BDDMockito.given;
 import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 
-@Import({AuthService.class, SessionManager.class})
+@Import({AuthService.class, SessionManager.class, UserIdentityResolver.class, UuidCrypto.class})
 @ServiceTest
 public class AuthServiceTest {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private UuidCrypto uuidCrypto;
 
     @Autowired
     private UserJpaRepository userJpaRepository;
@@ -131,10 +137,14 @@ public class AuthServiceTest {
 
         // then
         assertThat(userJpaRepository.count()).isEqualTo(1);
+        assertThat(uuidCrypto.decryptToUuid(res.publicUuid())).isEqualTo(saved.getPublicUuid());
+        assertThat(res.nickname()).isEqualTo("nick");
 
         // then
         HttpSession session = servletRequest.getSession(false);
-        assertThat(session.getAttribute(USER_SESSION_KEY)).isEqualTo(saved.getId());
+        Object sessionPrincipal = session.getAttribute(USER_SESSION_KEY);
+        assertThat(sessionPrincipal).isInstanceOf(String.class);
+        assertThat(uuidCrypto.decryptToUuid(sessionPrincipal)).isEqualTo(saved.getPublicUuid());
     }
 
     @Test
@@ -142,7 +152,7 @@ public class AuthServiceTest {
     void 로그아웃_시_세션이_무효화된다() {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.getSession(true).setAttribute(USER_SESSION_KEY, 1L);
+        request.getSession(true).setAttribute(USER_SESSION_KEY, UUID.randomUUID());
 
         // when
         authService.logout(request);
