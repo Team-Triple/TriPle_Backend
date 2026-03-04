@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.dto.response.UserInfoResponseDto;
@@ -18,7 +19,7 @@ import java.time.LocalDate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@Import(UserService.class)
+@Import({UserService.class, UuidCrypto.class})
 @ServiceTest
 class UserServiceTest {
 
@@ -27,6 +28,9 @@ class UserServiceTest {
 
     @Autowired
     private UserJpaRepository userJpaRepository;
+
+    @Autowired
+    private UuidCrypto uuidCrypto;
 
     @Test
     @DisplayName("사용자 정보를 조회한다.")
@@ -47,6 +51,7 @@ class UserServiceTest {
         UserInfoResponseDto response = userService.userInfo(saved.getId());
 
         // then
+        assertThat(uuidCrypto.decryptToUuid(response.publicUuid())).isEqualTo(saved.getPublicUuid());
         assertThat(response.nickname()).isEqualTo("상윤");
         assertThat(response.gender()).isEqualTo(Gender.MALE.toString());
         assertThat(response.birth()).isEqualTo(LocalDate.of(1999, 1, 1));
