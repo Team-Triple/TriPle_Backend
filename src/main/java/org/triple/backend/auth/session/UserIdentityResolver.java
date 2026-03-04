@@ -24,10 +24,6 @@ public class UserIdentityResolver {
             return null;
         }
 
-        if (principal instanceof Long userId) {
-            return userId;
-        }
-
         UUID publicUuid = parsePublicUuid(principal);
         if (publicUuid == null) {
             return null;
