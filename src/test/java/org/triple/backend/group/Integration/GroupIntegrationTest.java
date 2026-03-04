@@ -507,7 +507,7 @@ public class GroupIntegrationTest {
         mockMvc.perform(get("/groups/{groupId}/users", savedGroup.getId())
                         .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
+                .andExpect(jsonPath("$.message").value("PRIVATE 그룹 멤버 목록은 조회할 수 없습니다."));
     }
 
     @Test

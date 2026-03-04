@@ -596,12 +596,12 @@ public class GroupControllerTest extends ControllerTest {
         // given
         Long groupId = 20L;
         given(groupService.groupUsers(eq(groupId)))
-                .willThrow(new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+                .willThrow(new BusinessException(GroupErrorCode.CANNOT_GET_PRIVATE_GROUP_MEMBERS));
 
         // when & then
         mockMvc.perform(get("/groups/{groupId}/users", groupId))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."))
+                .andExpect(jsonPath("$.message").value("PRIVATE 그룹 멤버 목록은 조회할 수 없습니다."))
                 .andDo(document("groups/users-fail-not-group-member",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
