@@ -380,7 +380,7 @@ public class GroupService {
                 .orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
         if(group.getGroupKind() == GroupKind.PRIVATE) {
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+            throw new BusinessException(GroupErrorCode.CANNOT_GET_PRIVATE_GROUP_MEMBERS);
         }
 
         List<UserGroup> userGroups = userGroupJpaRepository.findAllByGroupIdAndJoinStatus(groupId, JoinStatus.JOINED);
