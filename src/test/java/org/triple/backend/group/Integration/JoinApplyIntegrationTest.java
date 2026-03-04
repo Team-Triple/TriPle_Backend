@@ -249,6 +249,93 @@ public class JoinApplyIntegrationTest {
     }
 
     @Test
+    @DisplayName("오너는 그룹 가입 신청을 거절할 수 있다")
+    void 오너는_그룹_가입_신청을_거절할_수_있다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-reject")
+                        .nickname("오너")
+                        .email("owner-reject@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User applicant = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-applicant-reject")
+                        .nickname("지원자")
+                        .email("applicant-reject@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        Group group = Group.create(GroupKind.PUBLIC, "거절모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}/reject", savedGroup.getId(), joinApply.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        JoinApply rejectedApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+
+        assertThat(rejectedApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.REJECTED);
+        assertThat(rejectedApply.getRejectedAt()).isNotNull();
+        assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
+                .isFalse();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자가 가입 신청을 거절하면 403을 반환한다")
+    void 오너가_아닌_사용자가_가입_신청을_거절하면_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-reject-forbidden")
+                        .nickname("오너")
+                        .email("owner-reject-forbidden@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User outsider = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-outsider-reject")
+                        .nickname("외부인")
+                        .email("outsider-reject@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        User applicant = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-applicant-reject-forbidden")
+                        .nickname("지원자")
+                        .email("applicant-reject-forbidden@test.com")
+                        .profileUrl("http://img")
+                        .build()
+        );
+        Group group = Group.create(GroupKind.PUBLIC, "거절권한모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}/reject", savedGroup.getId(), joinApply.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isForbidden());
+
+        JoinApply pendingApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        assertThat(pendingApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
+        assertThat(pendingApply.getRejectedAt()).isNull();
+    }
+
+    @Test
     @DisplayName("세션 사용자를 식별할 수 없으면 가입 신청 승인은 401을 반환한다")
     void 세션_사용자를_식별할_수_없으면_가입_신청_승인은_401을_반환한다() throws Exception {
         // given
