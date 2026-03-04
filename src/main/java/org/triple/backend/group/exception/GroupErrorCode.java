@@ -17,7 +17,8 @@ public enum GroupErrorCode implements ErrorCode {
     ALREADY_LEAVE_GROUP(HttpStatus.FORBIDDEN, "이미 탈퇴한 그룹입니다."),
     GROUP_OWNER_NOT_LEAVE(HttpStatus.FORBIDDEN, "그룹 주인은 탈퇴할 수 없습니다."),
     INVALID_SEARCH_KEYWORD_LENGTH(HttpStatus.BAD_REQUEST, "검색어는 최대 20자까지 입력할 수 있습니다."),
-    CANNOT_DELETE_GROUP_WITH_MEMBERS(HttpStatus.CONFLICT, "그룹에 다른 멤버가 있어 삭제할 수 없습니다.");
+    CANNOT_DELETE_GROUP_WITH_MEMBERS(HttpStatus.CONFLICT, "그룹에 다른 멤버가 있어 삭제할 수 없습니다."),
+    CANNOT_GET_PRIVATE_GROUP_MEMBERS(HttpStatus.FORBIDDEN, "PRIVATE 그룹 멤버 목록은 조회할 수 없습니다.");
 
     private HttpStatus status;
     private String message;
