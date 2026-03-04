@@ -1,14 +1,16 @@
 package org.triple.backend.auth.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
+import org.triple.backend.auth.config.property.CookieProperties;
+import org.triple.backend.auth.config.property.KakaoOauthProperties;
+import org.triple.backend.auth.config.property.RestClientProperties;
 import org.triple.backend.auth.oauth.OauthClient;
 import org.triple.backend.auth.oauth.OauthProvider;
-import org.triple.backend.auth.oauth.kakao.KakaoOauthProperties;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -17,14 +19,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Configuration
-@EnableConfigurationProperties(KakaoOauthProperties.class)
+@RequiredArgsConstructor
+@EnableConfigurationProperties({KakaoOauthProperties.class, CookieProperties.class, RestClientProperties.class})
 public class OauthConfig {
 
-    @Value("${restClient.connectTimeout}")
-    private int connectTimeout;
-
-    @Value("${restClient.readTimeout}")
-    private int readTimeout;
+    private final RestClientProperties restClientProperties;
 
     @Bean
     public Map<OauthProvider, OauthClient> oauthClients(List<OauthClient> clients) {
@@ -35,11 +34,11 @@ public class OauthConfig {
     @Bean
     public RestClient restClient() {
         HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(connectTimeout))
+                .connectTimeout(Duration.ofSeconds(restClientProperties.connectTimeout()))
                 .build();
 
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
-        factory.setReadTimeout(Duration.ofSeconds(readTimeout));
+        factory.setReadTimeout(Duration.ofSeconds(restClientProperties.readTimeout()));
 
         return RestClient.builder()
                 .requestFactory(factory)

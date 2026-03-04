@@ -10,6 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.triple.backend.auth.session.CsrfInterceptor;
 import org.triple.backend.auth.session.LoginInterceptor;
 import org.triple.backend.auth.session.LoginUserArgumentResolver;
+import org.triple.backend.global.config.property.CorsProperties;
 
 import java.util.List;
 
