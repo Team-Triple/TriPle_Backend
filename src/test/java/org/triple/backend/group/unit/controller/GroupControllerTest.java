@@ -19,6 +19,7 @@ import org.triple.backend.group.dto.response.CreateGroupResponseDto;
 import org.triple.backend.group.dto.response.GroupDetailResponseDto;
 import org.triple.backend.group.dto.response.GroupMenuResponseDto;
 import org.triple.backend.group.dto.response.GroupUpdateResponseDto;
+import org.triple.backend.group.dto.response.GroupUsersResponseDto;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.exception.GroupErrorCode;
@@ -27,6 +28,7 @@ import org.triple.backend.auth.session.CsrfTokenManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -513,6 +515,105 @@ public class GroupControllerTest extends ControllerTest {
                 ));
 
         verify(groupService, times(1)).menu(isNull(), eq(groupId));
+    }
+
+    @Test
+    @DisplayName("그룹 멤버 목록을 조회하면 멤버 정보를 반환한다.")
+    void 그룹_멤버_목록을_조회하면_멤버_정보를_반환한다() throws Exception {
+        // given
+        Long groupId = 10L;
+        String ownerPublicUuid = UUID.randomUUID().toString();
+        String memberPublicUuid = UUID.randomUUID().toString();
+        GroupUsersResponseDto response = new GroupUsersResponseDto(
+                List.of(
+                        new GroupUsersResponseDto.UserDto(ownerPublicUuid, "상윤", "모임장", "http://img-owner", true),
+                        new GroupUsersResponseDto.UserDto(memberPublicUuid, "민규", "멤버", "http://img-member", false)
+                )
+        );
+        given(groupService.groupUsers(eq(groupId))).willReturn(response);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/users", groupId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users").isArray())
+                .andExpect(jsonPath("$.users.length()").value(2))
+                .andExpect(jsonPath("$.users[0].id").value(ownerPublicUuid))
+                .andExpect(jsonPath("$.users[0].name").value("상윤"))
+                .andExpect(jsonPath("$.users[0].description").value("모임장"))
+                .andExpect(jsonPath("$.users[0].profileUrl").value("http://img-owner"))
+                .andExpect(jsonPath("$.users[0].isOwner").value(true))
+                .andExpect(jsonPath("$.users[1].id").value(memberPublicUuid))
+                .andExpect(jsonPath("$.users[1].name").value("민규"))
+                .andExpect(jsonPath("$.users[1].isOwner").value(false))
+                .andDo(document("groups/users",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("멤버 목록을 조회할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("users").description("그룹 멤버 목록"),
+                                fieldWithPath("users[].id").description("멤버 공개 UUID"),
+                                fieldWithPath("users[].name").description("멤버 이름"),
+                                fieldWithPath("users[].description").description("멤버 소개").optional(),
+                                fieldWithPath("users[].profileUrl").description("멤버 프로필 이미지 URL").optional(),
+                                fieldWithPath("users[].isOwner").description("방장 여부")
+                        )
+                ));
+
+        verify(groupService, times(1)).groupUsers(groupId);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 그룹의 멤버 목록 조회 시 404를 반환한다.")
+    void 존재하지_않는_그룹의_멤버_목록_조회_시_404를_반환한다() throws Exception {
+        // given
+        Long groupId = 999L;
+        given(groupService.groupUsers(eq(groupId)))
+                .willThrow(new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/users", groupId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 그룹 입니다."))
+                .andDo(document("groups/users-fail-group-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("멤버 목록을 조회할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, times(1)).groupUsers(groupId);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 비공개 그룹 멤버 목록 조회 시 403을 반환한다.")
+    void 비로그인_사용자가_비공개_그룹_멤버_목록_조회_시_403을_반환한다() throws Exception {
+        // given
+        Long groupId = 20L;
+        given(groupService.groupUsers(eq(groupId)))
+                .willThrow(new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/users", groupId))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."))
+                .andDo(document("groups/users-fail-not-group-member",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("멤버 목록을 조회할 그룹 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(groupService, times(1)).groupUsers(groupId);
     }
 
     @Test
