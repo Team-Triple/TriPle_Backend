@@ -44,24 +44,22 @@ public class UserIdentityResolver {
     }
 
     private @Nullable Long findUserIdByPublicUuid(UUID publicUuid) {
-        long now = System.currentTimeMillis();
-        CachedUserId cached = uuidToUserIdCache.get(publicUuid);
-        if (cached != null && cached.expiresAt() > now) {
-            return cached.userId();
-        }
-        if (cached != null) {
-            uuidToUserIdCache.remove(publicUuid, cached);
-        }
+        CachedUserId cachedUserId = uuidToUserIdCache.compute(publicUuid, (key, cached) -> {
+           long now = System.currentTimeMillis();
+            if(cached != null && cached.expiresAt() > now) {
+                return cached;
+            }
 
-        UserJpaRepository userJpaRepository = userJpaRepositoryProvider.getIfAvailable();
-        if (userJpaRepository == null) {
-            return null;
-        }
+            UserJpaRepository userJpaRepository = userJpaRepositoryProvider.getIfAvailable();
+            if(userJpaRepository == null) {
+                return null;
+            }
 
-        Long userId = userJpaRepository.findIdByPublicUuid(publicUuid).orElse(null);
-        if (userId != null) {
-            uuidToUserIdCache.put(publicUuid, new CachedUserId(userId, now + CACHE_TTL_MILLIS));
-        }
-        return userId;
+            return userJpaRepository.findIdByPublicUuid(key)
+                    .map(id -> new CachedUserId(id, now + CACHE_TTL_MILLIS))
+                    .orElse(null);
+        });
+
+        return cachedUserId == null ? null : cachedUserId.userId();
     }
 }
