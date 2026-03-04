@@ -21,6 +21,7 @@ import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
+import org.triple.backend.payment.dto.response.PaymentCursorRes;
 import org.triple.backend.payment.dto.response.PaymentSearchRes;
 import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentMethod;
@@ -80,9 +81,82 @@ class PaymentServiceTest {
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
     @Test
+    @DisplayName("검색어가 없으면 결제 목록을 커서 기반으로 조회할 수 있다.")
+    void 검색어가_없으면_결제_목록을_커서_기반으로_조회할_수_있다() {
+        User payer = saveUser("payer-search-browse");
+        User other = saveUser("payer-search-other");
+        Group group = saveGroup("결제 조회 그룹");
+        TravelItinerary firstTravelItinerary = saveTravelItinerary(group, "결제 조회 여행");
+        TravelItinerary secondTravelItinerary = saveTravelItinerary(group, "결제 조회 여행2");
+        TravelItinerary otherTravelItinerary = saveTravelItinerary(group, "다른 결제 조회 여행");
+        Invoice firstInvoice = saveInvoice(group, payer, firstTravelItinerary, InvoiceStatus.CONFIRM, "제주 렌트비");
+        Invoice secondInvoice = saveInvoice(group, payer, secondTravelItinerary, InvoiceStatus.CONFIRM, "제주 숙소비");
+        Invoice otherInvoice = saveInvoice(group, other, otherTravelItinerary, InvoiceStatus.CONFIRM, "다른 유저 결제");
+
+        paymentJpaRepository.save(
+                Payment.builder()
+                        .invoice(firstInvoice)
+                        .user(payer)
+                        .pgProvider(PgProvider.TOSS)
+                        .method(PaymentMethod.TRANSFER)
+                        .orderId(UUID.randomUUID().toString())
+                        .requestedAmount(new BigDecimal("1000"))
+                        .paymentStatus(PaymentStatus.READY)
+                        .requestedAt(LocalDateTime.of(2030, 3, 20, 10, 0))
+                        .build()
+        );
+        paymentJpaRepository.save(
+                Payment.builder()
+                        .invoice(secondInvoice)
+                        .user(payer)
+                        .pgProvider(PgProvider.TOSS)
+                        .method(PaymentMethod.TRANSFER)
+                        .orderId(UUID.randomUUID().toString())
+                        .requestedAmount(new BigDecimal("2000"))
+                        .paymentStatus(PaymentStatus.READY)
+                        .requestedAt(LocalDateTime.of(2030, 3, 20, 11, 0))
+                        .build()
+        );
+        paymentJpaRepository.save(
+                Payment.builder()
+                        .invoice(otherInvoice)
+                        .user(other)
+                        .pgProvider(PgProvider.TOSS)
+                        .method(PaymentMethod.TRANSFER)
+                        .orderId(UUID.randomUUID().toString())
+                        .requestedAmount(new BigDecimal("5000"))
+                        .paymentStatus(PaymentStatus.READY)
+                        .requestedAt(LocalDateTime.of(2030, 3, 20, 12, 0))
+                        .build()
+        );
+
+        PaymentCursorRes response = paymentService.search(null, null, 10, payer.getId());
+
+        assertThat(response.items()).hasSize(2);
+        assertThat(response.items())
+                .extracting(PaymentCursorRes.PaymentSummaryDto::name)
+                .contains("제주 렌트비", "제주 숙소비");
+        assertThat(response.items())
+                .extracting(PaymentCursorRes.PaymentSummaryDto::name)
+                .doesNotContain("다른 유저 결제");
+        assertThat(response.hasNext()).isFalse();
+        assertThat(response.nextCursor()).isNull();
+    }
+
+    @Test
+    @DisplayName("검색어 길이가 20자를 초과하면 INVALID_SEARCH_KEYWORD_LENGTH 예외가 발생한다.")
+    void 검색어_길이가_20자를_초과하면_INVALID_SEARCH_KEYWORD_LENGTH_예외가_발생한다() {
+        assertThatThrownBy(() -> paymentService.search("aaaaaaaaaaaaaaaaaaaaa", null, 10, 1L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
+                });
+    }
+
+    @Test
     @DisplayName("CONFIRM 청구서의 결제 대상자는 결제 생성 요청을 할 수 있다.")
     void CONFIRM_청구서의_결제_대상자는_결제_생성_요청을_할_수_있다() {
-        // given
         User payer = saveUser("payer-success");
         Group group = saveGroup("결제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "결제 여행");
@@ -91,10 +165,8 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("4000"), "제주 렌트비");
 
-        // when
         PaymentCreateRes response = paymentService.create(request, invoice.getId(), payer.getId());
 
-        // then
         assertThat(response.orderId()).isNotBlank();
         assertThat(response.orderName()).isEqualTo("제주 렌트비");
         assertThat(response.amount()).isEqualByComparingTo("4000");
@@ -123,7 +195,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("CONFIRM 상태가 아닌 청구서는 결제를 생성할 수 없다.")
     void CONFIRM_상태가_아닌_청구서는_결제를_생성할_수_없다() {
-        // given
         User payer = saveUser("payer-not-allowed");
         Group group = saveGroup("결제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "결제 여행");
@@ -132,7 +203,6 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("1000"), "미확정 결제");
 
-        // when & then
         assertThatThrownBy(() -> paymentService.create(request, invoice.getId(), payer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
@@ -144,7 +214,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("남은 금액이 0이면 결제 생성 요청 시 PAYMENT_ALREADY_COMPLETED 예외가 발생한다.")
     void 남은_금액이_0이면_결제_생성_요청_시_PAYMENT_ALREADY_COMPLETED_예외가_발생한다() {
-        // given
         User payer = saveUser("payer-completed");
         Group group = saveGroup("완납 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "완납 여행");
@@ -153,7 +222,6 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("1000"), "완납 결제 시도");
 
-        // when & then
         assertThatThrownBy(() -> paymentService.create(request, invoice.getId(), payer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
@@ -165,7 +233,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("요청 금액이 남은 금액보다 크면 PAYMENT_AMOUNT_EXCEEDS_REMAINING 예외가 발생한다.")
     void 요청_금액이_남은_금액보다_크면_PAYMENT_AMOUNT_EXCEEDS_REMAINING_예외가_발생한다() {
-        // given
         User payer = saveUser("payer-exceeds");
         Group group = saveGroup("초과 결제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "초과 결제 여행");
@@ -174,7 +241,6 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("4000"), "초과 결제 시도");
 
-        // when & then
         assertThatThrownBy(() -> paymentService.create(request, invoice.getId(), payer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
@@ -186,7 +252,6 @@ class PaymentServiceTest {
     @Test
     @DisplayName("이미 진행 중인 결제가 있으면 PAYMENT_ALREADY_IS_ACTIVE 예외가 발생한다.")
     void 이미_진행_중인_결제가_있으면_PAYMENT_ALREADY_IS_ACTIVE_예외가_발생한다() {
-        // given
         User payer = saveUser("payer-active");
         Group group = saveGroup("진행중 결제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "진행중 결제 여행");
@@ -207,7 +272,6 @@ class PaymentServiceTest {
 
         PaymentCreateReq request = new PaymentCreateReq(new BigDecimal("2000"), "중복 결제 시도");
 
-        // when & then
         assertThatThrownBy(() -> paymentService.create(request, invoice.getId(), payer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {

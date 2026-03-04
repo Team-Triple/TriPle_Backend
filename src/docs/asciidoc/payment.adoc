@@ -39,17 +39,14 @@ include::{snippets}/payments/create-fail-payment-already-active/http-response.ad
 === 실패: 중복 결제 생성 요청 (409)
 include::{snippets}/payments/create-fail-duplicated-payment/http-response.adoc[]
 
-== 결제 조회
-include::{snippets}/payments/search/path-parameters.adoc[]
+== 결제 목록 조회
 include::{snippets}/payments/search/http-request.adoc[]
+include::{snippets}/payments/search/query-parameters.adoc[]
 include::{snippets}/payments/search/http-response.adoc[]
 include::{snippets}/payments/search/response-fields.adoc[]
 
 === 실패: 비로그인 사용자 (401)
 include::{snippets}/payments/search-fail-unauthorized/http-response.adoc[]
 
-=== 실패: 결제 조회 권한 없음 (403)
-include::{snippets}/payments/search-fail-payment-search-not-allowed/http-response.adoc[]
-
-=== 실패: 청구서 없음 (404)
-include::{snippets}/payments/search-fail-not-found-invoice/http-response.adoc[]
+=== 실패: 검색어 길이 초과 (400)
+include::{snippets}/payments/search-fail-invalid-keyword/http-response.adoc[]

@@ -2,6 +2,8 @@ package org.triple.backend.payment.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
@@ -13,6 +15,7 @@ import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
+import org.triple.backend.payment.dto.response.PaymentCursorRes;
 import org.triple.backend.payment.dto.response.PaymentSearchRes;
 import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentMethod;
@@ -23,6 +26,7 @@ import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,6 +35,9 @@ import java.util.UUID;
 public class PaymentService {
 
     private static final List<PaymentStatus> ACTIVE_STATUSES = List.of(PaymentStatus.READY, PaymentStatus.IN_PROGRESS);
+    private static final int MIN_PAGE_SIZE = 1;
+    private static final int MAX_PAGE_SIZE = 10;
+    private static final int KEYWORD_MAX_LENGTH = 20;
 
     private final PaymentJpaRepository paymentJpaRepository;
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
@@ -63,7 +70,72 @@ public class PaymentService {
             throw new BusinessException(PaymentErrorCode.DUPLICATED_PAYMENT);
         }
 
-        return new PaymentCreateRes(orderId, dto.name(), dto.amount());
+        return new PaymentCreateRes(orderId, invoice.getTitle(), dto.amount());
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentCursorRes search(final String keyword, final Long cursor, final int size, final Long userId) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        int pageSize = normalizePageSize(size);
+        Pageable pageable = PageRequest.of(0, pageSize + 1);
+
+        if (normalizedKeyword.isBlank()) {
+            return browsePayment(cursor, userId, pageable, pageSize);
+        }
+
+        if (normalizedKeyword.length() > KEYWORD_MAX_LENGTH) {
+            throw new BusinessException(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
+        }
+
+        List<Payment> rows = findPageByKeyword(
+                normalizedKeyword,
+                cursor,
+                userId,
+                pageable
+        );
+
+        return toCursorResponse(rows, pageSize);
+    }
+
+    private PaymentCursorRes browsePayment(
+            final Long cursor,
+            final Long userId,
+            final Pageable pageable,
+            final int pageSize
+    ) {
+        List<Payment> rows = (cursor == null)
+                ? paymentJpaRepository.findFirstPage(userId, pageable)
+                : paymentJpaRepository.findNextPage(userId, cursor, pageable);
+
+        return toCursorResponse(rows, pageSize);
+    }
+
+    private int normalizePageSize(int size) {
+        return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+    }
+
+    private List<Payment> findPageByKeyword(final String keyword, final Long cursor, final Long userId, final Pageable pageable) {
+        String booleanQuery = toBooleanModeQuery(keyword);
+        if (booleanQuery.isBlank()) {
+            return List.of();
+        }
+
+        List<Long> paymentIds = cursor == null
+                ? paymentJpaRepository.findFirstPageIdsByKeywordFullText(booleanQuery, userId, pageable)
+                : paymentJpaRepository.findNextPageIdsByKeywordFullText(booleanQuery, cursor, userId, pageable);
+        if (paymentIds.isEmpty()) {
+            return List.of();
+        }
+
+        return paymentJpaRepository.findAllWithInvoiceByIdInOrderByIdDesc(paymentIds);
+    }
+
+    private String toBooleanModeQuery(String keyword) {
+        return Arrays.stream(keyword.trim().split("[^\\p{L}\\p{N}]+"))
+                .filter(token -> !token.isBlank())
+                .map(token -> "+" + token + "*")
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
     }
 
     @Transactional(readOnly = true)
@@ -97,5 +169,15 @@ public class PaymentService {
 
     private String getOrderId() {
         return UUID.randomUUID().toString();
+    }
+
+    private PaymentCursorRes toCursorResponse(List<Payment> rows, int pageSize) {
+        boolean hasNext = rows.size() > pageSize;
+        if (hasNext) {
+            rows = rows.subList(0, pageSize);
+        }
+
+        Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
+        return PaymentCursorRes.from(rows, nextCursor, hasNext);
     }
 }
