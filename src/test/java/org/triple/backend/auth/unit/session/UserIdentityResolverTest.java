@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -36,8 +37,8 @@ class UserIdentityResolverTest {
     }
 
     @Test
-    @DisplayName("principal이 Long이면 그대로 userId를 반환한다")
-    void principal이_Long이면_그대로_userId를_반환한다() {
+    @DisplayName("principal이 Long이면 null을 반환한다")
+    void principal이_Long이면_null을_반환한다() {
         // given
         UserJpaRepository userJpaRepository = mock(UserJpaRepository.class);
         UuidCrypto uuidCrypto = mock(UuidCrypto.class);
@@ -47,9 +48,9 @@ class UserIdentityResolverTest {
         Long userId = resolver.resolve(1L);
 
         // then
-        assertThat(userId).isEqualTo(1L);
+        assertThat(userId).isNull();
         then(userJpaRepository).should(never()).findIdByPublicUuid(any());
-        then(uuidCrypto).should(never()).decryptToUuid(any());
+        then(uuidCrypto).should(times(1)).decryptToUuid(1L);
     }
 
     @Test
@@ -132,8 +133,8 @@ class UserIdentityResolverTest {
     }
 
     @Test
-    @DisplayName("레포지토리 빈이 없으면 null을 반환한다")
-    void 레포지토리_빈이_없으면_null을_반환한다() {
+    @DisplayName("레포지토리 빈이 없으면 예외가 발생한다")
+    void 레포지토리_빈이_없으면_예외가_발생한다() {
         // given
         @SuppressWarnings("unchecked")
         ObjectProvider<UserJpaRepository> provider = mock(ObjectProvider.class);
@@ -143,11 +144,9 @@ class UserIdentityResolverTest {
         given(uuidCrypto.decryptToUuid("encrypted-principal")).willReturn(publicUuid);
         UserIdentityResolver resolver = new UserIdentityResolver(provider, uuidCrypto);
 
-        // when
-        Long userId = resolver.resolve("encrypted-principal");
-
-        // then
-        assertThat(userId).isNull();
+        // when & then
+        assertThatThrownBy(() -> resolver.resolve("encrypted-principal"))
+                .isInstanceOf(NullPointerException.class);
     }
 
     private UserIdentityResolver resolverWith(UserJpaRepository userJpaRepository, UuidCrypto uuidCrypto) {

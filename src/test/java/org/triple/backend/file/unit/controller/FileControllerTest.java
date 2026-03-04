@@ -1,6 +1,7 @@
 package org.triple.backend.file.unit.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -8,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.auth.session.CsrfTokenManager;
+import org.triple.backend.auth.session.UserIdentityResolver;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.file.controller.FileController;
 import org.triple.backend.file.dto.request.PresignedUrlRequestDtos;
@@ -53,6 +55,14 @@ class FileControllerTest extends ControllerTest {
 
     @MockitoBean
     private CsrfTokenManager csrfTokenManager;
+
+    @MockitoBean
+    private UserIdentityResolver userIdentityResolver;
+
+    @BeforeEach
+    void setUp() {
+        when(userIdentityResolver.resolve(any())).thenReturn(1L);
+    }
 
     @Test
     @DisplayName("upload presigned urls returns list")
