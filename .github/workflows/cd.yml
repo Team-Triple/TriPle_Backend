@@ -142,7 +142,26 @@ jobs:
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ubuntu@"${TARGET_HOST}" "
             set -e
             cd ${DEPLOY_PATH}
+
+            echo '[before cleanup]'
+            docker system df || true
+
+            # Previous deployments use SHA tags, so old images can accumulate quickly.
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
+
+            echo '[before pull]'
+            docker system df || true
+
             docker pull ghcr.io/team-triple/backend:${IMAGE_TAG}
-            IMAGE_TAG=${IMAGE_TAG} docker compose up -d
-            docker image prune -f
+            IMAGE_TAG=${IMAGE_TAG} docker compose up -d --remove-orphans
+
+            # Keep only images used by running containers to prevent disk-full failures.
+            docker image prune -af || true
+            docker builder prune -af || true
+
+            echo '[after cleanup]'
+            docker system df || true
           "
+
