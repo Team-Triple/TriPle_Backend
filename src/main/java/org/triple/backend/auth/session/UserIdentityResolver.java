@@ -47,9 +47,6 @@ public class UserIdentityResolver {
             }
 
             UserJpaRepository userJpaRepository = userJpaRepositoryProvider.getIfAvailable();
-            if(userJpaRepository == null) {
-                return null;
-            }
 
             return userJpaRepository.findIdByPublicUuid(key)
                     .map(id -> new CachedUserId(id, now + CACHE_TTL_MILLIS))
