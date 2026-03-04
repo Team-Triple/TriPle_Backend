@@ -20,14 +20,16 @@ server:
     session:
       cookie:
         path: /
-        same-site: none
+        same-site: Lax
         secure: true
         http-only: true
 
 #CORS
 cors:
   app-mapping: "/**"
-  allowed-origins: ${CORS_ALLOWED_ORIGINS_FRONT}
+  allowed-origins:
+    - ${CORS_ALLOWED_ORIGINS_FRONT_LOCAL}
+    - ${CORS_ALLOWED_ORIGINS_FRONT_DEV}
   allowed-methods:
     - GET
     - POST
