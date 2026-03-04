@@ -16,23 +16,4 @@ public record S3BucketProperties(
         @NotNull @Valid S3PrefixProperties prefix,
         @NotNull @Valid S3UploadPolicyProperties uploadPolicy
 ) {
-    public Region getRegion() {
-        return region;
-    }
-
-    public String getBucket() {
-        return bucket;
-    }
-
-    public S3PresignProperties getPresign() {
-        return presign;
-    }
-
-    public S3PrefixProperties getPrefix() {
-        return prefix;
-    }
-
-    public S3UploadPolicyProperties getUploadPolicy() {
-        return uploadPolicy;
-    }
 }
