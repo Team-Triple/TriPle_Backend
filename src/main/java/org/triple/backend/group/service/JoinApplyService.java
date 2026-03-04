@@ -23,6 +23,7 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.triple.backend.group.dto.response.JoinApplyUserResponseDto.*;
@@ -107,6 +108,28 @@ public class JoinApplyService {
 
         findGroup.addCurrentMemberCount();
         joinApply.approve();
+    }
+
+    @Transactional
+    public void reject(final Long groupId, final Long ownerUserId, final Long joinApplyId) {
+        if(!groupJpaRepository.existsByIdAndIsDeletedFalse(groupId)) {
+            throw new BusinessException(GroupErrorCode.GROUP_NOT_FOUND);
+        }
+
+        if(!userGroupJpaRepository.existsByGroupIdAndUserIdAndRoleAndJoinStatus(groupId, ownerUserId, Role.OWNER, JoinStatus.JOINED)) {
+            throw new BusinessException(NO_SIGNUP_APPROVAL_PERMISSION);
+        }
+
+        int updated = joinApplyJpaRepository.updateStatusIfMatches(
+                joinApplyId,
+                groupId,
+                JoinApplyStatus.PENDING,
+                JoinApplyStatus.REJECTED,
+                LocalDateTime.now()
+        );
+        if(updated == 0) {
+            throw new BusinessException(JoinApplyErrorCode.JOIN_APPLY_NOT_FOUND);
+        }
     }
 
     @Transactional(readOnly = true)
