@@ -75,4 +75,9 @@ public class GroupController {
     public GroupMenuResponseDto menu(@PathVariable Long groupId, @LoginUser final Long userId) {
         return groupService.menu(userId, groupId);
     }
+
+    @GetMapping("/{groupId}/users")
+    public GroupUsersResponseDto groupUsers(@PathVariable Long groupId) {
+        return groupService.groupUsers(groupId);
+    }
 }
