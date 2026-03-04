@@ -374,6 +374,19 @@ public class GroupService {
         return new GroupMenuResponseDto(group.getName(), group.getDescription(), group.getCurrentMemberCount(), group.getMemberLimit(), group.getThumbNailUrl(), role);
     }
 
+    @Transactional(readOnly = true)
+    public GroupUsersResponseDto groupUsers(final Long groupId) {
+        Group group = groupJpaRepository.findByIdAndIsDeletedFalse(groupId)
+                .orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
+
+        if(group.getGroupKind() == GroupKind.PRIVATE) {
+            throw new BusinessException(GroupErrorCode.CANNOT_GET_PRIVATE_GROUP_MEMBERS);
+        }
+
+        List<UserGroup> userGroups = userGroupJpaRepository.findAllByGroupIdAndJoinStatus(groupId, JoinStatus.JOINED);
+        return GroupUsersResponseDto.from(userGroups);
+    }
+
     private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
         String booleanQuery = toBooleanModeQuery(keyword);
         if (booleanQuery.isBlank()) {

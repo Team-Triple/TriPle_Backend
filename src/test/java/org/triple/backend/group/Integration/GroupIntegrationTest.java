@@ -424,6 +424,102 @@ public class GroupIntegrationTest {
     }
 
     @Test
+    @DisplayName("그룹 멤버 목록 조회 시 JOINED 상태 사용자만 반환된다")
+    void 그룹_멤버_목록_조회_시_JOINED_상태_사용자만_반환된다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-group-users")
+                        .nickname("상윤")
+                        .email("owner-group-users@test.com")
+                        .profileUrl("http://img-owner")
+                        .build()
+        );
+        User joinedMember = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-joined-member-group-users")
+                        .nickname("민규")
+                        .email("joined-member-group-users@test.com")
+                        .profileUrl("http://img-member")
+                        .build()
+        );
+        User leftMember = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-left-member-group-users")
+                        .nickname("태호")
+                        .email("left-member-group-users@test.com")
+                        .profileUrl("http://img-left")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PUBLIC, "멤버목록모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        userGroupJpaRepository.saveAndFlush(UserGroup.create(joinedMember, savedGroup, Role.MEMBER));
+
+        UserGroup leftUserGroup = UserGroup.create(leftMember, savedGroup, Role.MEMBER);
+        leftUserGroup.leave();
+        userGroupJpaRepository.saveAndFlush(leftUserGroup);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/users", savedGroup.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users", hasSize(2)))
+                .andExpect(jsonPath("$.users[*].id", containsInAnyOrder(
+                        owner.getPublicUuid().toString(),
+                        joinedMember.getPublicUuid().toString()
+                )))
+                .andExpect(jsonPath("$.users[*].name", containsInAnyOrder("상윤", "민규")))
+                .andExpect(jsonPath("$.users[?(@.id == '%s')]".formatted(leftMember.getPublicUuid()), hasSize(0)))
+                .andExpect(jsonPath("$.users[?(@.name == '태호')]", hasSize(0)))
+                .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)));
+    }
+
+    @Test
+    @DisplayName("비공개 그룹 멤버 목록 조회는 로그인 멤버라도 403을 반환한다")
+    void 비공개_그룹_멤버_목록_조회는_로그인_멤버라도_403을_반환한다() throws Exception {
+        // given
+        User owner = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-owner-group-users-private")
+                        .nickname("상윤")
+                        .email("owner-group-users-private@test.com")
+                        .profileUrl("http://img-owner")
+                        .build()
+        );
+        User member = userJpaRepository.save(
+                User.builder()
+                        .providerId("kakao-member-group-users-private")
+                        .nickname("민규")
+                        .email("member-group-users-private@test.com")
+                        .profileUrl("http://img-member")
+                        .build()
+        );
+
+        Group group = Group.create(GroupKind.PRIVATE, "비공개멤버목록모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        group.addMember(member, Role.MEMBER);
+        group.addCurrentMemberCount();
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/users", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("PRIVATE 그룹 멤버 목록은 조회할 수 없습니다."));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 그룹의 멤버 목록 조회 시 404를 반환한다")
+    void 존재하지_않는_그룹의_멤버_목록_조회_시_404를_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(get("/groups/{groupId}/users", 999999L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 그룹 입니다."));
+    }
+
+    @Test
     @DisplayName("비로그인 사용자는 공개 그룹 상세 정보를 조회할 수 있다")
     void 비로그인_사용자는_공개_그룹_상세_정보를_조회할_수_있다() throws Exception {
         // given
