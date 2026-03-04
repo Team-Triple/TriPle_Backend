@@ -28,6 +28,12 @@ public class JoinApplyController {
     }
 
     @LoginRequired
+    @PostMapping("/{groupId}/join-applies/{joinApplyId}/reject")
+    public void joinApplyReject(@PathVariable final Long groupId, @PathVariable Long joinApplyId, @LoginUser final Long userId) {
+        joinApplyService.reject(groupId, userId, joinApplyId);
+    }
+
+    @LoginRequired
     @GetMapping("/{groupId}/join-applies")
     public JoinApplyUserResponseDto joinApplyUser(@PathVariable final Long groupId,
                                                   @LoginUser final Long userId,
