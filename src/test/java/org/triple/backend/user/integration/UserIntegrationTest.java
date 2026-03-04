@@ -4,10 +4,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
+import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.user.entity.Gender;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 
@@ -25,6 +27,12 @@ public class UserIntegrationTest {
     @Autowired
     private UserJpaRepository userJpaRepository;
 
+    @Autowired
+    private UuidCrypto uuidCrypto;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Test
     @DisplayName("로그인 세션이 있으면 내 정보를 반환합니다.")
     void 로그인_세션이_있으면_내_정보를_반환합니다() throws Exception {
@@ -39,14 +47,23 @@ public class UserIntegrationTest {
                 .build());
 
         // when & then
-        mockMvc.perform(get("/users/me")
-                        .sessionAttr(USER_SESSION_KEY, saved.getId()))
+        String encryptedPublicUuid = uuidCrypto.encrypt(saved.getPublicUuid());
+
+        String content = mockMvc.perform(get("/users/me")
+                        .sessionAttr(USER_SESSION_KEY, encryptedPublicUuid))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nickname").value("상윤"))
                 .andExpect(jsonPath("$.gender").value(Gender.MALE.toString()))
                 .andExpect(jsonPath("$.birth").value("1999-01-01"))
                 .andExpect(jsonPath("$.description").value("소개글"))
-                .andExpect(jsonPath("$.profileUrl").value("https://example.com/profile.png"));
+                .andExpect(jsonPath("$.profileUrl").value("https://example.com/profile.png"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        String encryptedResponseUuid = objectMapper.readTree(content).get("publicUuid").asText();
+        org.assertj.core.api.Assertions.assertThat(uuidCrypto.decryptToUuid(encryptedResponseUuid))
+                .isEqualTo(saved.getPublicUuid());
     }
 
     @Test
