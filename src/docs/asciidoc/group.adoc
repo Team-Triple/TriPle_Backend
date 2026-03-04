@@ -54,6 +54,17 @@ include::{snippets}/groups/detail-fail-group-not-found/http-response.adoc[]
 === 실패: 비멤버 비공개 그룹 조회(403)
 include::{snippets}/groups/detail-fail-not-group-member/http-response.adoc[]
 
+== 그룹 멤버 목록 조회
+include::{snippets}/groups/users/path-parameters.adoc[]
+include::{snippets}/groups/users/http-request.adoc[]
+include::{snippets}/groups/users/http-response.adoc[]
+
+=== 실패: 그룹 없음(404)
+include::{snippets}/groups/users-fail-group-not-found/http-response.adoc[]
+
+=== 실패: PRIVATE 그룹 멤버 목록 조회(403)
+include::{snippets}/groups/users-fail-not-group-member/http-response.adoc[]
+
 == 그룹 삭제
 include::{snippets}/groups/delete/path-parameters.adoc[]
 include::{snippets}/groups/delete/http-request.adoc[]
