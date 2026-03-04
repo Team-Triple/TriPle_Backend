@@ -43,7 +43,7 @@ public class S3BucketImpl implements S3Bucket {
         if (mimeType == null || mimeType.isBlank()) {
             throw new InvalidKeyException("mimeType은 null이거나 공백일 수 없습니다.");
         }
-        if (!s3BucketProp.getUploadPolicy().allowedContentTypes().contains(mimeType)) {
+        if (!s3BucketProp.uploadPolicy().allowedContentTypes().contains(mimeType)) {
             throw new InvalidKeyException("허용되지 않는 mimeType입니다: " + mimeType);
         }
     }
@@ -60,7 +60,7 @@ public class S3BucketImpl implements S3Bucket {
         if (pendingKey == null || pendingKey.isBlank()) {
             throw new InvalidKeyException("pendingKey는 null이거나 공백일 수 없습니다.");
         }
-        if (!pendingKey.startsWith(s3BucketProp.getPrefix().pending() + userId + "/")) {
+        if (!pendingKey.startsWith(s3BucketProp.prefix().pending() + userId + "/")) {
             throw new InvalidKeyException("pendingKey의 prefix 형식이 올바르지 않습니다.");
         }
     }
@@ -101,9 +101,9 @@ public class S3BucketImpl implements S3Bucket {
         try {
             s3Client.copyObject(
                     CopyObjectRequest.builder()
-                            .sourceBucket(s3BucketProp.getBucket())
+                            .sourceBucket(s3BucketProp.bucket())
                             .sourceKey(sourceKey)
-                            .destinationBucket(s3BucketProp.getBucket())
+                            .destinationBucket(s3BucketProp.bucket())
                             .destinationKey(destinationKey)
                             .build()
             );
@@ -131,7 +131,7 @@ public class S3BucketImpl implements S3Bucket {
         try {
             s3Client.deleteObject(
                     DeleteObjectRequest.builder()
-                            .bucket(s3BucketProp.getBucket())
+                            .bucket(s3BucketProp.bucket())
                             .key(sourceKey)
                             .build()
             );
@@ -149,7 +149,7 @@ public class S3BucketImpl implements S3Bucket {
 
     @Override
     public String concatUploadPrefix(String uploadedKey) {
-        return s3BucketProp.getPrefix().getUrlPrefix() + uploadedKey;
+        return s3BucketProp.prefix().getUrlPrefix() + uploadedKey;
     }
 
     private PutObjectPresignRequest makePutObjectPresignedRequest(String key, String mimeType) {
@@ -159,14 +159,14 @@ public class S3BucketImpl implements S3Bucket {
 
     private PutObjectPresignRequest makePutObjectPresignRequest(PutObjectRequest putObjectRequest) {
         return PutObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofSeconds(s3BucketProp.getPresign().putExpireSeconds()))
+                .signatureDuration(Duration.ofSeconds(s3BucketProp.presign().putExpireSeconds()))
                 .putObjectRequest(putObjectRequest)
                 .build();
     }
 
     private PutObjectRequest makePutObjectRequest(String key, String mimeType) {
         return PutObjectRequest.builder()
-                .bucket(s3BucketProp.getBucket())
+                .bucket(s3BucketProp.bucket())
                 .key(key)
                 .contentType(mimeType)
                 .build();
@@ -174,7 +174,7 @@ public class S3BucketImpl implements S3Bucket {
 
     private HeadObjectRequest makeHeadObjectRequest(String key) {
         return HeadObjectRequest.builder()
-                .bucket(s3BucketProp.getBucket())
+                .bucket(s3BucketProp.bucket())
                 .key(key)
                 .build();
     }

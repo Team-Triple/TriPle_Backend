@@ -13,7 +13,7 @@ public class BucketKeyPublisher {
 
     public String publishPendingKey(String fileName, Long userId) {
         String extension = getExtension(fileName);
-        return s3BucketProperties.getPrefix().pending() + userId + "/" + getUUID() + "." + extension;
+        return s3BucketProperties.prefix().pending() + userId + "/" + getUUID() + "." + extension;
     }
 
     public String publishUploadedKey(String pendingKey) {
@@ -21,8 +21,8 @@ public class BucketKeyPublisher {
             throw new IllegalArgumentException("pendingKey는 null이거나 공백일 수 없습니다.");
         }
 
-        String pendingPrefix = s3BucketProperties.getPrefix().pending();
-        String uploadedPrefix = s3BucketProperties.getPrefix().uploaded();
+        String pendingPrefix = s3BucketProperties.prefix().pending();
+        String uploadedPrefix = s3BucketProperties.prefix().uploaded();
 
         if (!pendingKey.startsWith(pendingPrefix)) {
             throw new IllegalArgumentException("pendingKey는 pending prefix로 시작해야 합니다.");
