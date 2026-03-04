@@ -1,6 +1,7 @@
 package org.triple.backend.invoice.unit.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -8,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.auth.session.CsrfTokenManager;
+import org.triple.backend.auth.session.UserIdentityResolver;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.invoice.controller.InvoiceController;
@@ -65,6 +67,14 @@ class InvoiceControllerTest extends ControllerTest {
 
     @MockitoBean
     private CsrfTokenManager csrfTokenManager;
+
+    @MockitoBean
+    private UserIdentityResolver userIdentityResolver;
+
+    @BeforeEach
+    void setUp() {
+        when(userIdentityResolver.resolve(any())).thenReturn(1L);
+    }
 
     @Test
     @DisplayName("로그인한 여행장(LEADER)은 청구서를 생성할 수 있다.")

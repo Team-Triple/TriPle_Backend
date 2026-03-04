@@ -67,9 +67,10 @@ public class AuthControllerTest extends ControllerTest {
         // given
         String code = "인가 코드";
         AuthLoginRequestDto req = new AuthLoginRequestDto(code, OauthProvider.KAKAO);
+        String encryptedPublicUuid = "encrypted-public-uuid-1";
 
         when(authService.login(eq(req), any(HttpServletRequest.class)))
-                .thenReturn(new AuthLoginResponseDto("test", "test@test.com","https://test.png"));
+                .thenReturn(new AuthLoginResponseDto(encryptedPublicUuid, "test", "test@test.com","https://test.png"));
         when(csrfTokenManager.getOrCreateToken(any(HttpServletRequest.class)))
                 .thenReturn(CSRF_TOKEN);
 
@@ -83,11 +84,13 @@ public class AuthControllerTest extends ControllerTest {
                                 fieldWithPath("provider").description("OAuth Provider")
                         ),
                         responseFields(
-                                fieldWithPath("nickname").description("로그인된 사용자 ID"),
+                                fieldWithPath("publicUuid").description("암호화된 로그인 사용자 UUID"),
+                                fieldWithPath("nickname").description("로그인된 사용자 닉네임"),
                                 fieldWithPath("email").description("로그인된 사용자 이메일"),
                                 fieldWithPath("profileUrl").description("로그인된 사용자 프로필 URL")
                         )))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicUuid").value(encryptedPublicUuid))
                 .andExpect(jsonPath("$.nickname").value("test"))
                 .andExpect(jsonPath("$.email").value("test@test.com"))
                 .andExpect(jsonPath("$.profileUrl").value("https://test.png"));
@@ -100,9 +103,10 @@ public class AuthControllerTest extends ControllerTest {
         String body = """
                 {"code":"test-code","provider":"KAKAO"}
                 """;
+        String encryptedPublicUuid = "encrypted-public-uuid-2";
 
         given(authService.login(any(AuthLoginRequestDto.class), any(HttpServletRequest.class)))
-                .willReturn(new AuthLoginResponseDto("test", "test@test.com", "http://img"));
+                .willReturn(new AuthLoginResponseDto(encryptedPublicUuid, "test", "test@test.com", "http://img"));
 
         given(csrfTokenManager.getOrCreateToken(any(HttpServletRequest.class)))
                 .willReturn("csrf-token-123");
@@ -112,6 +116,7 @@ public class AuthControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicUuid").value(encryptedPublicUuid))
                 .andExpect(jsonPath("$.nickname").value("test"))
                 .andExpect(jsonPath("$.email").value("test@test.com"))
                 .andExpect(jsonPath("$.profileUrl").value("http://img"))

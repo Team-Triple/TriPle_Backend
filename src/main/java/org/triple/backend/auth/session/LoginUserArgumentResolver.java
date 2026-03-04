@@ -1,7 +1,6 @@
 package org.triple.backend.auth.session;
 
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.MethodParameter;
@@ -16,6 +15,7 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver {
 
     private static final String LOGIN_USER_ID = "LOGIN_USER_ID";
+    private final SessionManager sessionManager;
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
@@ -31,16 +31,11 @@ public class LoginUserArgumentResolver implements HandlerMethodArgumentResolver 
             @Nullable WebDataBinderFactory binderFactory) {
 
         HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-        Long userId = (Long) request.getAttribute(LOGIN_USER_ID);
-        if (userId != null) {
+        Object loginUser = request.getAttribute(LOGIN_USER_ID);
+        if (loginUser instanceof Long userId) {
             return userId;
         }
 
-        HttpSession session = request.getSession(false);
-        if (session == null) {
-            return null;
-        }
-
-        return (Long) session.getAttribute(SessionManager.SESSION_KEY);
+        return sessionManager.getUserId(request);
     }
 }

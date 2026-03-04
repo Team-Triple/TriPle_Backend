@@ -4,6 +4,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.triple.backend.auth.exception.AuthErrorCode;
+import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.auth.session.CsrfTokenManager;
@@ -38,15 +40,20 @@ public class UserControllerTest extends ControllerTest{
     @MockitoBean
     private CsrfTokenManager csrfTokenManager;
 
+    @MockitoBean
+    private SessionManager sessionManager;
+
     @Test
     @DisplayName("사용자 정보 조회를 하면 사용자 정보와 상태코드 200을 반환한다.")
     void 사용자_정보_조회를_하면_사용자_정보와_상태코드_200을_반환한다() throws Exception {
         // given
         Long userId = 1L;
+        String encryptedPublicUuid = "encrypted-public-uuid-3";
 
         // when
         when(userService.userInfo(userId))
                 .thenReturn(UserInfoResponseDto.builder()
+                        .publicUuid(encryptedPublicUuid)
                         .nickname("sangyun")
                         .gender("MALE")
                         .birth(LocalDate.of(1999,1,16))
@@ -54,6 +61,7 @@ public class UserControllerTest extends ControllerTest{
                         .profileUrl("https://example.com/profile.png")
                         .build());
 
+        when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
         when(csrfTokenManager.isValid(any(), any())).thenReturn(true);
 
         // then
@@ -63,18 +71,23 @@ public class UserControllerTest extends ControllerTest{
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         responseFields(
+                                fieldWithPath("publicUuid").description("암호화된 사용자 UUID"),
                                 fieldWithPath("nickname").description("닉네임"),
                                 fieldWithPath("gender").description("성별"),
                                 fieldWithPath("birth").description("생일").optional(),
                                 fieldWithPath("description").description("소개").optional(),
                                 fieldWithPath("profileUrl").description("프로필 이미지 URL").optional()
                         )))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicUuid").value(encryptedPublicUuid));
     }
 
     @Test
     @DisplayName("비로그인 사용자가 내 정보 조회 요청 시 401을 반환한다.")
     void 비로그인_사용자가_내_정보_조회_요청_시_401을_반환한다() throws Exception {
+        when(sessionManager.getUserIdOrThrow(any()))
+                .thenThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
+
         mockMvc.perform(get("/users/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
@@ -92,6 +105,7 @@ public class UserControllerTest extends ControllerTest{
     @DisplayName("존재하지 않는 사용자의 내 정보 조회 요청 시 404를 반환한다.")
     void 존재하지_않는_사용자의_내_정보_조회_요청_시_404를_반환한다() throws Exception {
         Long userId = 1L;
+        when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
         when(userService.userInfo(userId))
                 .thenThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
 

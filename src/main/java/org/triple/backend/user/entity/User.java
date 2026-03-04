@@ -16,13 +16,22 @@ import org.triple.backend.travel.entity.UserTravelItinerary;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Entity
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "users")
+@Table(
+        name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_users_public_uuid",
+                        columnNames = {"public_uuid"}
+                )
+        }
+)
 public class User extends BaseEntity {
 
     @Id
@@ -48,6 +57,9 @@ public class User extends BaseEntity {
 
     private String profileUrl;
 
+    @Column(name = "public_uuid")
+    private UUID publicUuid;
+
     @OneToMany(mappedBy = "user")
     @Builder.Default
     private List<JoinApply> joinApplies = new ArrayList<>();
@@ -67,4 +79,15 @@ public class User extends BaseEntity {
     @OneToMany(mappedBy = "user")
     @Builder.Default
     private List<Payment> payments = new ArrayList<>();
+
+    @PrePersist
+    void initPublicUuid() {
+        if(publicUuid == null) publicUuid = UUID.randomUUID();
+    }
+
+    public void assignPublicUuidIfAbsent() {
+        if (publicUuid == null) {
+            publicUuid = UUID.randomUUID();
+        }
+    }
 }

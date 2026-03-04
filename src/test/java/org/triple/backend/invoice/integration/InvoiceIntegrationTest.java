@@ -112,7 +112,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices")
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -161,7 +161,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices")
-                        .sessionAttr(USER_SESSION_KEY, leaderMember.getId())
+                        .sessionAttr(USER_SESSION_KEY, leaderMember.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -227,7 +227,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices")
-                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -263,7 +263,7 @@ class InvoiceIntegrationTest {
                 """.formatted(group.getId(), travelItinerary.getId(), member.getId());
 
         mockMvc.perform(post("/invoices")
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -272,7 +272,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices")
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -305,7 +305,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -347,7 +347,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -389,7 +389,7 @@ class InvoiceIntegrationTest {
         invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버2, new BigDecimal("3000")));
 
         mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 여행일정.getId())
-                        .sessionAttr(USER_SESSION_KEY, 멤버1.getId()))
+                        .sessionAttr(USER_SESSION_KEY, 멤버1.getPublicUuid()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("청구서"))
                 .andExpect(jsonPath("$.creator.userId").value(생성자.getId()))
@@ -412,7 +412,7 @@ class InvoiceIntegrationTest {
         invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버, new BigDecimal("10000")));
 
         mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 여행일정.getId())
-                        .sessionAttr(USER_SESSION_KEY, 외부인.getId()))
+                        .sessionAttr(USER_SESSION_KEY, 외부인.getPublicUuid()))
                 .andExpect(status().isNotFound());
     }
 
@@ -454,7 +454,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -500,7 +500,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -536,7 +536,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -558,7 +558,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk());
@@ -588,7 +588,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isForbidden())
@@ -610,7 +610,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, groupMemberWithoutTravel.getId())
+                        .sessionAttr(USER_SESSION_KEY, groupMemberWithoutTravel.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isNotFound())
@@ -633,7 +633,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isForbidden())
@@ -648,7 +648,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices/{invoiceId}/check", 999L)
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isNotFound())
@@ -668,7 +668,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isConflict())
@@ -689,7 +689,7 @@ class InvoiceIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isConflict())
@@ -707,7 +707,7 @@ class InvoiceIntegrationTest {
         invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new java.math.BigDecimal("10000")));
 
         mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, creator.getId())
+                        .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk());
@@ -729,7 +729,7 @@ class InvoiceIntegrationTest {
         Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
 
         mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, other.getId())
+                        .sessionAttr(USER_SESSION_KEY, other.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isForbidden());
@@ -744,7 +744,7 @@ class InvoiceIntegrationTest {
         Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.CONFIRM);
 
         mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, creator.getId())
+                        .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isConflict());
@@ -761,7 +761,7 @@ class InvoiceIntegrationTest {
         jdbcTemplate.update("insert into payment (invoice_id, payment_status) values (?, ?)", invoice.getId(), "READY");
 
         mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, creator.getId())
+                        .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isConflict());

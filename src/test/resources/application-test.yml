@@ -22,3 +22,7 @@ logging:
 restClient:
   connectTimeout: 2
   readTimeout: 2
+
+security:
+  uuid:
+    secret: test-uuid-crypto-secret

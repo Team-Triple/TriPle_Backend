@@ -14,9 +14,11 @@ import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.auth.oauth.OauthUser;
 import org.triple.backend.auth.oauth.kakao.KakaoOauthClient;
 import org.triple.backend.auth.session.CsrfTokenManager;
+import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 
@@ -38,6 +40,12 @@ class AuthIntegrationTest {
 
     @Autowired
     private UserJpaRepository userJpaRepository;
+
+    @Autowired
+    private UuidCrypto uuidCrypto;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockitoBean
     private KakaoOauthClient kakaoOauthClient;
@@ -72,6 +80,7 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicUuid").exists())
                 .andExpect(jsonPath("$.profileUrl").value("http://img"))
                 .andExpect(jsonPath("$.nickname").value("test"))
                 .andExpect(jsonPath("$.email").value("test@test.com"))
@@ -84,6 +93,7 @@ class AuthIntegrationTest {
 
         Object sessionUserIdObj = session.getAttribute(USER_SESSION_KEY);
         assertThat(sessionUserIdObj).isNotNull();
+        assertThat(sessionUserIdObj).isInstanceOf(String.class);
 
         User saved = userJpaRepository.findByProviderAndProviderId(OauthProvider.KAKAO, "kakao-1234")
                 .orElseThrow();
@@ -93,6 +103,9 @@ class AuthIntegrationTest {
         assertThat(saved.getEmail()).isEqualTo("test@test.com");
         assertThat(saved.getNickname()).isEqualTo("test");
         assertThat(saved.getProfileUrl()).isEqualTo("http://img");
+        String encryptedPublicUuid = objectMapper.readTree(result.getResponse().getContentAsString()).get("publicUuid").asText();
+        assertThat(uuidCrypto.decryptToUuid(encryptedPublicUuid)).isEqualTo(saved.getPublicUuid());
+        assertThat(uuidCrypto.decryptToUuid(sessionUserIdObj)).isEqualTo(saved.getPublicUuid());
 
         assertThat(userJpaRepository.count()).isEqualTo(1);
     }
@@ -124,9 +137,17 @@ class AuthIntegrationTest {
     @Test
     @DisplayName("로그아웃 성공 시 세션을 무효화하고 login_status/JSESSIONID 쿠키를 만료시킨다")
     void 로그아웃_성공_시_세션을_무효화하고_쿠키를_만료시킨다() throws Exception {
+        User saved = userJpaRepository.save(User.builder()
+                .provider(OauthProvider.KAKAO)
+                .providerId("logout-user")
+                .email("logout@test.com")
+                .nickname("logout-user")
+                .build());
+        String encryptedPublicUuid = uuidCrypto.encrypt(saved.getPublicUuid());
+
         // when
         MvcResult result = mockMvc.perform(post("/auth/logout")
-                        .sessionAttr(USER_SESSION_KEY, 1L)
+                        .sessionAttr(USER_SESSION_KEY, encryptedPublicUuid)
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk())
@@ -145,8 +166,16 @@ class AuthIntegrationTest {
     @Test
     @DisplayName("로그인 세션이 있고 CSRF 토큰이 없으면 로그아웃은 403을 반환한다")
     void 로그인_세션이_있고_CSRF_토큰이_없으면_로그아웃은_403을_반환한다() throws Exception {
+        User saved = userJpaRepository.save(User.builder()
+                .provider(OauthProvider.KAKAO)
+                .providerId("logout-user-2")
+                .email("logout2@test.com")
+                .nickname("logout-user-2")
+                .build());
+        String encryptedPublicUuid = uuidCrypto.encrypt(saved.getPublicUuid());
+
         mockMvc.perform(post("/auth/logout")
-                        .sessionAttr(USER_SESSION_KEY, 1L)
+                        .sessionAttr(USER_SESSION_KEY, encryptedPublicUuid)
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN))
                 .andExpect(status().isForbidden());
     }

@@ -25,6 +25,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -84,7 +85,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies", group.getId())
-                        .sessionAttr(USER_SESSION_KEY, applicant.getId())
+                        .sessionAttr(USER_SESSION_KEY, applicant.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk());
@@ -114,7 +115,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies", group.getId())
-                        .sessionAttr(USER_SESSION_KEY, applicant.getId())
+                        .sessionAttr(USER_SESSION_KEY, applicant.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isConflict());
@@ -143,7 +144,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies", group.getId())
-                        .sessionAttr(USER_SESSION_KEY, applicant.getId())
+                        .sessionAttr(USER_SESSION_KEY, applicant.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk());
@@ -175,7 +176,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies", group.getId())
-                        .sessionAttr(USER_SESSION_KEY, applicant.getId())
+                        .sessionAttr(USER_SESSION_KEY, applicant.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isConflict());
@@ -200,7 +201,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isConflict());
@@ -233,7 +234,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", savedGroup.getId(), joinApply.getId())
-                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk());
@@ -248,8 +249,8 @@ public class JoinApplyIntegrationTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자가 가입 신청을 승인하면 404를 반환한다")
-    void 존재하지_않는_사용자가_가입_신청을_승인하면_404를_반환한다() throws Exception {
+    @DisplayName("세션 사용자를 식별할 수 없으면 가입 신청 승인은 401을 반환한다")
+    void 세션_사용자를_식별할_수_없으면_가입_신청_승인은_401을_반환한다() throws Exception {
         // given
         User owner = userJpaRepository.save(
                 User.builder()
@@ -275,10 +276,10 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", savedGroup.getId(), joinApply.getId())
-                        .sessionAttr(USER_SESSION_KEY, 999999L)
+                        .sessionAttr(USER_SESSION_KEY, UUID.randomUUID())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isUnauthorized());
 
         JoinApply pendingApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
         assertThat(pendingApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
@@ -321,7 +322,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", savedGroup.getId(), joinApply.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isForbidden());
@@ -370,7 +371,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}", savedGroup.getId(), joinApply.getId())
-                        .sessionAttr(USER_SESSION_KEY, owner.getId())
+                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk());
@@ -420,7 +421,7 @@ public class JoinApplyIntegrationTest {
         String firstJson = mockMvc.perform(get("/groups/{groupId}/join-applies", savedGroup.getId())
                         .param("status", "PENDING")
                         .param("size", "2")
-                        .sessionAttr(USER_SESSION_KEY, owner.getId()))
+                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.users", hasSize(2)))
                 .andExpect(jsonPath("$.users[0].joinApplyId").isNumber())
@@ -442,7 +443,7 @@ public class JoinApplyIntegrationTest {
                         .param("status", "PENDING")
                         .param("cursor", String.valueOf(nextCursor))
                         .param("size", "2")
-                        .sessionAttr(USER_SESSION_KEY, owner.getId()))
+                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.users", hasSize(2)))
                 .andExpect(jsonPath("$.users[0].joinApplyId").isNumber())
@@ -512,7 +513,7 @@ public class JoinApplyIntegrationTest {
 
         // when & then
         mockMvc.perform(get("/groups/{groupId}/join-applies", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, owner.getId()))
+                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.users", hasSize(3)))
                 .andExpect(jsonPath("$.users[0].joinApplyId").isNumber())
@@ -559,7 +560,7 @@ public class JoinApplyIntegrationTest {
         // when & then
         mockMvc.perform(get("/groups/{groupId}/join-applies", savedGroup.getId())
                         .param("status", "PENDING")
-                        .sessionAttr(USER_SESSION_KEY, member.getId()))
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
                 .andExpect(status().isForbidden());
     }
 

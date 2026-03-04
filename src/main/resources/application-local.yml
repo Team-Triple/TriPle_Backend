@@ -29,3 +29,7 @@ oauth:
 restClient:
   connectTimeout: 2
   readTimeout: 2
+
+security:
+  uuid:
+    secret: ${UUID_CRYPTO_SECRET:local-dev-uuid-secret-change-me}

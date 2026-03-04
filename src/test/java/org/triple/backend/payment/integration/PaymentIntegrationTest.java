@@ -99,7 +99,7 @@ class PaymentIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -148,7 +148,7 @@ class PaymentIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, "wrong-token")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -176,7 +176,7 @@ class PaymentIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -204,7 +204,7 @@ class PaymentIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -226,7 +226,7 @@ class PaymentIntegrationTest {
                 """;
 
         mockMvc.perform(post("/payments/{invoiceId}", 99999L)
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -254,7 +254,7 @@ class PaymentIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -282,7 +282,7 @@ class PaymentIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -322,7 +322,7 @@ class PaymentIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -367,7 +367,7 @@ class PaymentIntegrationTest {
         );
 
         mockMvc.perform(get("/payments")
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
@@ -393,7 +393,7 @@ class PaymentIntegrationTest {
         User payer = saveUser("payer-search-invalid");
 
         mockMvc.perform(get("/payments")
-                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .sessionAttr(USER_SESSION_KEY, payer.getPublicUuid())
                         .param("keyword", "aaaaaaaaaaaaaaaaaaaaa")
                         .param("size", "10"))
                 .andExpect(status().isBadRequest())
