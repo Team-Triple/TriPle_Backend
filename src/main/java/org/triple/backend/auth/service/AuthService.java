@@ -12,6 +12,7 @@ import org.triple.backend.auth.oauth.OauthClient;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.auth.oauth.OauthUser;
 import org.triple.backend.auth.session.SessionManager;
+import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
@@ -29,6 +30,7 @@ public class AuthService {
     private final UserJpaRepository userJpaRepository;
     private final TransactionTemplate txTemplate;
     private final SessionManager sessionManager;
+    private final UuidCrypto uuidCrypto;
 
     public AuthLoginResponseDto login(final AuthLoginRequestDto authLoginRequestDto, final HttpServletRequest request) {
         OauthClient client = clients.get(authLoginRequestDto.provider());
@@ -43,9 +45,10 @@ public class AuthService {
         User user = findOrCreateUser(oauthUser);
         log.debug("생성된 유저 ID = {}", maskId(user.getId()));
 
-        sessionManager.login(request, user.getId());
+        sessionManager.login(request, user.getPublicUuid());
 
         return new AuthLoginResponseDto(
+                uuidCrypto.encrypt(user.getPublicUuid()),
                 user.getNickname(),
                 user.getEmail(),
                 user.getProfileUrl()
@@ -58,8 +61,12 @@ public class AuthService {
 
     private User findOrCreateUser(final OauthUser oauthUser) {
         return txTemplate.execute(
-                status -> userJpaRepository.findByProviderAndProviderId(oauthUser.provider(), oauthUser.providerId())
-                .orElseGet(() -> signup(oauthUser)));
+                status -> {
+                    User user = userJpaRepository.findByProviderAndProviderId(oauthUser.provider(), oauthUser.providerId())
+                            .orElseGet(() -> signup(oauthUser));
+                    user.assignPublicUuidIfAbsent();
+                    return user;
+                });
     }
 
     private User signup(final OauthUser oauthUser) {
