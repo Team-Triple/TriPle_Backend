@@ -7,7 +7,7 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
-import org.triple.backend.file.config.S3BucketProperties;
+import org.triple.backend.file.config.property.S3BucketProperties;
 import org.triple.backend.file.infra.exception.CopyFailedException;
 import org.triple.backend.file.infra.exception.DeleteFailedException;
 import org.triple.backend.file.infra.exception.InvalidKeyException;
@@ -43,7 +43,7 @@ public class S3BucketImpl implements S3Bucket {
         if (mimeType == null || mimeType.isBlank()) {
             throw new InvalidKeyException("mimeType은 null이거나 공백일 수 없습니다.");
         }
-        if (!s3BucketProp.getUploadPolicy().getAllowedContentTypes().contains(mimeType)) {
+        if (!s3BucketProp.getUploadPolicy().allowedContentTypes().contains(mimeType)) {
             throw new InvalidKeyException("허용되지 않는 mimeType입니다: " + mimeType);
         }
     }
@@ -60,7 +60,7 @@ public class S3BucketImpl implements S3Bucket {
         if (pendingKey == null || pendingKey.isBlank()) {
             throw new InvalidKeyException("pendingKey는 null이거나 공백일 수 없습니다.");
         }
-        if (!pendingKey.startsWith(s3BucketProp.getPrefix().getPending() + userId + "/")) {
+        if (!pendingKey.startsWith(s3BucketProp.getPrefix().pending() + userId + "/")) {
             throw new InvalidKeyException("pendingKey의 prefix 형식이 올바르지 않습니다.");
         }
     }
@@ -149,7 +149,7 @@ public class S3BucketImpl implements S3Bucket {
 
     @Override
     public String concatUploadPrefix(String uploadedKey) {
-        return s3BucketProp.getPrefix().getGetUrlPrefix() + uploadedKey;
+        return s3BucketProp.getPrefix().getUrlPrefix() + uploadedKey;
     }
 
     private PutObjectPresignRequest makePutObjectPresignedRequest(String key, String mimeType) {
@@ -159,7 +159,7 @@ public class S3BucketImpl implements S3Bucket {
 
     private PutObjectPresignRequest makePutObjectPresignRequest(PutObjectRequest putObjectRequest) {
         return PutObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofSeconds(s3BucketProp.getPresign().getPutExpireSeconds()))
+                .signatureDuration(Duration.ofSeconds(s3BucketProp.getPresign().putExpireSeconds()))
                 .putObjectRequest(putObjectRequest)
                 .build();
     }
