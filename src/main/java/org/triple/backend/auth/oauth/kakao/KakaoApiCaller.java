@@ -16,6 +16,7 @@ import org.triple.backend.auth.exception.AuthErrorCode;
 import org.triple.backend.auth.exception.OauthTransientException;
 import org.springframework.retry.annotation.Backoff;
 import org.triple.backend.global.error.BusinessException;
+import org.triple.backend.auth.config.property.KakaoOauthProperties;
 
 @Slf4j
 @Component

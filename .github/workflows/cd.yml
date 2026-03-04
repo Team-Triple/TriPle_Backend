@@ -89,6 +89,27 @@ jobs:
             printf "%s" "${{ secrets.ENV_PROD }}" > .env
           fi
 
+      - name: Validate profile mapping
+        run: |
+          set -e
+
+          PROFILE="$(grep -E '^SPRING_PROFILES_ACTIVE=' .env | tail -n1 | cut -d= -f2- | tr -d '\r' | xargs)"
+
+          if [ -z "${PROFILE}" ]; then
+            echo "SPRING_PROFILES_ACTIVE is empty"
+            exit 1
+          fi
+
+          if [ "${BRANCH_NAME}" = "develop" ] && [ "${PROFILE}" != "dev" ]; then
+            echo "Profile mismatch: develop branch requires SPRING_PROFILES_ACTIVE=dev"
+            exit 1
+          fi
+
+          if [ "${BRANCH_NAME}" = "main" ] && [ "${PROFILE}" != "prod" ]; then
+            echo "Profile mismatch: main branch requires SPRING_PROFILES_ACTIVE=prod"
+            exit 1
+          fi
+
       - name: Upload files
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}

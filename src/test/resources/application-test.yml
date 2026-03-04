@@ -14,15 +14,64 @@ spring:
         format_sql: true
         show_sql: false
 
+server:
+  servlet:
+    session:
+      cookie:
+        path: /
+        same-site: None
+        secure: true
+        http-only: true
+
 logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
 
-restClient:
-  connectTimeout: 2
-  readTimeout: 2
+oauth:
+  kakao:
+    token-uri: https://kauth.kakao.com/oauth/token
+    user-info-uri: https://kapi.kakao.com/v2/user/me
+    client-id: test-client-id
+    client-secret: test-client-secret
+    redirect-uri: http://localhost:3000/kakao
+
+cors:
+  app-mapping: "/**"
+  allowed-origins:
+    - http://localhost:3000
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - "*"
+  allow-credentials: true
+  exposed-headers:
+    - X-CSRF-Token
+
+rest-client:
+  connect-timeout: 2
+  read-timeout: 2
 
 security:
   uuid:
     secret: test-uuid-crypto-secret
+
+app:
+  aws:
+    s3:
+      region: ap-northeast-2
+      bucket: triple-test-s3
+      presign:
+        put-expire-seconds: 180
+      prefix:
+        pending: uploads/pending/
+        uploaded: uploads/uploaded/
+        get-url-prefix: https://triple-test-s3.s3.ap-northeast-2.amazonaws.com/
+      upload-policy:
+        allowed-extensions: [jpg, jpeg, png]
+        allowed-content-types: [image/jpeg, image/png]
