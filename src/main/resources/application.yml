@@ -49,6 +49,10 @@ restClient:
   connectTimeout: 2
   readTimeout: 2
 
+security:
+  uuid:
+    secret: ${UUID_CRYPTO_SECRET}
+
 app:
   aws:
     s3:
