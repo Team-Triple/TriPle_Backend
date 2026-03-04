@@ -13,8 +13,8 @@ import org.triple.backend.user.entity.User;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Entity
 @Getter
+@Entity
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor

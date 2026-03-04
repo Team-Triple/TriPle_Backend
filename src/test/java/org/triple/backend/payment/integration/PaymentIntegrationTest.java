@@ -8,7 +8,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
-import org.triple.backend.global.constants.AuthConstants;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.repository.GroupJpaRepository;
@@ -46,7 +45,7 @@ import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_TOKEN_KEY;
 @IntegrationTest
 class PaymentIntegrationTest {
 
-    private static final String USER_SESSION_KEY = AuthConstants.USER_SESSION_KEY;
+    private static final String USER_SESSION_KEY = "USER_ID";
     private static final String CSRF_TOKEN = "test-token";
 
     @Autowired
@@ -333,84 +332,72 @@ class PaymentIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행 멤버가 결제 조회 API를 호출하면 해당 invoice의 결제 목록을 조회한다.")
-    void travelMemberCanSearchPaymentsByInvoiceId() throws Exception {
-        User viewer = saveUser("viewer-search-success");
+    @DisplayName("로그인한 사용자는 결제 목록을 조회할 수 있다.")
+    void 로그인한_사용자는_결제_목록을_조회할_수_있다() throws Exception {
         User payer = saveUser("payer-search-success");
-        Group group = saveGroup("search-group");
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "search-travel");
-        saveTravelMembership(viewer, travelItinerary, UserRole.MEMBER);
-        saveTravelMembership(payer, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(group, payer, travelItinerary, InvoiceStatus.CONFIRM, "search-invoice");
-
+        User other = saveUser("payer-search-other");
+        Group group = saveGroup("결제 조회 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "결제 조회 여행");
+        TravelItinerary otherTravelItinerary = saveTravelItinerary(group, "타인 결제 조회 여행");
+        Invoice invoice = saveInvoice(group, payer, travelItinerary, InvoiceStatus.CONFIRM, "제주 렌트비");
+        Invoice otherInvoice = saveInvoice(group, other, otherTravelItinerary, InvoiceStatus.CONFIRM, "타인 결제 청구서");
         paymentJpaRepository.save(
                 Payment.builder()
                         .invoice(invoice)
                         .user(payer)
                         .pgProvider(PgProvider.TOSS)
                         .method(PaymentMethod.TRANSFER)
-                        .orderId("order-old")
-                        .requestedAmount(new BigDecimal("1000"))
+                        .orderId(UUID.randomUUID().toString())
+                        .requestedAmount(new BigDecimal("3000"))
                         .paymentStatus(PaymentStatus.READY)
-                        .requestedAt(LocalDateTime.of(2030, 3, 1, 9, 0))
+                        .requestedAt(LocalDateTime.of(2030, 3, 20, 12, 0))
                         .build()
         );
         paymentJpaRepository.save(
                 Payment.builder()
-                        .invoice(invoice)
-                        .user(payer)
+                        .invoice(otherInvoice)
+                        .user(other)
                         .pgProvider(PgProvider.TOSS)
                         .method(PaymentMethod.TRANSFER)
-                        .orderId("order-latest")
-                        .requestedAmount(new BigDecimal("2000"))
-                        .paymentStatus(PaymentStatus.IN_PROGRESS)
-                        .requestedAt(LocalDateTime.of(2030, 3, 1, 10, 0))
+                        .orderId(UUID.randomUUID().toString())
+                        .requestedAmount(new BigDecimal("7000"))
+                        .paymentStatus(PaymentStatus.READY)
+                        .requestedAt(LocalDateTime.of(2030, 3, 20, 13, 0))
                         .build()
         );
 
-        mockMvc.perform(get("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, viewer.getId()))
+        mockMvc.perform(get("/payments")
+                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.invoiceId").value(invoice.getId()))
-                .andExpect(jsonPath("$.payments.length()").value(2))
-                .andExpect(jsonPath("$.payments[0].orderId").value("order-latest"))
-                .andExpect(jsonPath("$.payments[0].paymentStatus").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.payments[1].orderId").value("order-old"));
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].invoiceId").value(invoice.getId()))
+                .andExpect(jsonPath("$.items[0].name").value("제주 렌트비"))
+                .andExpect(jsonPath("$.nextCursor").isEmpty())
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 결제 조회 API를 호출하면 401을 반환한다.")
-    void searchPaymentsWithoutLoginReturns401() throws Exception {
-        mockMvc.perform(get("/payments/{invoiceId}", 1L))
+    @DisplayName("비로그인 사용자가 결제 목록 조회를 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_결제_목록_조회를_요청하면_401을_반환한다() throws Exception {
+        mockMvc.perform(get("/payments")
+                        .param("size", "10"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."));
     }
 
     @Test
-    @DisplayName("여행 멤버가 아니면 결제 조회 API 호출 시 403을 반환한다.")
-    void nonTravelMemberSearchPaymentsReturns403() throws Exception {
-        User member = saveUser("member-search-forbidden");
-        User outsider = saveUser("outsider-search-forbidden");
-        Group group = saveGroup("search-permission-group");
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "search-permission-travel");
-        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(group, member, travelItinerary, InvoiceStatus.CONFIRM, "search-permission-invoice");
+    @DisplayName("검색어 길이가 20자를 초과하면 결제 목록 조회 시 400을 반환한다.")
+    void 검색어_길이가_20자를_초과하면_결제_목록_조회_시_400을_반환한다() throws Exception {
+        User payer = saveUser("payer-search-invalid");
 
-        mockMvc.perform(get("/payments/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getId()))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("결제를 조회할 수 없는 청구서입니다."));
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 invoiceId로 결제 조회 API를 호출하면 404를 반환한다.")
-    void searchPaymentsWithUnknownInvoiceIdReturns404() throws Exception {
-        User viewer = saveUser("viewer-search-not-found");
-
-        mockMvc.perform(get("/payments/{invoiceId}", 99999L)
-                        .sessionAttr(USER_SESSION_KEY, viewer.getId()))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value(InvoiceErrorCode.NOT_FOUND_INVOICE.getMessage()));
+        mockMvc.perform(get("/payments")
+                        .sessionAttr(USER_SESSION_KEY, payer.getId())
+                        .param("keyword", "aaaaaaaaaaaaaaaaaaaaa")
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."));
     }
 
     private User saveUser(final String providerId) {

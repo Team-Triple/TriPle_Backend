@@ -16,7 +16,10 @@ import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.payment.controller.PaymentController;
 import org.triple.backend.payment.dto.request.PaymentCreateReq;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
-import org.triple.backend.payment.dto.response.PaymentSearchRes;
+import org.triple.backend.payment.dto.response.PaymentCursorRes;
+import org.triple.backend.payment.entity.PaymentMethod;
+import org.triple.backend.payment.entity.PaymentStatus;
+import org.triple.backend.payment.entity.PgProvider;
 import org.triple.backend.payment.exception.PaymentErrorCode;
 import org.triple.backend.payment.service.PaymentService;
 
@@ -25,6 +28,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -40,6 +45,8 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.requestF
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -246,101 +253,124 @@ class PaymentControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("로그인한 사용자는 invoiceId로 결제 내역을 조회할 수 있다.")
-    void loginUserCanSearchPaymentsByInvoiceId() throws Exception {
-        PaymentSearchRes response = new PaymentSearchRes(
-                1L,
+    @DisplayName("로그인한 사용자는 결제 목록을 조회할 수 있다.")
+    void 로그인한_사용자는_결제_목록을_조회할_수_있다() throws Exception {
+        PaymentCursorRes response = new PaymentCursorRes(
                 List.of(
-                        new PaymentSearchRes.PaymentDetail(
-                                1L,
-                                "payer-one",
-                                "order-2",
-                                new BigDecimal("4000"),
-                                org.triple.backend.payment.entity.PaymentStatus.IN_PROGRESS,
-                                LocalDateTime.of(2030, 3, 1, 10, 30)
-                        ),
-                        new PaymentSearchRes.PaymentDetail(
-                                2L,
-                                "payer-two",
-                                "order-1",
+                        new PaymentCursorRes.PaymentSummaryDto(
+                                10L,
+                                200L,
+                                "제주 렌트비",
+                                PgProvider.TOSS,
+                                PaymentMethod.TRANSFER,
+                                PaymentStatus.READY,
                                 new BigDecimal("3000"),
-                                org.triple.backend.payment.entity.PaymentStatus.READY,
-                                LocalDateTime.of(2030, 3, 1, 9, 30)
+                                null,
+                                LocalDateTime.of(2030, 3, 20, 12, 0),
+                                null
                         )
-                )
+                ),
+                null,
+                false
         );
-        given(paymentService.search(eq(1L), eq(1L))).willReturn(response);
+        given(paymentService.search(eq("제주"), eq(null), eq(10), eq(1L))).willReturn(response);
 
-        mockMvc.perform(get("/payments/{invoiceId}", 1L)
-                        .with(loginSessionAndCsrf()))
+        mockMvc.perform(get("/payments")
+                        .with(loginSessionAndCsrf())
+                        .param("keyword", "제주")
+                        .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.invoiceId").value(1L))
-                .andExpect(jsonPath("$.payments.length()").value(2))
-                .andExpect(jsonPath("$.payments[0].userId").value(1L))
-                .andExpect(jsonPath("$.payments[0].userNickname").value("payer-one"))
-                .andExpect(jsonPath("$.payments[0].orderId").value("order-2"))
-                .andExpect(jsonPath("$.payments[0].requestedAmount").value(4000))
-                .andExpect(jsonPath("$.payments[0].paymentStatus").value("IN_PROGRESS"))
-                .andExpect(jsonPath("$.payments[0].requestedAt").value("2030-03-01T10:30:00"))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].paymentId").value(10L))
+                .andExpect(jsonPath("$.items[0].invoiceId").value(200L))
+                .andExpect(jsonPath("$.items[0].name").value("제주 렌트비"))
+                .andExpect(jsonPath("$.items[0].pgProvider").value("TOSS"))
+                .andExpect(jsonPath("$.items[0].method").value("TRANSFER"))
+                .andExpect(jsonPath("$.items[0].status").value("READY"))
+                .andExpect(jsonPath("$.items[0].requestedAmount").value(3000))
+                .andExpect(jsonPath("$.items[0].approvedAmount").isEmpty())
+                .andExpect(jsonPath("$.items[0].requestedAt").value("2030-03-20T12:00:00"))
+                .andExpect(jsonPath("$.items[0].approvedAt").isEmpty())
+                .andExpect(jsonPath("$.nextCursor").isEmpty())
+                .andExpect(jsonPath("$.hasNext").value(false))
                 .andDo(document("payments/search",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
-                        pathParameters(
-                                parameterWithName("invoiceId").description("조회 대상 청구서 ID")
+                        queryParameters(
+                                parameterWithName("keyword").optional().description("검색 키워드(없으면 전체 조회)"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
                         ),
                         responseFields(
-                                fieldWithPath("invoiceId").description("청구서 ID"),
-                                fieldWithPath("payments").description("결제 목록"),
-                                fieldWithPath("payments[].userId").description("결제 요청 사용자 ID"),
-                                fieldWithPath("payments[].userNickname").description("결제 요청 사용자 닉네임"),
-                                fieldWithPath("payments[].orderId").description("주문 ID"),
-                                fieldWithPath("payments[].requestedAmount").description("요청 결제 금액"),
-                                fieldWithPath("payments[].paymentStatus").description("결제 상태"),
-                                fieldWithPath("payments[].requestedAt").description("결제 요청 시각")
+                                fieldWithPath("items").description("결제 목록"),
+                                fieldWithPath("items[].paymentId").description("결제 ID"),
+                                fieldWithPath("items[].invoiceId").description("청구서 ID"),
+                                fieldWithPath("items[].name").description("결제명"),
+                                fieldWithPath("items[].pgProvider").description("PG사"),
+                                fieldWithPath("items[].method").description("결제 수단"),
+                                fieldWithPath("items[].status").description("결제 상태"),
+                                fieldWithPath("items[].requestedAmount").description("요청 금액"),
+                                fieldWithPath("items[].approvedAmount").description("승인 금액").optional(),
+                                fieldWithPath("items[].requestedAt").description("요청 일시"),
+                                fieldWithPath("items[].approvedAt").description("승인 일시").optional(),
+                                fieldWithPath("nextCursor").description("다음 페이지 커서 (없으면 null)").optional(),
+                                fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
                 ));
 
-        verify(paymentService, times(1)).search(1L, 1L);
+        verify(paymentService, times(1)).search("제주", null, 10, 1L);
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 결제 조회를 요청하면 401을 반환한다.")
-    void searchPaymentsWithoutLoginReturns401() throws Exception {
-        mockMvc.perform(get("/payments/{invoiceId}", 1L))
+    @DisplayName("비로그인 사용자가 결제 목록 조회를 요청하면 401을 반환한다.")
+    void 비로그인_사용자가_결제_목록_조회를_요청하면_401을_반환한다() throws Exception {
+        mockMvc.perform(get("/payments")
+                        .param("size", "10"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
                 .andDo(document("payments/search-fail-unauthorized",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
-                        pathParameters(
-                                parameterWithName("invoiceId").description("조회 대상 청구서 ID")
+                        queryParameters(
+                                parameterWithName("keyword").optional().description("검색 키워드(없으면 전체 조회)"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
                         ),
                         responseFields(
                                 fieldWithPath("message").description("에러 메시지")
                         )
                 ));
 
-        verify(paymentService, never()).search(any(Long.class), any(Long.class));
+        verify(paymentService, never()).search(any(), any(), anyInt(), anyLong());
     }
 
     @Test
-    @DisplayName("조회 권한이 없는 사용자가 결제 조회를 요청하면 403을 반환한다.")
-    void searchPaymentsWithoutPermissionReturns403() throws Exception {
-        assertSearchBusinessFailure(
-                PaymentErrorCode.PAYMENT_SEARCH_NOT_ALLOWED,
-                status().isForbidden(),
-                "payments/search-fail-payment-search-not-allowed"
-        );
-    }
+    @DisplayName("검색어 길이가 20자를 초과하면 400을 반환한다.")
+    void 검색어_길이가_20자를_초과하면_400을_반환한다() throws Exception {
+        String keyword = "aaaaaaaaaaaaaaaaaaaaa";
+        given(paymentService.search(eq(keyword), eq(null), eq(10), eq(1L)))
+                .willThrow(new BusinessException(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH));
 
-    @Test
-    @DisplayName("존재하지 않는 invoiceId로 결제 조회를 요청하면 404를 반환한다.")
-    void searchPaymentsWithUnknownInvoiceIdReturns404() throws Exception {
-        assertSearchBusinessFailure(
-                InvoiceErrorCode.NOT_FOUND_INVOICE,
-                status().isNotFound(),
-                "payments/search-fail-not-found-invoice"
-        );
+        mockMvc.perform(get("/payments")
+                        .with(loginSessionAndCsrf())
+                        .param("keyword", keyword)
+                        .param("size", "10"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("검색어는 최대 20자까지 입력할 수 있습니다."))
+                .andDo(document("payments/search-fail-invalid-keyword",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        queryParameters(
+                                parameterWithName("keyword").optional().description("검색 키워드(없으면 전체 조회)"),
+                                parameterWithName("cursor").optional().description("커서(다음 페이지 조회 시 사용). 첫 페이지는 생략"),
+                                parameterWithName("size").optional().description("페이지 크기(기본 10)")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(paymentService, times(1)).search(keyword, null, 10, 1L);
     }
 
     private void assertBusinessFailure(
