@@ -104,8 +104,8 @@ class InvoiceServiceTest {
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(
-                        new RecipientAmountDto(member1.getId(), new BigDecimal("30000")),
-                        new RecipientAmountDto(member2.getId(), new BigDecimal("40000"))
+                        new RecipientAmountDto(member1.getPublicUuid().toString(), new BigDecimal("30000")),
+                        new RecipientAmountDto(member2.getPublicUuid().toString(), new BigDecimal("40000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -155,7 +155,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -181,7 +181,7 @@ class InvoiceServiceTest {
                 1L,
                 1L,
                 List.of(
-                        new RecipientAmountDto(2L, new BigDecimal("30000"))
+                        new RecipientAmountDto("00000000-0000-0000-0000-000000000002", new BigDecimal("30000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -214,7 +214,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -247,8 +247,8 @@ class InvoiceServiceTest {
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(
-                        new RecipientAmountDto(member.getId(), new BigDecimal("10000")),
-                        new RecipientAmountDto(member.getId(), new BigDecimal("20000"))
+                        new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("20000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -279,7 +279,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(outsider.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(outsider.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -311,7 +311,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto firstRequest = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -320,7 +320,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto secondRequest = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "중복 청구서",
                 "중복 생성 시도",
                 new BigDecimal("30000"),
@@ -548,8 +548,8 @@ class InvoiceServiceTest {
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("30000"),
                 List.of(
-                        new RecipientAmountDto(member1.getId(), new BigDecimal("10000")),
-                        new RecipientAmountDto(member2.getId(), new BigDecimal("20000"))
+                        new RecipientAmountDto(member1.getPublicUuid().toString(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member2.getPublicUuid().toString(), new BigDecimal("20000"))
                 )
         );
 
@@ -589,7 +589,7 @@ class InvoiceServiceTest {
 
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("50000"),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000")))
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000")))
         );
 
         // when & then
@@ -616,7 +616,7 @@ class InvoiceServiceTest {
 
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("10000"),
-                List.of(new RecipientAmountDto(outsider.getId(), new BigDecimal("10000")))
+                List.of(new RecipientAmountDto(outsider.getPublicUuid().toString(), new BigDecimal("10000")))
         );
 
         // when & then
@@ -645,8 +645,8 @@ class InvoiceServiceTest {
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("20000"),
                 List.of(
-                        new RecipientAmountDto(member.getId(), new BigDecimal("10000")),
-                        new RecipientAmountDto(member.getId(), new BigDecimal("10000"))
+                        new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000"))
                 )
         );
 
@@ -681,7 +681,7 @@ class InvoiceServiceTest {
 
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("10000"),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("10000")))
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")))
         );
 
         // when & then
@@ -1000,7 +1000,7 @@ class InvoiceServiceTest {
     }
 
     private User saveUser(final String providerId) {
-        return userJpaRepository.save(
+        return userJpaRepository.saveAndFlush(
                 User.builder()
                         .providerId(providerId)
                         .nickname(providerId + "-nick")
