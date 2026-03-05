@@ -35,6 +35,7 @@ import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
+import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -51,6 +52,7 @@ public class InvoiceService {
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
     private final PaymentJpaRepository paymentJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
+    private final UserJpaRepository userJpaRepository;
 
     @Transactional
     public InvoiceCreateResponseDto create(final Long userId, final InvoiceCreateRequestDto dto) {
@@ -132,8 +134,12 @@ public class InvoiceService {
         invoiceUserJpaRepository.deleteAllByInvoiceIdInBatch(invoiceId);
         invoice.updateAmount(dto.totalAmount());
 
-        List<InvoiceUser> invoiceUsers = recipientByUserId.values().stream()
-                .map(r -> InvoiceUser.create(invoice, userById.get(r.userId()), r.amount()))
+        List<InvoiceUser> invoiceUsers = recipientByUserId.entrySet().stream()
+                .map(entry -> InvoiceUser.create(
+                        invoice,
+                        userById.get(entry.getKey()),
+                        entry.getValue().amount()
+                ))
                 .toList();
 
         invoiceUserJpaRepository.saveAll(invoiceUsers);
@@ -164,11 +170,16 @@ public class InvoiceService {
     private Map<Long, RecipientAmountDto> toRecipientMap(final List<RecipientAmountDto> recipients) {
         return recipients.stream()
                 .collect(Collectors.toMap(
-                        RecipientAmountDto::userId,
+                        recipient -> resolveRecipientUserIdOrThrow(recipient.userId()),
                         r -> r,
                         (a,b) -> {throw new BusinessException(InvoiceErrorCode.DUPLICATE_RECIPIENT);},
                         LinkedHashMap::new
                 ));
+    }
+
+    private Long resolveRecipientUserIdOrThrow(final String recipientUserId) {
+        return userJpaRepository.findIdByPublicUuid(recipientUserId)
+                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND));
     }
 
     private Map<Long, User> loadRecipientUsersOrThrow(
@@ -212,8 +223,12 @@ public class InvoiceService {
             final Map<Long, RecipientAmountDto> recipientByUserId,
             final Map<Long, User> userById
     ) {
-        return recipientByUserId.values().stream()
-                .map(recipient -> InvoiceUser.create(savedInvoice, userById.get(recipient.userId()), recipient.amount()))
+        return recipientByUserId.entrySet().stream()
+                .map(entry -> InvoiceUser.create(
+                        savedInvoice,
+                        userById.get(entry.getKey()),
+                        entry.getValue().amount()
+                ))
                 .toList();
     }
 
