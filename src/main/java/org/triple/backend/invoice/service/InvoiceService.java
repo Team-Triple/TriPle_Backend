@@ -35,7 +35,7 @@ import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
-import org.triple.backend.user.repository.UserJpaRepository;
+import org.triple.backend.user.service.UserFinder;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -52,7 +52,7 @@ public class InvoiceService {
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
     private final PaymentJpaRepository paymentJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
-    private final UserJpaRepository userJpaRepository;
+    private final UserFinder userFinder;
 
     @Transactional
     public InvoiceCreateResponseDto create(final Long userId, final InvoiceCreateRequestDto dto) {
@@ -178,19 +178,7 @@ public class InvoiceService {
     }
 
     private Long resolveRecipientUserIdOrThrow(final String recipientUserId) {
-        if (recipientUserId == null || recipientUserId.isBlank()) {
-            throw new BusinessException(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND);
-        }
-
-        UUID publicUuid;
-        try {
-            publicUuid = UUID.fromString(recipientUserId);
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND);
-        }
-
-        return userJpaRepository.findIdByPublicUuid(publicUuid)
-                .orElseThrow(() -> new BusinessException(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND));
+        return userFinder.findIdByPublicUuidOrThrow(recipientUserId, InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND);
     }
 
     private Map<Long, User> loadRecipientUsersOrThrow(

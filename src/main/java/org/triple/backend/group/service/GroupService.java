@@ -28,12 +28,12 @@ import org.triple.backend.travel.repository.TravelReviewJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
+import org.triple.backend.user.service.UserFinder;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static java.util.stream.Collectors.*;
 import static org.triple.backend.group.dto.response.GroupDetailResponseDto.*;
@@ -54,6 +54,7 @@ public class GroupService {
     private final TravelReviewJpaRepository travelReviewJpaRepository;
     private final TravelReviewImageJpaRepository travelReviewImageJpaRepository;
     private final UserJpaRepository userJpaRepository;
+    private final UserFinder userFinder;
 
     @Transactional
     public CreateGroupResponseDto create(final CreateGroupRequestDto dto, final Long userId) {
@@ -392,14 +393,7 @@ public class GroupService {
     }
 
     private Long resolveTargetUserIdOrThrow(final String targetUserId) {
-        UUID targetPublicUuid;
-        try {
-            targetPublicUuid = UUID.fromString(targetUserId);
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
-        }
-        return userJpaRepository.findIdByPublicUuid(targetPublicUuid)
-                .orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        return userFinder.findIdByPublicUuidOrThrow(targetUserId, GroupErrorCode.NOT_GROUP_MEMBER);
     }
 
     private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
