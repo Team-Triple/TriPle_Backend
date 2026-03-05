@@ -30,7 +30,6 @@ def jacocoExclude = [
         "**/*Interceptor*",
         "**/*Filter*",
         "**/dto/**",
-        "**/repository/**",
         "**/entity/**",
         "**/exception/**",
         "**/error/**",
