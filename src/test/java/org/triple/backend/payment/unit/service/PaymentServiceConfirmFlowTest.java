@@ -62,7 +62,7 @@ class PaymentServiceConfirmFlowTest {
     @DisplayName("orderId로 결제를 찾지 못하면 NOT_FOUND_PAYMENT 예외가 발생한다.")
     void readyToInProgressNotFoundPayment() {
         PaymentConfirmReq req = confirmReq("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.empty());
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.readyToInProgressPayment(req, 1L, 1L))
                 .isInstanceOf(BusinessException.class)
@@ -75,7 +75,7 @@ class PaymentServiceConfirmFlowTest {
     void readyToInProgressAlreadyProcessed() {
         Payment payment = payment("order-1", "10000", PaymentStatus.DONE);
         PaymentConfirmReq req = confirmReq("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.of(payment));
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.of(payment));
 
         assertThatThrownBy(() -> paymentService.readyToInProgressPayment(req, 1L, 1L))
                 .isInstanceOf(BusinessException.class)
@@ -88,7 +88,7 @@ class PaymentServiceConfirmFlowTest {
     void readyToInProgressIllegalAmount() {
         Payment payment = payment("order-1", "10000", PaymentStatus.READY);
         PaymentConfirmReq req = confirmReq("order-1", "9000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.of(payment));
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.of(payment));
 
         assertThatThrownBy(() -> paymentService.readyToInProgressPayment(req, 1L, 1L))
                 .isInstanceOf(BusinessException.class)
@@ -101,7 +101,7 @@ class PaymentServiceConfirmFlowTest {
     void readyToInProgressSuccess() {
         Payment payment = payment("order-1", "10000", PaymentStatus.READY);
         PaymentConfirmReq req = confirmReq("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.of(payment));
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.of(payment));
 
         Payment result = paymentService.readyToInProgressPayment(req, 1L, 1L);
 
@@ -131,7 +131,7 @@ class PaymentServiceConfirmFlowTest {
     @DisplayName("승인 응답 orderId로 결제를 찾지 못하면 NOT_FOUND_PAYMENT 예외가 발생한다.")
     void inprogressToDoneNotFoundPayment() {
         ConfirmResponse response = confirmResponse("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.empty());
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.inprogressToDonePayment(response))
                 .isInstanceOf(BusinessException.class)
@@ -144,7 +144,7 @@ class PaymentServiceConfirmFlowTest {
     void inprogressToDoneIllegalAmount() {
         Payment payment = payment("order-1", "10000", PaymentStatus.IN_PROGRESS);
         ConfirmResponse response = confirmResponse("order-1", "9000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.of(payment));
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.of(payment));
 
         assertThatThrownBy(() -> paymentService.inprogressToDonePayment(response))
                 .isInstanceOf(BusinessException.class)
@@ -157,7 +157,7 @@ class PaymentServiceConfirmFlowTest {
     void inprogressToDoneAlreadyProcessed() {
         Payment payment = payment("order-1", "10000", PaymentStatus.DONE);
         ConfirmResponse response = confirmResponse("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.of(payment));
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.of(payment));
 
         assertThatThrownBy(() -> paymentService.inprogressToDonePayment(response))
                 .isInstanceOf(BusinessException.class)
@@ -170,7 +170,7 @@ class PaymentServiceConfirmFlowTest {
     void inprogressToDoneSuccess() {
         Payment payment = payment("order-1", "10000", PaymentStatus.IN_PROGRESS);
         ConfirmResponse response = confirmResponse("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.of(payment));
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.of(payment));
 
         Payment result = paymentService.inprogressToDonePayment(response);
 
@@ -184,7 +184,7 @@ class PaymentServiceConfirmFlowTest {
     @DisplayName("실패 처리 시 결제를 찾지 못하면 NOT_FOUND_PAYMENT 예외가 발생한다.")
     void failConfirmNotFoundPayment() {
         PaymentConfirmReq req = confirmReq("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.empty());
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> paymentService.failConfirm(req, PaymentStatus.FAILED))
                 .isInstanceOf(BusinessException.class)
@@ -197,7 +197,7 @@ class PaymentServiceConfirmFlowTest {
     void failConfirmAlreadyProcessed() {
         Payment payment = payment("order-1", "10000", PaymentStatus.DONE);
         PaymentConfirmReq req = confirmReq("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.of(payment));
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.of(payment));
 
         assertThatThrownBy(() -> paymentService.failConfirm(req, PaymentStatus.FAILED))
                 .isInstanceOf(BusinessException.class)
@@ -210,7 +210,7 @@ class PaymentServiceConfirmFlowTest {
     void failConfirmSuccess() {
         Payment payment = payment("order-1", "10000", PaymentStatus.IN_PROGRESS);
         PaymentConfirmReq req = confirmReq("order-1", "10000");
-        given(paymentJpaRepository.findByOrderId("order-1")).willReturn(Optional.of(payment));
+        given(paymentJpaRepository.findByOrderIdForUpdate("order-1")).willReturn(Optional.of(payment));
 
         paymentService.failConfirm(req, PaymentStatus.DB_FAILED);
 
