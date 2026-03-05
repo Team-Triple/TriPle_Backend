@@ -29,6 +29,7 @@ import org.triple.backend.group.service.GroupService;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
+import org.triple.backend.user.service.UserFinder;
 
 import java.util.List;
 import java.util.concurrent.*;
@@ -40,7 +41,7 @@ import static org.triple.backend.group.fixture.GroupFixtures.privateGroup;
 import static org.triple.backend.group.fixture.GroupFixtures.publicGroup;
 
 @ServiceTest
-@Import(GroupService.class)
+@Import({GroupService.class, UserFinder.class})
 public class GroupServiceTest {
 
     @Autowired

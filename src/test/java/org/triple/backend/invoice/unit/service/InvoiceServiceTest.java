@@ -39,6 +39,7 @@ import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
+import org.triple.backend.user.service.UserFinder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -54,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ServiceTest
-@Import(InvoiceService.class)
+@Import({InvoiceService.class, UserFinder.class})
 class InvoiceServiceTest {
 
     @Autowired
