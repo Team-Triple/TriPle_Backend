@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.group.entity.group.Group;
@@ -78,6 +79,9 @@ class InvoiceIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private UuidCrypto uuidCrypto;
+
     @BeforeEach
     void setUp() {
         dbCleaner.clean();
@@ -108,7 +112,7 @@ class InvoiceIntegrationTest {
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(group.getId(), travelItinerary.getId(), member.getPublicUuid().toString());
+                """.formatted(group.getId(), travelItinerary.getId(), encryptedUserId(member));
 
         // when & then
         mockMvc.perform(post("/invoices")
@@ -123,7 +127,7 @@ class InvoiceIntegrationTest {
                 .andExpect(jsonPath("$.travelItineraryId").value(travelItinerary.getId()))
                 .andExpect(jsonPath("$.title").value("제주 렌트비 정산"))
                 .andExpect(jsonPath("$.recipients.length()").value(1))
-                .andExpect(jsonPath("$.recipients[0].userId").value(member.getId()))
+                .andExpect(jsonPath("$.recipients[0].userId").isString())
                 .andExpect(jsonPath("$.recipients[0].amount").value(30000));
 
         assertThat(invoiceJpaRepository.count()).isEqualTo(1L);
@@ -157,7 +161,7 @@ class InvoiceIntegrationTest {
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(group.getId(), travelItinerary.getId(), member.getPublicUuid().toString());
+                """.formatted(group.getId(), travelItinerary.getId(), encryptedUserId(member));
 
         // when & then
         mockMvc.perform(post("/invoices")
@@ -183,7 +187,7 @@ class InvoiceIntegrationTest {
                   "groupId": 1,
                   "travelItineraryId": 1,
                   "recipients": [
-                    { "userId": 2, "amount": 30000 }
+                    { "userId": "enc-sample-user-id", "amount": 30000 }
                   ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
@@ -223,7 +227,7 @@ class InvoiceIntegrationTest {
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(group.getId(), travelItinerary.getId(), member.getPublicUuid().toString());
+                """.formatted(group.getId(), travelItinerary.getId(), encryptedUserId(member));
 
         // when & then
         mockMvc.perform(post("/invoices")
@@ -260,7 +264,7 @@ class InvoiceIntegrationTest {
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(group.getId(), travelItinerary.getId(), member.getPublicUuid().toString());
+                """.formatted(group.getId(), travelItinerary.getId(), encryptedUserId(member));
 
         mockMvc.perform(post("/invoices")
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
@@ -392,7 +396,7 @@ class InvoiceIntegrationTest {
                         .sessionAttr(USER_SESSION_KEY, 멤버1.getPublicUuid()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("청구서"))
-                .andExpect(jsonPath("$.creator.userId").value(생성자.getId()))
+                .andExpect(jsonPath("$.creator.userId").isString())
                 .andExpect(jsonPath("$.invoiceMembers.length()").value(2))
                 .andExpect(jsonPath("$.remainingAmount").value(10000))
                 .andExpect(jsonPath("$.isDone").value(false));
@@ -450,7 +454,7 @@ class InvoiceIntegrationTest {
                     { "userId": "%s", "amount": 20000 }
                   ]
                 }
-                """.formatted(member1.getPublicUuid().toString(), member2.getPublicUuid().toString());
+                """.formatted(encryptedUserId(member1), encryptedUserId(member2));
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
@@ -496,7 +500,7 @@ class InvoiceIntegrationTest {
                     { "userId": "%s", "amount": 10000 }
                   ]
                 }
-                """.formatted(member.getPublicUuid().toString());
+                """.formatted(encryptedUserId(member));
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
@@ -532,7 +536,7 @@ class InvoiceIntegrationTest {
                     { "userId": "%s", "amount": 10000 }
                   ]
                 }
-                """.formatted(member.getPublicUuid().toString());
+                """.formatted(encryptedUserId(member));
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
@@ -853,5 +857,9 @@ class InvoiceIntegrationTest {
                         .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
                         .build()
         );
+    }
+
+    private String encryptedUserId(final User user) {
+        return uuidCrypto.encrypt(user.getPublicUuid());
     }
 }
