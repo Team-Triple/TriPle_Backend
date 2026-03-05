@@ -32,20 +32,24 @@ public class PaymentServiceFacade {
             return PaymentConfirmRes.from(donePayment);
         } catch (ConfirmRecoverFailedException e) {
             log.error("재시도 3회 실패, 네트워크 에러 발생", e);
-            paymentService.failConfirm(paymentConfirmReq, PaymentStatus.RETRY_FAILED);
+            recoverFailed(paymentConfirmReq);
             throw new BusinessException(PaymentErrorCode.CONFIRM_FAILED);
         } catch (ConfirmAnonymousException e) {
             log.error("알 수 없는 에러 발생", e);
-            paymentService.failConfirm(paymentConfirmReq, PaymentStatus.FAILED);
+            recoverFailed(paymentConfirmReq);
             throw new BusinessException(PaymentErrorCode.CONFIRM_FAILED);
         } catch (ConfirmServerException e) {
             log.error("토스 서버 에러 발생", e);
-            paymentService.failConfirm(paymentConfirmReq, PaymentStatus.FAILED);
+            recoverFailed(paymentConfirmReq);
             throw new BusinessException(PaymentErrorCode.CONFIRM_FAILED);
         } catch (DataAccessException e) {
             log.error("승인은 성공했으나 DB 동기화 실패");
-            paymentService.failConfirm(paymentConfirmReq, PaymentStatus.DB_FAILED);
+            recoverFailed(paymentConfirmReq);
             throw new BusinessException(PaymentErrorCode.CONFIRM_FAILED);
         }
+    }
+
+    private void recoverFailed(PaymentConfirmReq paymentConfirmReq) {
+        paymentService.failConfirm(paymentConfirmReq, PaymentStatus.RETRY_FAILED);
     }
 }
