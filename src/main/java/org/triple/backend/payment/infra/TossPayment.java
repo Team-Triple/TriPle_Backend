@@ -33,29 +33,32 @@ public class TossPayment {
             retryFor = {ResourceAccessException.class},
             noRetryFor = {BusinessException.class, ConfirmServerException.class, ConfirmAnonymousException.class},
             maxAttempts = 3,
-            backoff = @Backoff(delay = 1000)
+            backoff = @Backoff(delay = 500, multiplier = 2, random = true)
     )
     public ConfirmResponse confirmRequest(Payment payment) {
-        try{
+        try {
             return exchangeRequestToResponse(payment);
         } catch (ResourceAccessException e) {
-            log.error("?ㅽ듃?뚰겕 ?덉쇅媛 諛쒖깮?덉뒿?덈떎.", e);
+            log.error("네트워크 예외가 발생했습니다.", e);
             throw e;
         } catch (RestClientResponseException e) {
             int status = e.getStatusCode().value();
             ConfirmFailResponse confirmFailResponse = e.getResponseBodyAs(ConfirmFailResponse.class);
+            log.error("Toss API error. status={}, body={}", status, confirmFailResponse, e);
 
-            if(status == 429 || status >= 500){ //?ъ떆??
-                throw new ResourceAccessException("?ㅽ듃?뚰겕 ?덉쇅媛 諛쒖깮?덉뒿?덈떎.");
+            if (status == 429 || status >= 500) {
+                throw new ResourceAccessException("네트워크 예외가 발생했습니다.");
             }
 
-            if(status == 400 && confirmFailResponse.message().equals("ALREADY_PROCESSED_PAYMENT")) {
-                //?대? 泥섎━??寃곗젣????ConfirmRespnose瑜?諛섑솚?댁빞??=> 議고쉶 ?꾩슂
+            if (status == 400
+                    && confirmFailResponse != null
+                    && "ALREADY_PROCESSED_PAYMENT".equals(confirmFailResponse.code())) {
+                // TODO: 이미 처리된 결제는 조회 API로 최종 상태 동기화 필요
             }
 
-            throw new ConfirmServerException("寃곗젣 ?뱀씤 ?쒕쾭?먯꽌 ?덉쇅媛 諛쒖깮?덉뒿?덈떎.", e);
+            throw new ConfirmServerException("결제 승인 서버에서 예외가 발생했습니다.", e);
         } catch (RuntimeException e) {
-            throw new ConfirmAnonymousException("?????녿뒗 ?덉쇅媛 諛쒖깮?덉뒿?덈떎.", e);
+            throw new ConfirmAnonymousException("알 수 없는 예외가 발생했습니다.", e);
         }
     }
 
@@ -75,22 +78,7 @@ public class TossPayment {
 
     @Recover
     private ConfirmResponse recoverConfirmRequest(ResourceAccessException e, Payment payment) {
-        log.error("?ъ떆??3???ㅽ뙣 ?ㅽ듃?뚰겕 ?덉쇅 諛쒖깮");
-        throw new ConfirmRecoverFailedException("?ъ떆??3???ㅽ뙣 ?ㅽ듃?뚰겕 ?덉쇅 諛쒖깮", e);
-    }
-
-    @Recover
-    private ConfirmResponse recoverConfirmServerException(ConfirmServerException e, Payment payment) {
-        throw e;
-    }
-
-    @Recover
-    private ConfirmResponse recoverConfirmAnonymousException(ConfirmAnonymousException e, Payment payment) {
-        throw e;
+        log.error("재시도 3회 실패, 네트워크 예외 발생", e);
+        throw new ConfirmRecoverFailedException("재시도 3회 실패, 네트워크 예외 발생", e);
     }
 }
-
-
-
-
-
