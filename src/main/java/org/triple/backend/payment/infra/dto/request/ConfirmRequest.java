@@ -12,7 +12,7 @@ public record ConfirmRequest(
         return new ConfirmRequest(
                 payment.getPaymentKey(),
                 payment.getOrderId(),
-                payment.getApprovedAmount()
+                payment.getRequestedAmount()
         );
     }
 }
