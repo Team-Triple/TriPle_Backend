@@ -49,7 +49,7 @@ class UserIdentityResolverTest {
 
         // then
         assertThat(userId).isNull();
-        then(userJpaRepository).should(never()).findIdByPublicUuid(any());
+        then(userJpaRepository).should(never()).findIdByPublicUuid(any(UUID.class));
         then(uuidCrypto).should(times(1)).decryptToUuid(1L);
     }
 
@@ -129,7 +129,7 @@ class UserIdentityResolverTest {
 
         // then
         assertThat(userId).isNull();
-        then(userJpaRepository).should(never()).findIdByPublicUuid(any());
+        then(userJpaRepository).should(never()).findIdByPublicUuid(any(UUID.class));
     }
 
     @Test
