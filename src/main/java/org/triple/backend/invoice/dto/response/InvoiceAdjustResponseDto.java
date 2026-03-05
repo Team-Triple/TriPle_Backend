@@ -17,7 +17,10 @@ public record InvoiceAdjustResponseDto(
 
     public static InvoiceAdjustResponseDto from(final Invoice invoice, final List<InvoiceUser> invoiceUsers) {
         List<RecipientAmountDto> recipients = invoiceUsers.stream()
-                .map(invoiceUser -> new RecipientAmountDto(invoiceUser.getUser().getId(), invoiceUser.getRemainAmount()))
+                .map(invoiceUser -> new RecipientAmountDto(
+                        invoiceUser.getUser().getPublicUuid().toString(),
+                        invoiceUser.getRemainAmount()
+                ))
                 .toList();
 
         return new InvoiceAdjustResponseDto(
