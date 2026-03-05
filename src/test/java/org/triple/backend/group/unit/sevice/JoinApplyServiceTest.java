@@ -1,5 +1,6 @@
 package org.triple.backend.group.unit.sevice;
 
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,9 @@ public class JoinApplyServiceTest {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("가입 신청을 성공하면 PENDING 상태의 신청이 저장된다")
@@ -402,6 +406,110 @@ public class JoinApplyServiceTest {
         assertThat(rejoinedUserGroup.getJoinedAt()).isNotNull();
         assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(2);
         assertThat(userGroupJpaRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("오너는 대기중인 가입 신청을 거절할 수 있다")
+    void 오너는_대기중인_가입_신청을_거절할_수_있다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-reject")
+                .nickname("오너")
+                .email("owner-reject@test.com")
+                .profileUrl("http://img")
+                .build());
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-applicant-reject")
+                .nickname("지원자")
+                .email("reject-applicant@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "거절테스트모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when
+        joinApplyService.reject(savedGroup.getId(), owner.getId(), joinApply.getId());
+
+        // then
+        // Bulk update bypasses the persistence context; clear to read the latest row state.
+        entityManager.clear();
+        JoinApply rejectedJoinApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        Group updatedGroup = groupJpaRepository.findById(savedGroup.getId()).orElseThrow();
+
+        assertThat(rejectedJoinApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.REJECTED);
+        assertThat(rejectedJoinApply.getRejectedAt()).isNotNull();
+        assertThat(userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(savedGroup.getId(), applicant.getId(), JoinStatus.JOINED))
+                .isFalse();
+        assertThat(updatedGroup.getCurrentMemberCount()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자는 가입 신청을 거절할 수 없다")
+    void 오너가_아닌_사용자는_가입_신청을_거절할_수_없다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-reject-permission")
+                .nickname("오너")
+                .email("owner-reject-permission@test.com")
+                .profileUrl("http://img")
+                .build());
+        User outsider = userJpaRepository.save(User.builder()
+                .providerId("kakao-outsider-reject")
+                .nickname("외부인")
+                .email("outsider-reject@test.com")
+                .profileUrl("http://img")
+                .build());
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-applicant-reject-permission")
+                .nickname("지원자")
+                .email("applicant-reject-permission@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "거절권한모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        // when & then
+        assertThatThrownBy(() -> joinApplyService.reject(savedGroup.getId(), outsider.getId(), joinApply.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(JoinApplyErrorCode.NO_SIGNUP_APPROVAL_PERMISSION);
+                });
+
+        JoinApply pendingJoinApply = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+        assertThat(pendingJoinApply.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
+        assertThat(pendingJoinApply.getRejectedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 가입 신청은 거절할 수 없다")
+    void 존재하지_않는_가입_신청은_거절할_수_없다() {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-reject-not-found")
+                .nickname("오너")
+                .email("owner-reject-not-found@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "미존재거절모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        // when & then
+        assertThatThrownBy(() -> joinApplyService.reject(savedGroup.getId(), owner.getId(), 9999L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(JoinApplyErrorCode.JOIN_APPLY_NOT_FOUND);
+                });
     }
 
     @Test
@@ -761,6 +869,80 @@ public class JoinApplyServiceTest {
 
             JoinApply reapplied = joinApplyJpaRepository.findByGroupIdAndUserId(group.getId(), applicant.getId()).orElseThrow();
             assertThat(reapplied.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.PENDING);
+        } finally {
+            executorService.shutdownNow();
+            joinApplyJpaRepository.deleteAllInBatch();
+            userGroupJpaRepository.deleteAllInBatch();
+            groupJpaRepository.deleteAllInBatch();
+            userJpaRepository.deleteAllInBatch();
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("동일 가입 신청에 대한 동시 거절은 하나만 성공한다")
+    void 동일_가입_신청에_대한_동시_거절은_하나만_성공한다() throws InterruptedException {
+        // given
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-concurrent-reject")
+                .nickname("오너")
+                .email("owner-concurrent-reject@test.com")
+                .profileUrl("http://img")
+                .build());
+        User applicant = userJpaRepository.save(User.builder()
+                .providerId("kakao-applicant-concurrent-reject")
+                .nickname("지원자")
+                .email("applicant-concurrent-reject@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "동시거절모임", "설명", "https://example.com/thumb.png", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.saveAndFlush(group);
+
+        JoinApply joinApply = joinApplyJpaRepository.saveAndFlush(JoinApply.create(applicant, savedGroup));
+
+        int threadCount = 2;
+        ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch ready = new CountDownLatch(threadCount);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(threadCount);
+        AtomicInteger successCount = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+
+        Runnable rejectTask = () -> {
+            ready.countDown();
+            try {
+                start.await();
+                joinApplyService.reject(savedGroup.getId(), owner.getId(), joinApply.getId());
+                successCount.incrementAndGet();
+            } catch (Throwable throwable) {
+                failures.add(throwable);
+            } finally {
+                done.countDown();
+            }
+        };
+
+        try {
+            executorService.submit(rejectTask);
+            executorService.submit(rejectTask);
+
+            assertThat(ready.await(3, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
+
+            long notFoundCount = failures.stream()
+                    .filter(BusinessException.class::isInstance)
+                    .map(BusinessException.class::cast)
+                    .filter(e -> e.getErrorCode() == JoinApplyErrorCode.JOIN_APPLY_NOT_FOUND)
+                    .count();
+
+            assertThat(successCount.get()).isEqualTo(1);
+            assertThat(notFoundCount).isEqualTo(1);
+
+            JoinApply rejected = joinApplyJpaRepository.findById(joinApply.getId()).orElseThrow();
+            assertThat(rejected.getJoinApplyStatus()).isEqualTo(JoinApplyStatus.REJECTED);
+            assertThat(rejected.getRejectedAt()).isNotNull();
         } finally {
             executorService.shutdownNow();
             joinApplyJpaRepository.deleteAllInBatch();

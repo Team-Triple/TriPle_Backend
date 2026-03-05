@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +21,21 @@ public interface JoinApplyJpaRepository extends JpaRepository<JoinApply, Long> {
 
     @Query("SELECT ja FROM JoinApply ja JOIN FETCH ja.user WHERE ja.id = :id AND ja.group.id = :groupId AND ja.joinApplyStatus = :status")
     Optional<JoinApply> findByIdAndGroupIdAndJoinApplyStatus(Long id, Long groupId, JoinApplyStatus status);
+
+    @Modifying
+    @Query("""
+            UPDATE JoinApply ja
+            SET ja.joinApplyStatus = :nextStatus,
+                ja.rejectedAt = :rejectedAt
+            WHERE ja.id = :id
+              AND ja.group.id = :groupId
+              AND ja.joinApplyStatus = :currentStatus
+            """)
+    int updateStatusIfMatches(Long id,
+                              Long groupId,
+                              JoinApplyStatus currentStatus,
+                              JoinApplyStatus nextStatus,
+                              LocalDateTime rejectedAt);
 
     void deleteByGroupIdAndUserId(Long groupId, Long userId);
 

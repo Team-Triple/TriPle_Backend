@@ -320,6 +320,127 @@ public class JoinApplyControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("로그인 사용자는 그룹 가입 신청을 거절할 수 있다")
+    void 로그인_사용자는_그룹_가입_신청을_거절할_수_있다() throws Exception {
+        // given
+        mockCsrfValid();
+
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}/reject", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("groups/join-apply-reject",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 거절할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("거절할 가입 신청 ID")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).reject(1L, 1L, 2L);
+        verify(csrfTokenManager, times(1)).isValid(any(HttpServletRequest.class), any(String.class));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 그룹 가입 거절 시 401을 반환한다")
+    void 비로그인_사용자는_그룹_가입_거절_시_401을_반환한다() throws Exception {
+        // when & then
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}/reject", 1L, 2L))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("groups/join-apply-reject-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 거절할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("거절할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, never()).reject(any(Long.class), any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("로그인 사용자의 CSRF 토큰이 유효하지 않으면 그룹 가입 거절 요청은 403을 반환한다")
+    void 로그인_사용자의_CSRF_토큰이_유효하지_않으면_그룹_가입_거절_요청은_403을_반환한다() throws Exception {
+        when(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).thenReturn(false);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}/reject", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
+                .andDo(document("groups/join-apply-reject-fail-invalid-csrf-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 거절할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("거절할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, never()).reject(any(Long.class), any(Long.class), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("오너가 아닌 사용자의 그룹 가입 거절 요청 시 403을 반환한다")
+    void 오너가_아닌_사용자의_그룹_가입_거절_요청_시_403을_반환한다() throws Exception {
+        mockCsrfValid();
+        doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
+                .when(joinApplyService).reject(1L, 1L, 2L);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}/reject", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("그룹 수정/삭제 권한이 없습니다."))
+                .andDo(document("groups/join-apply-reject-fail-not-group-owner",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 거절할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("거절할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).reject(1L, 1L, 2L);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 가입 신청 거절 요청 시 404를 반환한다")
+    void 존재하지_않는_가입_신청_거절_요청_시_404를_반환한다() throws Exception {
+        mockCsrfValid();
+        doThrow(new BusinessException(JoinApplyErrorCode.JOIN_APPLY_NOT_FOUND))
+                .when(joinApplyService).reject(1L, 1L, 2L);
+
+        mockMvc.perform(post("/groups/{groupId}/join-applies/{joinApplyId}/reject", 1L, 2L)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 가입 신청입니다."))
+                .andDo(document("groups/join-apply-reject-fail-join-apply-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("groupId").description("가입 신청을 거절할 그룹 ID"),
+                                parameterWithName("joinApplyId").description("거절할 가입 신청 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(joinApplyService, times(1)).reject(1L, 1L, 2L);
+    }
+
+    @Test
     @DisplayName("로그인 사용자는 상태별 가입 신청 사용자 목록을 조회할 수 있다")
     void 로그인_사용자는_상태별_가입_신청_사용자_목록을_조회할_수_있다() throws Exception {
         // given
