@@ -214,9 +214,10 @@ public class GroupService {
     }
 
     @Transactional
-    public void ownerTransfer(final Long groupId, final Long targetUserId, final Long ownerId) {
+    public void ownerTransfer(final Long groupId, final String targetUserId, final Long ownerId) {
+        Long targetInternalUserId = resolveTargetUserIdOrThrow(targetUserId);
 
-        if(ownerId.equals(targetUserId)) {
+        if(ownerId.equals(targetInternalUserId)) {
             throw new BusinessException(GroupErrorCode.CANNOT_OWNER_DEMOTE_SELF);
         }
 
@@ -232,7 +233,7 @@ public class GroupService {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
 
-        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetInternalUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
 
         if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
@@ -243,8 +244,10 @@ public class GroupService {
     }
 
     @Transactional
-    public void kick(final Long groupId, final Long ownerId, final Long targetUserId) {
-        if(ownerId.equals(targetUserId)) {
+    public void kick(final Long groupId, final Long ownerId, final String targetUserId) {
+        Long targetInternalUserId = resolveTargetUserIdOrThrow(targetUserId);
+
+        if(ownerId.equals(targetInternalUserId)) {
             throw new BusinessException(GroupErrorCode.CANNOT_KICK_SELF);
         }
 
@@ -256,7 +259,7 @@ public class GroupService {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
 
-        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+        UserGroup targetUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(groupId, targetInternalUserId).orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
         if(targetUserGroup.getJoinStatus() != JoinStatus.JOINED) {
             throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
         }
@@ -264,7 +267,7 @@ public class GroupService {
             throw new BusinessException(GroupErrorCode.CANNOT_KICK_OWNER);
         }
 
-        joinApplyJpaRepository.deleteByGroupIdAndUserId(groupId, targetUserId);
+        joinApplyJpaRepository.deleteByGroupIdAndUserId(groupId, targetInternalUserId);
 
         Group group = userGroup.getGroup();
         targetUserGroup.leave();
@@ -385,6 +388,11 @@ public class GroupService {
 
         List<UserGroup> userGroups = userGroupJpaRepository.findAllByGroupIdAndJoinStatus(groupId, JoinStatus.JOINED);
         return GroupUsersResponseDto.from(userGroups);
+    }
+
+    private Long resolveTargetUserIdOrThrow(final String targetUserId) {
+        return userJpaRepository.findIdByPublicUuid(targetUserId)
+                .orElseThrow(() -> new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
     }
 
     private List<Group> findFirstPageByKeyword(String keyword, Pageable pageable) {
