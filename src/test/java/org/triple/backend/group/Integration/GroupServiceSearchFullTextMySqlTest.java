@@ -21,6 +21,7 @@ import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.group.GroupKind;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.service.GroupService;
+import org.triple.backend.user.service.UserFinder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +29,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
-@Import(GroupService.class)
+@Import({GroupService.class, UserFinder.class})
 @Testcontainers(disabledWithoutDocker = true)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestPropertySource(properties = {

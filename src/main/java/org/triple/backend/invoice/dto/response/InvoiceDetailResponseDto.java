@@ -21,17 +21,17 @@ public record InvoiceDetailResponseDto(
 ) {
 
     public record UserSummaryDto(
-            Long userId,
+            String userId,
             String nickname,
             String profileUrl
     ) {
         public static UserSummaryDto from(final User user) {
-            return new UserSummaryDto(user.getId(), user.getNickname(), user.getProfileUrl());
+            return new UserSummaryDto(user.getPublicUuid().toString(), user.getNickname(), user.getProfileUrl());
         }
     }
 
     public record InvoiceMemberDto(
-            Long userId,
+            String userId,
             String nickname,
             String profileUrl,
             BigDecimal remainAmount
@@ -39,7 +39,7 @@ public record InvoiceDetailResponseDto(
         public static InvoiceMemberDto from(final InvoiceUser invoiceUser) {
             User user = invoiceUser.getUser();
             return new InvoiceMemberDto(
-                    user.getId(),
+                    user.getPublicUuid().toString(),
                     user.getNickname(),
                     user.getProfileUrl(),
                     invoiceUser.getRemainAmount()

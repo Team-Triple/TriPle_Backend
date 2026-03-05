@@ -12,6 +12,7 @@ import org.triple.backend.invoice.dto.response.InvoiceAdjustResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
+import org.triple.backend.invoice.mapper.InvoiceUserIdMapper;
 import org.triple.backend.invoice.service.InvoiceService;
 
 @RestController
@@ -20,11 +21,14 @@ import org.triple.backend.invoice.service.InvoiceService;
 public class InvoiceController {
 
     private final InvoiceService invoiceService;
+    private final InvoiceUserIdMapper invoiceUserIdMapper;
 
     @LoginRequired
     @PostMapping
     public InvoiceCreateResponseDto create(@LoginUser final Long userId, @RequestBody @Valid InvoiceCreateRequestDto invoiceCreateRequestDto) {
-        return invoiceService.create(userId, invoiceCreateRequestDto);
+        InvoiceCreateRequestDto decryptedRequest = invoiceUserIdMapper.decryptRecipientUserIds(invoiceCreateRequestDto);
+        InvoiceCreateResponseDto response = invoiceService.create(userId, decryptedRequest);
+        return invoiceUserIdMapper.encryptRecipientUserIds(response);
     }
 
     @LoginRequired
@@ -39,13 +43,16 @@ public class InvoiceController {
             @LoginUser final Long userId,
             @PathVariable final Long travelItineraryId
     ) {
-        return invoiceService.searchInvoice(userId, travelItineraryId);
+        InvoiceDetailResponseDto response = invoiceService.searchInvoice(userId, travelItineraryId);
+        return invoiceUserIdMapper.encryptUserIds(response);
     }
 
     @LoginRequired
     @PutMapping("/{invoiceId}")
     public InvoiceAdjustResponseDto updateInfo(@LoginUser final Long userId, @PathVariable Long invoiceId, @RequestBody @Valid InvoiceAdjustRequestDto dto) {
-        return invoiceService.updateInfo(userId, invoiceId, dto);
+        InvoiceAdjustRequestDto decryptedRequest = invoiceUserIdMapper.decryptRecipientUserIds(dto);
+        InvoiceAdjustResponseDto response = invoiceService.updateInfo(userId, invoiceId, decryptedRequest);
+        return invoiceUserIdMapper.encryptRecipientUserIds(response);
     }
 
 

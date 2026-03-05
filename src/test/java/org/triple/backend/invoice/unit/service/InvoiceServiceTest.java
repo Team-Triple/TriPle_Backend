@@ -39,6 +39,7 @@ import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
+import org.triple.backend.user.service.UserFinder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -54,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ServiceTest
-@Import(InvoiceService.class)
+@Import({InvoiceService.class, UserFinder.class})
 class InvoiceServiceTest {
 
     @Autowired
@@ -104,8 +105,8 @@ class InvoiceServiceTest {
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(
-                        new RecipientAmountDto(member1.getId(), new BigDecimal("30000")),
-                        new RecipientAmountDto(member2.getId(), new BigDecimal("40000"))
+                        new RecipientAmountDto(member1.getPublicUuid().toString(), new BigDecimal("30000")),
+                        new RecipientAmountDto(member2.getPublicUuid().toString(), new BigDecimal("40000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -155,7 +156,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -181,7 +182,7 @@ class InvoiceServiceTest {
                 1L,
                 1L,
                 List.of(
-                        new RecipientAmountDto(2L, new BigDecimal("30000"))
+                        new RecipientAmountDto("00000000-0000-0000-0000-000000000002", new BigDecimal("30000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -214,7 +215,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -247,8 +248,8 @@ class InvoiceServiceTest {
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(
-                        new RecipientAmountDto(member.getId(), new BigDecimal("10000")),
-                        new RecipientAmountDto(member.getId(), new BigDecimal("20000"))
+                        new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("20000"))
                 ),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
@@ -279,7 +280,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(outsider.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(outsider.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -311,7 +312,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto firstRequest = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "제주 렌트비 정산",
                 "렌트비 N빵",
                 new BigDecimal("30000"),
@@ -320,7 +321,7 @@ class InvoiceServiceTest {
         InvoiceCreateRequestDto secondRequest = new InvoiceCreateRequestDto(
                 group.getId(),
                 travelItinerary.getId(),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000"))),
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
                 "중복 청구서",
                 "중복 생성 시도",
                 new BigDecimal("30000"),
@@ -342,72 +343,72 @@ class InvoiceServiceTest {
     @DisplayName("여행 멤버는 청구서를 조회할 수 있다.")
     void 여행_멤버는_청구서를_조회할_수_있다() {
         // given
-        User 생성자 = saveUser("read-creator");
-        User 멤버1 = saveUser("read-member-1");
-        User 멤버2 = saveUser("read-member-2");
-        Group 그룹 = saveGroup("조회 그룹");
-        TravelItinerary 여행일정 = saveTravelItinerary(그룹, "조회 여행");
-        saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
-        saveTravelMembership(멤버1, 여행일정, UserRole.MEMBER);
-        saveTravelMembership(멤버2, 여행일정, UserRole.MEMBER);
-        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버1, new BigDecimal("7000")));
-        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버2, new BigDecimal("3000")));
+        User creator = saveUser("read-creator");
+        User member1 = saveUser("read-member-1");
+        User member2 = saveUser("read-member-2");
+        Group group = saveGroup("조회 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "조회 여행");
+        saveTravelMembership(creator, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
+        saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member1, new BigDecimal("7000")));
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member2, new BigDecimal("3000")));
         entityManager.flush();
         entityManager.clear();
 
         // when
-        InvoiceDetailResponseDto 응답 = invoiceService.searchInvoice(멤버1.getId(), 여행일정.getId());
+        InvoiceDetailResponseDto response = invoiceService.searchInvoice(member1.getId(), travelItinerary.getId());
 
         // then
-        assertThat(응답.title()).isEqualTo(청구서.getTitle());
-        assertThat(응답.creator().userId()).isEqualTo(생성자.getId());
-        assertThat(응답.invoiceMembers()).hasSize(2);
-        assertThat(응답.remainingAmount()).isEqualByComparingTo("10000");
-        assertThat(응답.isDone()).isFalse();
+        assertThat(response.title()).isEqualTo(invoice.getTitle());
+        assertThat(response.creator().userId()).isEqualTo(creator.getPublicUuid().toString());
+        assertThat(response.invoiceMembers()).hasSize(2);
+        assertThat(response.remainingAmount()).isEqualByComparingTo("10000");
+        assertThat(response.isDone()).isFalse();
     }
 
     @Test
     @DisplayName("남은 금액이 0이면 청구서 완료 상태를 참으로 반환한다.")
     void 남은_금액이_0이면_청구서_완료_상태를_참으로_반환한다() {
         // given
-        User 생성자 = saveUser("done-creator");
-        User 멤버 = saveUser("done-member");
-        Group 그룹 = saveGroup("완료 그룹");
-        TravelItinerary 여행일정 = saveTravelItinerary(그룹, "완료 여행");
-        saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
-        saveTravelMembership(멤버, 여행일정, UserRole.MEMBER);
-        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버, BigDecimal.ZERO));
+        User creator = saveUser("done-creator");
+        User member = saveUser("done-member");
+        Group group = saveGroup("완료 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "완료 여행");
+        saveTravelMembership(creator, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, BigDecimal.ZERO));
         entityManager.flush();
         entityManager.clear();
 
         // when
-        InvoiceDetailResponseDto 응답 = invoiceService.searchInvoice(멤버.getId(), 여행일정.getId());
+        InvoiceDetailResponseDto response = invoiceService.searchInvoice(member.getId(), travelItinerary.getId());
 
         // then
-        assertThat(응답.remainingAmount()).isEqualByComparingTo("0");
-        assertThat(응답.isDone()).isTrue();
+        assertThat(response.remainingAmount()).isEqualByComparingTo("0");
+        assertThat(response.isDone()).isTrue();
     }
 
     @Test
     @DisplayName("여행 일정 멤버가 아니면 청구서를 조회할 수 없다.")
     void 여행_일정_멤버가_아니면_청구서를_조회할_수_없다() {
         // given
-        User 생성자 = saveUser("forbidden-creator");
-        User 멤버 = saveUser("forbidden-member");
-        User 외부인 = saveUser("forbidden-outsider");
-        Group 그룹 = saveGroup("권한 검증 그룹");
-        TravelItinerary 여행일정 = saveTravelItinerary(그룹, "권한 검증 여행");
-        saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
-        saveTravelMembership(멤버, 여행일정, UserRole.MEMBER);
-        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버, new BigDecimal("10000")));
+        User creator = saveUser("forbidden-creator");
+        User member = saveUser("forbidden-member");
+        User outsider = saveUser("forbidden-outsider");
+        Group group = saveGroup("권한 검증 그룹");
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "권한 검증 여행");
+        saveTravelMembership(creator, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new BigDecimal("10000")));
         entityManager.flush();
         entityManager.clear();
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.searchInvoice(외부인.getId(), 여행일정.getId()))
+        assertThatThrownBy(() -> invoiceService.searchInvoice(outsider.getId(), travelItinerary.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -548,8 +549,8 @@ class InvoiceServiceTest {
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("30000"),
                 List.of(
-                        new RecipientAmountDto(member1.getId(), new BigDecimal("10000")),
-                        new RecipientAmountDto(member2.getId(), new BigDecimal("20000"))
+                        new RecipientAmountDto(member1.getPublicUuid().toString(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member2.getPublicUuid().toString(), new BigDecimal("20000"))
                 )
         );
 
@@ -589,7 +590,7 @@ class InvoiceServiceTest {
 
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("50000"),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("30000")))
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000")))
         );
 
         // when & then
@@ -616,7 +617,7 @@ class InvoiceServiceTest {
 
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("10000"),
-                List.of(new RecipientAmountDto(outsider.getId(), new BigDecimal("10000")))
+                List.of(new RecipientAmountDto(outsider.getPublicUuid().toString(), new BigDecimal("10000")))
         );
 
         // when & then
@@ -645,8 +646,8 @@ class InvoiceServiceTest {
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("20000"),
                 List.of(
-                        new RecipientAmountDto(member.getId(), new BigDecimal("10000")),
-                        new RecipientAmountDto(member.getId(), new BigDecimal("10000"))
+                        new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")),
+                        new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000"))
                 )
         );
 
@@ -681,7 +682,7 @@ class InvoiceServiceTest {
 
         InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
                 new BigDecimal("10000"),
-                List.of(new RecipientAmountDto(member.getId(), new BigDecimal("10000")))
+                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")))
         );
 
         // when & then
@@ -1000,7 +1001,7 @@ class InvoiceServiceTest {
     }
 
     private User saveUser(final String providerId) {
-        return userJpaRepository.save(
+        return userJpaRepository.saveAndFlush(
                 User.builder()
                         .providerId(providerId)
                         .nickname(providerId + "-nick")

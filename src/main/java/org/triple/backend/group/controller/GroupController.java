@@ -5,9 +5,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
+import org.triple.backend.auth.session.PublicUuidCodec;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.*;
+import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.service.GroupService;
 
 @RestController
@@ -16,6 +18,7 @@ import org.triple.backend.group.service.GroupService;
 public class GroupController {
 
     private final GroupService groupService;
+    private final PublicUuidCodec publicUuidCodec;
 
     @LoginRequired
     @PostMapping
@@ -49,14 +52,14 @@ public class GroupController {
 
     @LoginRequired
     @PatchMapping("/{groupId}/owner/{targetUserId}")
-    public void transferOwner(@PathVariable Long groupId, @PathVariable Long targetUserId, @LoginUser final Long userId) {
-        groupService.ownerTransfer(groupId, targetUserId, userId);
+    public void transferOwner(@PathVariable Long groupId, @PathVariable String targetUserId, @LoginUser final Long userId) {
+        groupService.ownerTransfer(groupId, publicUuidCodec.decryptOrThrow(targetUserId, GroupErrorCode.NOT_GROUP_MEMBER), userId);
     }
 
     @LoginRequired
     @DeleteMapping("/{groupId}/users/{targetUserId}")
-    public void kick(@PathVariable Long groupId, @PathVariable Long targetUserId, @LoginUser final Long userId) {
-        groupService.kick(groupId, userId, targetUserId);
+    public void kick(@PathVariable Long groupId, @PathVariable String targetUserId, @LoginUser final Long userId) {
+        groupService.kick(groupId, userId, publicUuidCodec.decryptOrThrow(targetUserId, GroupErrorCode.NOT_GROUP_MEMBER));
     }
 
     @LoginRequired
@@ -78,6 +81,17 @@ public class GroupController {
 
     @GetMapping("/{groupId}/users")
     public GroupUsersResponseDto groupUsers(@PathVariable Long groupId) {
-        return groupService.groupUsers(groupId);
+        GroupUsersResponseDto groupUsers = groupService.groupUsers(groupId);
+        return new GroupUsersResponseDto(
+                groupUsers.users().stream()
+                        .map(user -> new GroupUsersResponseDto.UserDto(
+                                publicUuidCodec.encrypt(user.id()),
+                                user.name(),
+                                user.description(),
+                                user.profileUrl(),
+                                user.isOwner()
+                        ))
+                        .toList()
+        );
     }
 }

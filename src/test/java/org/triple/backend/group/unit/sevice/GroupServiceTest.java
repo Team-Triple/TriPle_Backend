@@ -29,6 +29,7 @@ import org.triple.backend.group.service.GroupService;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
+import org.triple.backend.user.service.UserFinder;
 
 import java.util.List;
 import java.util.concurrent.*;
@@ -40,7 +41,7 @@ import static org.triple.backend.group.fixture.GroupFixtures.privateGroup;
 import static org.triple.backend.group.fixture.GroupFixtures.publicGroup;
 
 @ServiceTest
-@Import(GroupService.class)
+@Import({GroupService.class, UserFinder.class})
 public class GroupServiceTest {
 
     @Autowired
@@ -803,7 +804,7 @@ public class GroupServiceTest {
         joinApplyJpaRepository.saveAndFlush(joinApply);
 
         // when
-        groupService.kick(savedGroup.getId(), owner.getId(), member.getId());
+        groupService.kick(savedGroup.getId(), owner.getId(), member.getPublicUuid().toString());
 
         // then
         UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), owner.getId()).orElseThrow();
@@ -851,7 +852,7 @@ public class GroupServiceTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), member.getId(), other.getId()))
+        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), member.getId(), other.getPublicUuid().toString()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -875,7 +876,7 @@ public class GroupServiceTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), owner.getId()))
+        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), owner.getPublicUuid().toString()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -911,7 +912,7 @@ public class GroupServiceTest {
         groupJpaRepository.flush();
 
         // when & then
-        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), otherOwner.getId()))
+        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), otherOwner.getPublicUuid().toString()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -1091,7 +1092,7 @@ public class GroupServiceTest {
         groupJpaRepository.flush();
 
         // when & then
-        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), member.getId()))
+        assertThatThrownBy(() -> groupService.kick(savedGroup.getId(), owner.getId(), member.getPublicUuid().toString()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -1122,7 +1123,7 @@ public class GroupServiceTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when
-        groupService.ownerTransfer(savedGroup.getId(), target.getId(), owner.getId());
+        groupService.ownerTransfer(savedGroup.getId(), target.getPublicUuid().toString(), owner.getId());
 
         // then
         UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), owner.getId()).orElseThrow();
@@ -1150,7 +1151,7 @@ public class GroupServiceTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), owner.getId(), owner.getId()))
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), owner.getPublicUuid().toString(), owner.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -1188,7 +1189,7 @@ public class GroupServiceTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), target.getId(), member.getId()))
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), target.getPublicUuid().toString(), member.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -1218,7 +1219,7 @@ public class GroupServiceTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), outsider.getId(), owner.getId()))
+        assertThatThrownBy(() -> groupService.ownerTransfer(savedGroup.getId(), outsider.getPublicUuid().toString(), owner.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -1268,7 +1269,7 @@ public class GroupServiceTest {
             ready.countDown();
             try {
                 start.await();
-                groupService.ownerTransfer(savedGroup.getId(), target1.getId(), owner.getId());
+                groupService.ownerTransfer(savedGroup.getId(), target1.getPublicUuid().toString(), owner.getId());
                 successCount.incrementAndGet();
             } catch (Throwable throwable) {
                 failures.add(throwable);
@@ -1281,7 +1282,7 @@ public class GroupServiceTest {
             ready.countDown();
             try {
                 start.await();
-                groupService.ownerTransfer(savedGroup.getId(), target2.getId(), owner.getId());
+                groupService.ownerTransfer(savedGroup.getId(), target2.getPublicUuid().toString(), owner.getId());
                 successCount.incrementAndGet();
             } catch (Throwable throwable) {
                 failures.add(throwable);

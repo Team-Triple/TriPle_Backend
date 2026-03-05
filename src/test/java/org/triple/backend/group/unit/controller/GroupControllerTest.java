@@ -8,6 +8,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.triple.backend.auth.session.PublicUuidCodec;
 import org.triple.backend.auth.session.UserIdentityResolver;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.global.error.BusinessException;
@@ -57,9 +58,14 @@ public class GroupControllerTest extends ControllerTest {
     @MockitoBean
     private UserIdentityResolver userIdentityResolver;
 
+    @MockitoBean
+    private PublicUuidCodec publicUuidCodec;
+
     @BeforeEach
     void setUp() {
         when(userIdentityResolver.resolve(any())).thenReturn(1L);
+        when(publicUuidCodec.decryptOrThrow(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(publicUuidCodec.encrypt(any())).thenAnswer(invocation -> "enc-" + invocation.getArgument(0, String.class));
     }
 
     @Test
@@ -537,12 +543,12 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.users").isArray())
                 .andExpect(jsonPath("$.users.length()").value(2))
-                .andExpect(jsonPath("$.users[0].id").value(ownerPublicUuid))
+                .andExpect(jsonPath("$.users[0].id").value("enc-" + ownerPublicUuid))
                 .andExpect(jsonPath("$.users[0].name").value("상윤"))
                 .andExpect(jsonPath("$.users[0].description").value("모임장"))
                 .andExpect(jsonPath("$.users[0].profileUrl").value("http://img-owner"))
                 .andExpect(jsonPath("$.users[0].isOwner").value(true))
-                .andExpect(jsonPath("$.users[1].id").value(memberPublicUuid))
+                .andExpect(jsonPath("$.users[1].id").value("enc-" + memberPublicUuid))
                 .andExpect(jsonPath("$.users[1].name").value("민규"))
                 .andExpect(jsonPath("$.users[1].isOwner").value(false))
                 .andDo(document("groups/users",
@@ -553,7 +559,7 @@ public class GroupControllerTest extends ControllerTest {
                         ),
                         responseFields(
                                 fieldWithPath("users").description("그룹 멤버 목록"),
-                                fieldWithPath("users[].id").description("멤버 공개 UUID"),
+                                fieldWithPath("users[].id").description("암호화된 멤버 공개 UUID"),
                                 fieldWithPath("users[].name").description("멤버 이름"),
                                 fieldWithPath("users[].description").description("멤버 소개").optional(),
                                 fieldWithPath("users[].profileUrl").description("멤버 프로필 이미지 URL").optional(),
@@ -1106,7 +1112,7 @@ public class GroupControllerTest extends ControllerTest {
         // given
         Long groupId = 1L;
         Long ownerId = 1L;
-        Long targetUserId = 2L;
+        String targetUserId = "00000000-0000-0000-0000-000000000002";
         doNothing().when(groupService).kick(groupId, ownerId, targetUserId);
         mockCsrfValid();
 
@@ -1131,7 +1137,7 @@ public class GroupControllerTest extends ControllerTest {
     @DisplayName("오너가 아닌 사용자가 멤버 추방 요청 시 403을 반환한다.")
     void 오너가_아닌_사용자가_멤버_추방_요청_시_403을_반환한다() throws Exception {
         Long groupId = 1L;
-        Long targetUserId = 2L;
+        String targetUserId = "00000000-0000-0000-0000-000000000002";
         mockCsrfValid();
         doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
                 .when(groupService).kick(groupId, 1L, targetUserId);
@@ -1157,7 +1163,7 @@ public class GroupControllerTest extends ControllerTest {
     @DisplayName("자기 자신을 추방하려고 하면 403을 반환한다.")
     void 자기_자신을_추방하려고_하면_403을_반환한다() throws Exception {
         Long groupId = 1L;
-        Long targetUserId = 1L;
+        String targetUserId = "00000000-0000-0000-0000-000000000001";
         mockCsrfValid();
         doThrow(new BusinessException(GroupErrorCode.CANNOT_KICK_SELF))
                 .when(groupService).kick(groupId, 1L, targetUserId);
@@ -1258,7 +1264,7 @@ public class GroupControllerTest extends ControllerTest {
         // given
         Long groupId = 1L;
         Long ownerId = 1L;
-        Long targetUserId = 2L;
+        String targetUserId = "00000000-0000-0000-0000-000000000002";
         doNothing().when(groupService).ownerTransfer(groupId, targetUserId, ownerId);
         mockCsrfValid();
 
@@ -1283,7 +1289,7 @@ public class GroupControllerTest extends ControllerTest {
     @DisplayName("자기 자신에게 소유권 이전 요청 시 403을 반환한다.")
     void 자기_자신에게_소유권_이전_요청_시_403을_반환한다() throws Exception {
         Long groupId = 1L;
-        Long targetUserId = 1L;
+        String targetUserId = "00000000-0000-0000-0000-000000000001";
         mockCsrfValid();
         doThrow(new BusinessException(GroupErrorCode.CANNOT_OWNER_DEMOTE_SELF))
                 .when(groupService).ownerTransfer(groupId, targetUserId, 1L);
@@ -1309,7 +1315,7 @@ public class GroupControllerTest extends ControllerTest {
     @DisplayName("오너가 아닌 사용자의 소유권 이전 요청 시 403을 반환한다.")
     void 오너가_아닌_사용자의_소유권_이전_요청_시_403을_반환한다() throws Exception {
         Long groupId = 1L;
-        Long targetUserId = 2L;
+        String targetUserId = "00000000-0000-0000-0000-000000000002";
         mockCsrfValid();
         doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
                 .when(groupService).ownerTransfer(groupId, targetUserId, 1L);

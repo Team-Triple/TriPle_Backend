@@ -22,6 +22,7 @@ import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.TravelReviewImageJpaRepository;
 import org.triple.backend.travel.repository.TravelReviewJpaRepository;
 import org.triple.backend.user.repository.UserJpaRepository;
+import org.triple.backend.user.service.UserFinder;
 
 import java.util.List;
 
@@ -57,6 +58,9 @@ class GroupServiceSearchFullTextTest {
     @Mock
     private TravelReviewImageJpaRepository travelReviewImageJpaRepository;
 
+    @Mock
+    private UserFinder userFinder;
+
     private GroupService groupService;
 
     @BeforeEach
@@ -68,7 +72,8 @@ class GroupServiceSearchFullTextTest {
                 travelItineraryJpaRepository,
                 travelReviewJpaRepository,
                 travelReviewImageJpaRepository,
-                userJpaRepository
+                userJpaRepository,
+                userFinder
         );
     }
 

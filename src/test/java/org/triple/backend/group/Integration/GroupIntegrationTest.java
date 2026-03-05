@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.triple.backend.auth.session.CsrfTokenManager;
+import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
@@ -77,6 +78,9 @@ public class GroupIntegrationTest {
 
     @Autowired
     private DbCleaner dbCleaner;
+
+    @Autowired
+    private UuidCrypto uuidCrypto;
 
     @BeforeEach
     void setUp() {
@@ -466,12 +470,9 @@ public class GroupIntegrationTest {
         mockMvc.perform(get("/groups/{groupId}/users", savedGroup.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.users", hasSize(2)))
-                .andExpect(jsonPath("$.users[*].id", containsInAnyOrder(
-                        owner.getPublicUuid().toString(),
-                        joinedMember.getPublicUuid().toString()
-                )))
+                .andExpect(jsonPath("$.users[*].id", not(hasItem(owner.getPublicUuid().toString()))))
+                .andExpect(jsonPath("$.users[*].id", not(hasItem(joinedMember.getPublicUuid().toString()))))
                 .andExpect(jsonPath("$.users[*].name", containsInAnyOrder("상윤", "민규")))
-                .andExpect(jsonPath("$.users[?(@.id == '%s')]".formatted(leftMember.getPublicUuid()), hasSize(0)))
                 .andExpect(jsonPath("$.users[?(@.name == '태호')]", hasSize(0)))
                 .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)));
     }
@@ -1056,7 +1057,7 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), target.getId())
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), encryptedUserId(target))
                         .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
@@ -1089,7 +1090,7 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), owner.getId())
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), encryptedUserId(owner))
                         .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
@@ -1133,7 +1134,7 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), target.getId())
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), encryptedUserId(target))
                         .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
@@ -1167,7 +1168,7 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), outsider.getId())
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), encryptedUserId(outsider))
                         .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
@@ -1237,5 +1238,9 @@ public class GroupIntegrationTest {
         ReflectionTestUtils.setField(travelReviewImage, "travelReview", review);
         ReflectionTestUtils.setField(travelReviewImage, "reviewImageUrl", imageUrl);
         return travelReviewImage;
+    }
+
+    private String encryptedUserId(final User user) {
+        return uuidCrypto.encrypt(user.getPublicUuid());
     }
 }
