@@ -8,8 +8,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.triple.backend.auth.session.PublicUuidCodec;
 import org.triple.backend.auth.session.UserIdentityResolver;
-import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.controller.GroupController;
@@ -59,20 +59,13 @@ public class GroupControllerTest extends ControllerTest {
     private UserIdentityResolver userIdentityResolver;
 
     @MockitoBean
-    private UuidCrypto uuidCrypto;
+    private PublicUuidCodec publicUuidCodec;
 
     @BeforeEach
     void setUp() {
         when(userIdentityResolver.resolve(any())).thenReturn(1L);
-        when(uuidCrypto.decryptToUuid(any())).thenAnswer(invocation -> {
-            String value = invocation.getArgument(0);
-            try {
-                return UUID.fromString(value);
-            } catch (IllegalArgumentException e) {
-                return null;
-            }
-        });
-        when(uuidCrypto.encrypt(any(UUID.class))).thenAnswer(invocation -> "enc-" + invocation.getArgument(0, UUID.class));
+        when(publicUuidCodec.decryptOrThrow(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(publicUuidCodec.encrypt(any())).thenAnswer(invocation -> "enc-" + invocation.getArgument(0, String.class));
     }
 
     @Test
