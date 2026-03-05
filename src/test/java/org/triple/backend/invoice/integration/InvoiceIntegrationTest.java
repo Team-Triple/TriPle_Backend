@@ -101,14 +101,14 @@ class InvoiceIntegrationTest {
                   "groupId": %d,
                   "travelItineraryId": %d,
                   "recipients": [
-                    { "userId": %d, "amount": 30000 }
+                    { "userId": "%s", "amount": 30000 }
                   ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(group.getId(), travelItinerary.getId(), member.getId());
+                """.formatted(group.getId(), travelItinerary.getId(), member.getPublicUuid().toString());
 
         // when & then
         mockMvc.perform(post("/invoices")
@@ -150,14 +150,14 @@ class InvoiceIntegrationTest {
                   "groupId": %d,
                   "travelItineraryId": %d,
                   "recipients": [
-                    { "userId": %d, "amount": 30000 }
+                    { "userId": "%s", "amount": 30000 }
                   ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(group.getId(), travelItinerary.getId(), member.getId());
+                """.formatted(group.getId(), travelItinerary.getId(), member.getPublicUuid().toString());
 
         // when & then
         mockMvc.perform(post("/invoices")
@@ -216,14 +216,14 @@ class InvoiceIntegrationTest {
                   "groupId": %d,
                   "travelItineraryId": %d,
                   "recipients": [
-                    { "userId": %d, "amount": 30000 }
+                    { "userId": "%s", "amount": 30000 }
                   ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(group.getId(), travelItinerary.getId(), member.getId());
+                """.formatted(group.getId(), travelItinerary.getId(), member.getPublicUuid().toString());
 
         // when & then
         mockMvc.perform(post("/invoices")
@@ -253,14 +253,14 @@ class InvoiceIntegrationTest {
                   "groupId": %d,
                   "travelItineraryId": %d,
                   "recipients": [
-                    { "userId": %d, "amount": 30000 }
+                    { "userId": "%s", "amount": 30000 }
                   ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(group.getId(), travelItinerary.getId(), member.getId());
+                """.formatted(group.getId(), travelItinerary.getId(), member.getPublicUuid().toString());
 
         mockMvc.perform(post("/invoices")
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
@@ -446,11 +446,11 @@ class InvoiceIntegrationTest {
                 {
                   "totalAmount": 30000,
                   "recipients": [
-                    { "userId": %d, "amount": 10000 },
-                    { "userId": %d, "amount": 20000 }
+                    { "userId": "%s", "amount": 10000 },
+                    { "userId": "%s", "amount": 20000 }
                   ]
                 }
-                """.formatted(member1.getId(), member2.getId());
+                """.formatted(member1.getPublicUuid().toString(), member2.getPublicUuid().toString());
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
@@ -493,10 +493,10 @@ class InvoiceIntegrationTest {
                 {
                   "totalAmount": 10000,
                   "recipients": [
-                    { "userId": %d, "amount": 10000 }
+                    { "userId": "%s", "amount": 10000 }
                   ]
                 }
-                """.formatted(member.getId());
+                """.formatted(member.getPublicUuid().toString());
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
@@ -529,10 +529,10 @@ class InvoiceIntegrationTest {
                 {
                   "totalAmount": 10000,
                   "recipients": [
-                    { "userId": %d, "amount": 10000 }
+                    { "userId": "%s", "amount": 10000 }
                   ]
                 }
-                """.formatted(member.getId());
+                """.formatted(member.getPublicUuid().toString());
 
         // when & then
         mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
@@ -768,7 +768,7 @@ class InvoiceIntegrationTest {
     }
 
     private User saveUser(final String providerId) {
-        return userJpaRepository.save(
+        return userJpaRepository.saveAndFlush(
                 User.builder()
                         .providerId(providerId)
                         .nickname(providerId + "-nick")
