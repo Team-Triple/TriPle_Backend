@@ -81,5 +81,5 @@ app:
 toss:
   payment:
     uri: https://api.tosspayments.com/v1/payments/confirm
-    secret: {$TOSS_PAYMENT_SECRET}
+    secret: ${TOSS_PAYMENT_SECRET}
     content-type: application/json
