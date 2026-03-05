@@ -1,4 +1,4 @@
-package org.triple.backend.payment.entity;
+﻿package org.triple.backend.payment.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -32,28 +32,28 @@ public class Payment extends BaseEntity {
     @Id
     @Column(name = "payment_id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;    //생성 create
+    private Long id;    // 생성 create
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id")
-    private Invoice invoice;    //생성 create
+    private Invoice invoice;    // 생성 create
 
     @Enumerated(EnumType.STRING)
-    private PgProvider pgProvider;  //생성 create
+    private PgProvider pgProvider;  // 생성 create
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;  //생성 create
+    private User user;  // 생성 create
 
     @Enumerated(EnumType.STRING)
-    private PaymentMethod method;   //생성 create
+    private PaymentMethod method;   // 생성 create
 
     @Column(name = "order_id")
-    private String orderId; //생성 create
+    private String orderId; // 생성 create
 
     private String paymentKey;
 
-    private BigDecimal requestedAmount; //생성 create
+    private BigDecimal requestedAmount; // 생성 create
 
     private BigDecimal approvedAmount;
 
@@ -62,7 +62,7 @@ public class Payment extends BaseEntity {
 
     private LocalDateTime approvedAt;
 
-    private LocalDateTime requestedAt;  //생성 create
+    private LocalDateTime requestedAt;  // 생성 create
 
     private String receiptUrl;
 
@@ -78,12 +78,18 @@ public class Payment extends BaseEntity {
         this.paymentStatus = paymentStatus;
     }
 
-    public void updateReceiptUrl(String receiptUrl) {
-        this.receiptUrl = receiptUrl;
-    }
-
-    public void updatePaymentKey(String paymentKey) {
+    public void confirm(
+            final String paymentKey,
+            final BigDecimal approvedAmount,
+            final PaymentStatus paymentStatus,
+            final LocalDateTime approvedAt,
+            final String receiptUrl
+    ) {
         this.paymentKey = paymentKey;
+        this.approvedAmount = approvedAmount;
+        this.paymentStatus = paymentStatus;
+        this.approvedAt = approvedAt;
+        this.receiptUrl = receiptUrl;
     }
 
     public static Payment create(
@@ -110,22 +116,6 @@ public class Payment extends BaseEntity {
                 .requestedAmount(requestedAmount)
                 .paymentStatus(PaymentStatus.READY)
                 .requestedAt(LocalDateTime.now())
-                .build();
-    }
-
-    public static Payment confirm(
-            final String paymentKey,
-            final BigDecimal approvedAmount,
-            final PaymentStatus paymentStatus,
-            final LocalDateTime approvedAt,
-            final String receiptUrl
-    ) {
-        return Payment.builder()
-                .paymentKey(paymentKey)
-                .approvedAmount(approvedAmount)
-                .paymentStatus(paymentStatus)
-                .approvedAt(approvedAt)
-                .receiptUrl(receiptUrl)
                 .build();
     }
 
