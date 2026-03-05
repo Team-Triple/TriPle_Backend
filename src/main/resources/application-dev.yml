@@ -20,7 +20,7 @@ server:
     session:
       cookie:
         path: /
-        same-site: Lax
+        same-site: None
         secure: true
         http-only: true
 
