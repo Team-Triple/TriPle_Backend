@@ -1106,7 +1106,7 @@ public class GroupControllerTest extends ControllerTest {
         // given
         Long groupId = 1L;
         Long ownerId = 1L;
-        Long targetUserId = 2L;
+        String targetUserId = "00000000-0000-0000-0000-000000000002";
         doNothing().when(groupService).kick(groupId, ownerId, targetUserId);
         mockCsrfValid();
 
@@ -1131,7 +1131,7 @@ public class GroupControllerTest extends ControllerTest {
     @DisplayName("오너가 아닌 사용자가 멤버 추방 요청 시 403을 반환한다.")
     void 오너가_아닌_사용자가_멤버_추방_요청_시_403을_반환한다() throws Exception {
         Long groupId = 1L;
-        Long targetUserId = 2L;
+        String targetUserId = "00000000-0000-0000-0000-000000000002";
         mockCsrfValid();
         doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
                 .when(groupService).kick(groupId, 1L, targetUserId);
@@ -1157,7 +1157,7 @@ public class GroupControllerTest extends ControllerTest {
     @DisplayName("자기 자신을 추방하려고 하면 403을 반환한다.")
     void 자기_자신을_추방하려고_하면_403을_반환한다() throws Exception {
         Long groupId = 1L;
-        Long targetUserId = 1L;
+        String targetUserId = "00000000-0000-0000-0000-000000000001";
         mockCsrfValid();
         doThrow(new BusinessException(GroupErrorCode.CANNOT_KICK_SELF))
                 .when(groupService).kick(groupId, 1L, targetUserId);
@@ -1258,7 +1258,7 @@ public class GroupControllerTest extends ControllerTest {
         // given
         Long groupId = 1L;
         Long ownerId = 1L;
-        Long targetUserId = 2L;
+        String targetUserId = "00000000-0000-0000-0000-000000000002";
         doNothing().when(groupService).ownerTransfer(groupId, targetUserId, ownerId);
         mockCsrfValid();
 
@@ -1283,7 +1283,7 @@ public class GroupControllerTest extends ControllerTest {
     @DisplayName("자기 자신에게 소유권 이전 요청 시 403을 반환한다.")
     void 자기_자신에게_소유권_이전_요청_시_403을_반환한다() throws Exception {
         Long groupId = 1L;
-        Long targetUserId = 1L;
+        String targetUserId = "00000000-0000-0000-0000-000000000001";
         mockCsrfValid();
         doThrow(new BusinessException(GroupErrorCode.CANNOT_OWNER_DEMOTE_SELF))
                 .when(groupService).ownerTransfer(groupId, targetUserId, 1L);
@@ -1309,7 +1309,7 @@ public class GroupControllerTest extends ControllerTest {
     @DisplayName("오너가 아닌 사용자의 소유권 이전 요청 시 403을 반환한다.")
     void 오너가_아닌_사용자의_소유권_이전_요청_시_403을_반환한다() throws Exception {
         Long groupId = 1L;
-        Long targetUserId = 2L;
+        String targetUserId = "00000000-0000-0000-0000-000000000002";
         mockCsrfValid();
         doThrow(new BusinessException(GroupErrorCode.NOT_GROUP_OWNER))
                 .when(groupService).ownerTransfer(groupId, targetUserId, 1L);
