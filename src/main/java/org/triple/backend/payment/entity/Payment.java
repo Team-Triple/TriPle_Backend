@@ -32,28 +32,28 @@ public class Payment extends BaseEntity {
     @Id
     @Column(name = "payment_id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id;    // 생성 create
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id")
-    private Invoice invoice;
+    private Invoice invoice;    // 생성 create
 
     @Enumerated(EnumType.STRING)
-    private PgProvider pgProvider;
+    private PgProvider pgProvider;  // 생성 create
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;
+    private User user;  // 생성 create
 
     @Enumerated(EnumType.STRING)
-    private PaymentMethod method;
+    private PaymentMethod method;   // 생성 create
 
     @Column(name = "order_id")
-    private String orderId;
+    private String orderId; // 생성 create
 
     private String paymentKey;
 
-    private BigDecimal requestedAmount;
+    private BigDecimal requestedAmount; // 생성 create
 
     private BigDecimal approvedAmount;
 
@@ -62,14 +62,35 @@ public class Payment extends BaseEntity {
 
     private LocalDateTime approvedAt;
 
-    private LocalDateTime requestedAt;
+    private LocalDateTime requestedAt;  // 생성 create
 
     private String receiptUrl;
 
-    private String failureCode;
+    public boolean isStatus(PaymentStatus status) {
+        return paymentStatus.equals(status);
+    }
 
-    private String failureMessage;
+    public boolean isRequestedAmount(BigDecimal approvedAmount) {
+        return this.requestedAmount.equals(approvedAmount);
+    }
 
+    public void updateStatus(PaymentStatus paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public void confirm(
+            final String paymentKey,
+            final BigDecimal approvedAmount,
+            final PaymentStatus paymentStatus,
+            final LocalDateTime approvedAt,
+            final String receiptUrl
+    ) {
+        this.paymentKey = paymentKey;
+        this.approvedAmount = approvedAmount;
+        this.paymentStatus = paymentStatus;
+        this.approvedAt = approvedAt;
+        this.receiptUrl = receiptUrl;
+    }
 
     public static Payment create(
             final Invoice invoice,
