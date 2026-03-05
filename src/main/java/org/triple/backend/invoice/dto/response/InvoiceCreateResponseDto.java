@@ -17,12 +17,12 @@ public record InvoiceCreateResponseDto(
         List<RecipientDto> recipients
 ) {
 
-    public record RecipientDto(Long userId, BigDecimal amount) {}
+    public record RecipientDto(String userId, BigDecimal amount) {}
 
 
     public static InvoiceCreateResponseDto from(Invoice invoice, List<InvoiceUser> invoiceUsers) {
         List<RecipientDto> recipients = invoiceUsers.stream()
-                .map(iu -> new RecipientDto(iu.getUser().getId(), iu.getRemainAmount()))
+                .map(iu -> new RecipientDto(iu.getUser().getPublicUuid().toString(), iu.getRemainAmount()))
                 .toList();
 
         return new InvoiceCreateResponseDto(
