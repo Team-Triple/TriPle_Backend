@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.auth.session.UserIdentityResolver;
+import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.controller.GroupController;
@@ -57,9 +58,21 @@ public class GroupControllerTest extends ControllerTest {
     @MockitoBean
     private UserIdentityResolver userIdentityResolver;
 
+    @MockitoBean
+    private UuidCrypto uuidCrypto;
+
     @BeforeEach
     void setUp() {
         when(userIdentityResolver.resolve(any())).thenReturn(1L);
+        when(uuidCrypto.decryptToUuid(any())).thenAnswer(invocation -> {
+            String value = invocation.getArgument(0);
+            try {
+                return UUID.fromString(value);
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        });
+        when(uuidCrypto.encrypt(any(UUID.class))).thenAnswer(invocation -> "enc-" + invocation.getArgument(0, UUID.class));
     }
 
     @Test
@@ -537,12 +550,12 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.users").isArray())
                 .andExpect(jsonPath("$.users.length()").value(2))
-                .andExpect(jsonPath("$.users[0].id").value(ownerPublicUuid))
+                .andExpect(jsonPath("$.users[0].id").value("enc-" + ownerPublicUuid))
                 .andExpect(jsonPath("$.users[0].name").value("상윤"))
                 .andExpect(jsonPath("$.users[0].description").value("모임장"))
                 .andExpect(jsonPath("$.users[0].profileUrl").value("http://img-owner"))
                 .andExpect(jsonPath("$.users[0].isOwner").value(true))
-                .andExpect(jsonPath("$.users[1].id").value(memberPublicUuid))
+                .andExpect(jsonPath("$.users[1].id").value("enc-" + memberPublicUuid))
                 .andExpect(jsonPath("$.users[1].name").value("민규"))
                 .andExpect(jsonPath("$.users[1].isOwner").value(false))
                 .andDo(document("groups/users",
@@ -553,7 +566,7 @@ public class GroupControllerTest extends ControllerTest {
                         ),
                         responseFields(
                                 fieldWithPath("users").description("그룹 멤버 목록"),
-                                fieldWithPath("users[].id").description("멤버 공개 UUID"),
+                                fieldWithPath("users[].id").description("암호화된 멤버 공개 UUID"),
                                 fieldWithPath("users[].name").description("멤버 이름"),
                                 fieldWithPath("users[].description").description("멤버 소개").optional(),
                                 fieldWithPath("users[].profileUrl").description("멤버 프로필 이미지 URL").optional(),
