@@ -13,6 +13,7 @@ import org.triple.backend.auth.session.UserIdentityResolver;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.invoice.controller.InvoiceController;
+import org.triple.backend.invoice.dto.RecipientAmountDto;
 import org.triple.backend.invoice.dto.request.InvoiceAdjustRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
 import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
@@ -22,6 +23,7 @@ import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
 import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
 import org.triple.backend.invoice.entity.InvoiceStatus;
 import org.triple.backend.invoice.exception.InvoiceErrorCode;
+import org.triple.backend.invoice.mapper.InvoiceUserIdMapper;
 import org.triple.backend.invoice.service.InvoiceService;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
@@ -71,15 +73,87 @@ class InvoiceControllerTest extends ControllerTest {
     @MockitoBean
     private UserIdentityResolver userIdentityResolver;
 
+    @MockitoBean
+    private InvoiceUserIdMapper invoiceUserIdMapper;
+
     @BeforeEach
     void setUp() {
         when(userIdentityResolver.resolve(any())).thenReturn(1L);
+        when(invoiceUserIdMapper.decryptRecipientUserIds(any(InvoiceCreateRequestDto.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(invoiceUserIdMapper.decryptRecipientUserIds(any(InvoiceAdjustRequestDto.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(invoiceUserIdMapper.encryptRecipientUserIds(any(InvoiceCreateResponseDto.class)))
+                .thenAnswer(invocation -> encryptCreateResponse(invocation.getArgument(0)));
+        when(invoiceUserIdMapper.encryptRecipientUserIds(any(InvoiceAdjustResponseDto.class)))
+                .thenAnswer(invocation -> encryptAdjustResponse(invocation.getArgument(0)));
+        when(invoiceUserIdMapper.encryptUserIds(any(InvoiceDetailResponseDto.class)))
+                .thenAnswer(invocation -> encryptDetailResponse(invocation.getArgument(0)));
+    }
+
+    private InvoiceCreateResponseDto encryptCreateResponse(final InvoiceCreateResponseDto response) {
+        return new InvoiceCreateResponseDto(
+                response.invoiceId(),
+                response.groupId(),
+                response.travelItineraryId(),
+                response.title(),
+                response.totalAmount(),
+                response.dueAt(),
+                response.recipients().stream()
+                        .map(recipient -> new InvoiceCreateResponseDto.RecipientDto(
+                                "enc-" + recipient.userId(),
+                                recipient.amount()
+                        ))
+                        .toList()
+        );
+    }
+
+    private InvoiceAdjustResponseDto encryptAdjustResponse(final InvoiceAdjustResponseDto response) {
+        return new InvoiceAdjustResponseDto(
+                response.invoiceId(),
+                response.totalAmount(),
+                response.recipients().stream()
+                        .map(recipient -> new RecipientAmountDto(
+                                "enc-" + recipient.userId(),
+                                recipient.amount()
+                        ))
+                        .toList(),
+                response.invoiceStatus()
+        );
+    }
+
+    private InvoiceDetailResponseDto encryptDetailResponse(final InvoiceDetailResponseDto response) {
+        InvoiceDetailResponseDto.UserSummaryDto encryptedCreator = new InvoiceDetailResponseDto.UserSummaryDto(
+                "enc-" + response.creator().userId(),
+                response.creator().nickname(),
+                response.creator().profileUrl()
+        );
+        List<InvoiceDetailResponseDto.InvoiceMemberDto> encryptedMembers = response.invoiceMembers().stream()
+                .map(member -> new InvoiceDetailResponseDto.InvoiceMemberDto(
+                        "enc-" + member.userId(),
+                        member.nickname(),
+                        member.profileUrl(),
+                        member.remainAmount()
+                ))
+                .toList();
+        return new InvoiceDetailResponseDto(
+                response.title(),
+                response.totalAmount(),
+                response.dueAt(),
+                response.description(),
+                encryptedCreator,
+                encryptedMembers,
+                response.remainingAmount(),
+                response.isDone()
+        );
     }
 
     @Test
     @DisplayName("로그인한 여행장(LEADER)은 청구서를 생성할 수 있다.")
     void 로그인한_여행장_LEADER은_청구서를_생성할_수_있다() throws Exception {
         // given
+        String recipient1PublicUuid = "00000000-0000-0000-0000-000000000002";
+        String recipient2PublicUuid = "00000000-0000-0000-0000-000000000003";
         InvoiceCreateResponseDto response = new InvoiceCreateResponseDto(
                 1L,
                 10L,
@@ -88,8 +162,8 @@ class InvoiceControllerTest extends ControllerTest {
                 new BigDecimal("70000"),
                 LocalDateTime.of(2030, 3, 31, 18, 0),
                 List.of(
-                        new InvoiceCreateResponseDto.RecipientDto(2L, new BigDecimal("30000")),
-                        new InvoiceCreateResponseDto.RecipientDto(3L, new BigDecimal("40000"))
+                        new InvoiceCreateResponseDto.RecipientDto(recipient1PublicUuid, new BigDecimal("30000")),
+                        new InvoiceCreateResponseDto.RecipientDto(recipient2PublicUuid, new BigDecimal("40000"))
                 )
         );
         given(invoiceService.create(eq(1L), any(InvoiceCreateRequestDto.class))).willReturn(response);
@@ -123,7 +197,7 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.totalAmount").value(70000))
                 .andExpect(jsonPath("$.dueAt").value("2030-03-31T18:00:00"))
                 .andExpect(jsonPath("$.recipients.length()").value(2))
-                .andExpect(jsonPath("$.recipients[0].userId").value(2L))
+                .andExpect(jsonPath("$.recipients[0].userId").value("enc-" + recipient1PublicUuid))
                 .andExpect(jsonPath("$.recipients[0].amount").value(30000))
                 .andDo(document("invoices/create",
                         preprocessRequest(prettyPrint()),
@@ -592,15 +666,18 @@ class InvoiceControllerTest extends ControllerTest {
     @DisplayName("여행 멤버는 청구서를 조회할 수 있다.")
     void 여행_멤버는_청구서를_조회할_수_있다() throws Exception {
         // given
+        String creatorPublicUuid = "00000000-0000-0000-0000-000000000001";
+        String member1PublicUuid = "00000000-0000-0000-0000-000000000002";
+        String member2PublicUuid = "00000000-0000-0000-0000-000000000003";
         InvoiceDetailResponseDto response = new InvoiceDetailResponseDto(
                 "청구서 제목",
                 new BigDecimal("70000"),
                 LocalDateTime.of(2030, 3, 31, 18, 0),
                 "청구서 설명",
-                new InvoiceDetailResponseDto.UserSummaryDto(1L, "생성자", "http://profile/1"),
+                new InvoiceDetailResponseDto.UserSummaryDto(creatorPublicUuid, "생성자", "http://profile/1"),
                 List.of(
-                        new InvoiceDetailResponseDto.InvoiceMemberDto(2L, "멤버1", "http://profile/2", BigDecimal.ZERO),
-                        new InvoiceDetailResponseDto.InvoiceMemberDto(3L, "멤버2", "http://profile/3", BigDecimal.ZERO)
+                        new InvoiceDetailResponseDto.InvoiceMemberDto(member1PublicUuid, "멤버1", "http://profile/2", BigDecimal.ZERO),
+                        new InvoiceDetailResponseDto.InvoiceMemberDto(member2PublicUuid, "멤버2", "http://profile/3", BigDecimal.ZERO)
                 ),
                 BigDecimal.ZERO,
                 true
@@ -614,7 +691,7 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("청구서 제목"))
                 .andExpect(jsonPath("$.totalAmount").value(70000))
-                .andExpect(jsonPath("$.creator.userId").value(1L))
+                .andExpect(jsonPath("$.creator.userId").value("enc-" + creatorPublicUuid))
                 .andExpect(jsonPath("$.invoiceMembers.length()").value(2))
                 .andExpect(jsonPath("$.remainingAmount").value(0))
                 .andExpect(jsonPath("$.isDone").value(true))
@@ -717,12 +794,14 @@ class InvoiceControllerTest extends ControllerTest {
     void 로그인한_여행장_LEADER은_청구서_금액_대상_정보를_수정할_수_있다() throws Exception {
         // given
         Long invoiceId = 1L;
+        String recipient1PublicUuid = "00000000-0000-0000-0000-000000000002";
+        String recipient2PublicUuid = "00000000-0000-0000-0000-000000000003";
         InvoiceAdjustResponseDto response = new InvoiceAdjustResponseDto(
                 invoiceId,
                 new BigDecimal("30000"),
                 List.of(
-                        new org.triple.backend.invoice.dto.RecipientAmountDto("2", new BigDecimal("10000")),
-                        new org.triple.backend.invoice.dto.RecipientAmountDto("3", new BigDecimal("20000"))
+                        new org.triple.backend.invoice.dto.RecipientAmountDto(recipient1PublicUuid, new BigDecimal("10000")),
+                        new org.triple.backend.invoice.dto.RecipientAmountDto(recipient2PublicUuid, new BigDecimal("20000"))
                 ),
                 InvoiceStatus.UNCONFIRM
         );
@@ -748,7 +827,7 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.invoiceId").value(invoiceId))
                 .andExpect(jsonPath("$.totalAmount").value(30000))
                 .andExpect(jsonPath("$.recipients.length()").value(2))
-                .andExpect(jsonPath("$.recipients[0].userId").value("2"))
+                .andExpect(jsonPath("$.recipients[0].userId").value("enc-" + recipient1PublicUuid))
                 .andExpect(jsonPath("$.recipients[0].amount").value(10000))
                 .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"))
                 .andDo(document("invoices/update-info",
