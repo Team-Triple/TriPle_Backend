@@ -1056,7 +1056,7 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), target.getId())
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), target.getPublicUuid().toString())
                         .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
@@ -1089,7 +1089,7 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), owner.getId())
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), owner.getPublicUuid().toString())
                         .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
@@ -1133,7 +1133,7 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), target.getId())
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), target.getPublicUuid().toString())
                         .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
@@ -1167,7 +1167,7 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         // when & then
-        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), outsider.getId())
+        mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), outsider.getPublicUuid().toString())
                         .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
