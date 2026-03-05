@@ -124,7 +124,7 @@ public class Payment extends BaseEntity {
                 .paymentKey(paymentKey)
                 .approvedAmount(approvedAmount)
                 .paymentStatus(paymentStatus)
-                .approvedAmount(approvedAmount)
+                .approvedAt(approvedAt)
                 .receiptUrl(receiptUrl)
                 .build();
     }
