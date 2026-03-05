@@ -53,7 +53,6 @@ class PaymentServiceFacadeTest {
                 new ConfirmResponse.Receipt("https://receipt")
         );
         Payment donePayment = payment("order-1", "10000", PaymentStatus.DONE);
-        donePayment.updateReceiptUrl("https://receipt");
 
         given(paymentService.readyToInProgressPayment(req, 1L, 1L)).willReturn(inProgress);
         given(paymentService.confirm(inProgress)).willReturn(confirmResponse);
@@ -154,6 +153,7 @@ class PaymentServiceFacadeTest {
         return Payment.builder()
                 .orderId(orderId)
                 .approvedAmount(new BigDecimal(amount))
+                .receiptUrl("https://receipt")
                 .paymentStatus(status)
                 .build();
     }

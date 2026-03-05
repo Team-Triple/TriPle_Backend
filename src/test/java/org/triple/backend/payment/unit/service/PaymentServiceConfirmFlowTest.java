@@ -18,6 +18,7 @@ import org.triple.backend.payment.infra.dto.response.ConfirmResponse;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.payment.service.PaymentService;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
+import org.triple.backend.user.entity.User;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -242,6 +243,7 @@ class PaymentServiceConfirmFlowTest {
                 .orderId(orderId)
                 .requestedAmount(new BigDecimal(amount))
                 .approvedAmount(new BigDecimal(amount))
+                .user(User.builder().id(1L).build())
                 .paymentStatus(paymentStatus)
                 .build();
     }

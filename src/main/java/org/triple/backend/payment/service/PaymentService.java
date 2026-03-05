@@ -2,7 +2,6 @@ package org.triple.backend.payment.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.domain.PageRequest;
@@ -144,7 +143,7 @@ public class PaymentService {
                 confirmResponse.totalAmount(),
                 PaymentStatus.DONE,
                 LocalDateTime.now(),    //clock으로 리팩토링 예정
-                confirmResponse.receipt().toString()
+                confirmResponse.receipt().url()
         );
 
         return payment;
