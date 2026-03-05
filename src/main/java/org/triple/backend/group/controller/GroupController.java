@@ -5,15 +5,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.triple.backend.auth.session.LoginRequired;
 import org.triple.backend.auth.session.LoginUser;
-import org.triple.backend.auth.session.UuidCrypto;
-import org.triple.backend.global.error.BusinessException;
+import org.triple.backend.auth.session.PublicUuidCodec;
 import org.triple.backend.group.dto.request.CreateGroupRequestDto;
 import org.triple.backend.group.dto.request.GroupUpdateRequestDto;
 import org.triple.backend.group.dto.response.*;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.service.GroupService;
-
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/groups")
@@ -21,7 +18,7 @@ import java.util.UUID;
 public class GroupController {
 
     private final GroupService groupService;
-    private final UuidCrypto uuidCrypto;
+    private final PublicUuidCodec publicUuidCodec;
 
     @LoginRequired
     @PostMapping
@@ -56,13 +53,13 @@ public class GroupController {
     @LoginRequired
     @PatchMapping("/{groupId}/owner/{targetUserId}")
     public void transferOwner(@PathVariable Long groupId, @PathVariable String targetUserId, @LoginUser final Long userId) {
-        groupService.ownerTransfer(groupId, decryptTargetUserIdOrThrow(targetUserId), userId);
+        groupService.ownerTransfer(groupId, publicUuidCodec.decryptOrThrow(targetUserId, GroupErrorCode.NOT_GROUP_MEMBER), userId);
     }
 
     @LoginRequired
     @DeleteMapping("/{groupId}/users/{targetUserId}")
     public void kick(@PathVariable Long groupId, @PathVariable String targetUserId, @LoginUser final Long userId) {
-        groupService.kick(groupId, userId, decryptTargetUserIdOrThrow(targetUserId));
+        groupService.kick(groupId, userId, publicUuidCodec.decryptOrThrow(targetUserId, GroupErrorCode.NOT_GROUP_MEMBER));
     }
 
     @LoginRequired
@@ -88,7 +85,7 @@ public class GroupController {
         return new GroupUsersResponseDto(
                 groupUsers.users().stream()
                         .map(user -> new GroupUsersResponseDto.UserDto(
-                                uuidCrypto.encrypt(UUID.fromString(user.id())),
+                                publicUuidCodec.encrypt(user.id()),
                                 user.name(),
                                 user.description(),
                                 user.profileUrl(),
@@ -96,13 +93,5 @@ public class GroupController {
                         ))
                         .toList()
         );
-    }
-
-    private String decryptTargetUserIdOrThrow(final String encryptedTargetUserId) {
-        UUID targetPublicUuid = uuidCrypto.decryptToUuid(encryptedTargetUserId);
-        if (targetPublicUuid == null) {
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
-        }
-        return targetPublicUuid.toString();
     }
 }
