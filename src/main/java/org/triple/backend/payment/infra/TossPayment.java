@@ -32,6 +32,7 @@ public class TossPayment {
     @Retryable(
             retryFor = {ResourceAccessException.class},
             noRetryFor = {BusinessException.class, ConfirmServerException.class, ConfirmAnonymousException.class},
+            notRecoverable = {BusinessException.class, ConfirmServerException.class, ConfirmAnonymousException.class},
             maxAttempts = 3,
             backoff = @Backoff(delay = 500, multiplier = 2, random = true)
     )
