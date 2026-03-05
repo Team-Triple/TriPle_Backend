@@ -100,8 +100,8 @@ class InvoiceControllerTest extends ControllerTest {
                   "groupId": 10,
                   "travelItineraryId": 20,
                   "recipients": [
-                    { "userId": 2, "amount": 30000 },
-                    { "userId": 3, "amount": 40000 }
+                    { "userId": "2", "amount": 30000 },
+                    { "userId": "3", "amount": 40000 }
                   ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
@@ -162,7 +162,7 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "groupId": 10,
                   "travelItineraryId": 20,
-                  "recipients": [ { "userId": 2, "amount": 30000 } ],
+                  "recipients": [ { "userId": "2", "amount": 30000 } ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
                   "totalAmount": 30000,
@@ -252,7 +252,7 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "groupId": 10,
                   "travelItineraryId": 20,
-                  "recipients": [ { "userId": 2, "amount": 30000 } ],
+                  "recipients": [ { "userId": "2", "amount": 30000 } ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
                   "totalAmount": 30000,
@@ -298,8 +298,8 @@ class InvoiceControllerTest extends ControllerTest {
                   "groupId": 10,
                   "travelItineraryId": 20,
                   "recipients": [
-                    { "userId": 2, "amount": 10000 },
-                    { "userId": 3, "amount": 10000 }
+                    { "userId": "2", "amount": 10000 },
+                    { "userId": "3", "amount": 10000 }
                   ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
@@ -721,8 +721,8 @@ class InvoiceControllerTest extends ControllerTest {
                 invoiceId,
                 new BigDecimal("30000"),
                 List.of(
-                        new org.triple.backend.invoice.dto.RecipientAmountDto(2L, new BigDecimal("10000")),
-                        new org.triple.backend.invoice.dto.RecipientAmountDto(3L, new BigDecimal("20000"))
+                        new org.triple.backend.invoice.dto.RecipientAmountDto("2", new BigDecimal("10000")),
+                        new org.triple.backend.invoice.dto.RecipientAmountDto("3", new BigDecimal("20000"))
                 ),
                 InvoiceStatus.UNCONFIRM
         );
@@ -733,8 +733,8 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "totalAmount": 30000,
                   "recipients": [
-                    { "userId": 2, "amount": 10000 },
-                    { "userId": 3, "amount": 20000 }
+                    { "userId": "2", "amount": 10000 },
+                    { "userId": "3", "amount": 20000 }
                   ]
                 }
                 """;
@@ -748,7 +748,7 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.invoiceId").value(invoiceId))
                 .andExpect(jsonPath("$.totalAmount").value(30000))
                 .andExpect(jsonPath("$.recipients.length()").value(2))
-                .andExpect(jsonPath("$.recipients[0].userId").value(2))
+                .andExpect(jsonPath("$.recipients[0].userId").value("2"))
                 .andExpect(jsonPath("$.recipients[0].amount").value(10000))
                 .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"))
                 .andDo(document("invoices/update-info",
@@ -789,8 +789,8 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "totalAmount": 30000,
                   "recipients": [
-                    { "userId": 2, "amount": 10000 },
-                    { "userId": 3, "amount": 20000 }
+                    { "userId": "2", "amount": 10000 },
+                    { "userId": "3", "amount": 20000 }
                   ]
                 }
                 """;
@@ -835,8 +835,8 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "totalAmount": 30000,
                   "recipients": [
-                    { "userId": 2, "amount": 10000 },
-                    { "userId": 3, "amount": 20000 }
+                    { "userId": "2", "amount": 10000 },
+                    { "userId": "3", "amount": 20000 }
                   ]
                 }
                 """;
@@ -1025,8 +1025,8 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "totalAmount": 20000,
                   "recipients": [
-                    { "userId": 2, "amount": 10000 },
-                    { "userId": 2, "amount": 10000 }
+                    { "userId": "2", "amount": 10000 },
+                    { "userId": "2", "amount": 10000 }
                   ]
                 }
                 """;
@@ -1071,8 +1071,8 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "totalAmount": 30000,
                   "recipients": [
-                    { "userId": 2, "amount": 10000 },
-                    { "userId": 3, "amount": 10000 }
+                    { "userId": "2", "amount": 10000 },
+                    { "userId": "3", "amount": 10000 }
                   ]
                 }
                 """;
@@ -1148,7 +1148,7 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "totalAmount": 30000,
                   "recipients": [
-                    { "userId": 2, "amount": 10000 }
+                    { "userId": "2", "amount": 10000 }
                   ]
                 }
                 """;
@@ -1540,8 +1540,8 @@ class InvoiceControllerTest extends ControllerTest {
                 {
                   "totalAmount": 30000,
                   "recipients": [
-                    { "userId": 2, "amount": 10000 },
-                    { "userId": 3, "amount": 20000 }
+                    { "userId": "2", "amount": 10000 },
+                    { "userId": "3", "amount": 20000 }
                   ]
                 }
                 """;
