@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.common.annotation.ServiceTest;
@@ -28,6 +29,7 @@ import org.triple.backend.payment.entity.PaymentMethod;
 import org.triple.backend.payment.entity.PaymentStatus;
 import org.triple.backend.payment.entity.PgProvider;
 import org.triple.backend.payment.exception.PaymentErrorCode;
+import org.triple.backend.payment.infra.TossPayment;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.payment.service.PaymentService;
 import org.triple.backend.travel.entity.TravelItinerary;
@@ -55,6 +57,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ServiceTest
 @Import(PaymentService.class)
 class PaymentServiceTest {
+
+    @MockitoBean
+    private TossPayment tossPayment;
 
     @Autowired
     private PaymentService paymentService;

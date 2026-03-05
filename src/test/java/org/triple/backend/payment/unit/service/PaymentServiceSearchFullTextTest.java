@@ -19,6 +19,7 @@ import org.triple.backend.payment.entity.PaymentMethod;
 import org.triple.backend.payment.entity.PaymentStatus;
 import org.triple.backend.payment.entity.PgProvider;
 import org.triple.backend.payment.exception.PaymentErrorCode;
+import org.triple.backend.payment.infra.TossPayment;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.payment.service.PaymentService;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
@@ -55,11 +56,15 @@ class PaymentServiceSearchFullTextTest {
     @Mock
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
+    @Mock
+    private TossPayment tossPayment;
+
     private PaymentService paymentService;
 
     @BeforeEach
     void setUp() {
         paymentService = new PaymentService(
+                tossPayment,
                 paymentJpaRepository,
                 invoiceUserJpaRepository,
                 invoiceJpaRepository,
