@@ -178,7 +178,18 @@ public class InvoiceService {
     }
 
     private Long resolveRecipientUserIdOrThrow(final String recipientUserId) {
-        return userJpaRepository.findIdByPublicUuid(recipientUserId)
+        if (recipientUserId == null || recipientUserId.isBlank()) {
+            throw new BusinessException(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND);
+        }
+
+        UUID publicUuid;
+        try {
+            publicUuid = UUID.fromString(recipientUserId);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND);
+        }
+
+        return userJpaRepository.findIdByPublicUuid(publicUuid)
                 .orElseThrow(() -> new BusinessException(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND));
     }
 
