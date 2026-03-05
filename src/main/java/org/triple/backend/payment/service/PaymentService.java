@@ -1,8 +1,10 @@
 package org.triple.backend.payment.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.retry.annotation.Backoff;
@@ -30,9 +32,9 @@ import org.triple.backend.payment.infra.TossPayment;
 import org.triple.backend.payment.infra.dto.response.ConfirmResponse;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
+import org.triple.backend.user.exception.UserErrorCode;
 
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -84,8 +86,16 @@ public class PaymentService {
 
     @Transactional
     public Payment readyToInProgressPayment(PaymentConfirmReq paymentConfirmReq, Long paymentId, Long userId) {
-        Payment payment = paymentJpaRepository.findByOrderId(paymentConfirmReq.orderId())
+        Payment payment = paymentJpaRepository.findByOrderIdForUpdate(paymentConfirmReq.orderId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.NOT_FOUND_PAYMENT));
+
+        if(payment.getUser() == null) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+
+        if(!payment.getUser().getId().equals(userId)) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CONFIRM_NOT_ALLOWED);
+        }
 
         if(!payment.isStatus(PaymentStatus.READY)) {
             throw new BusinessException(PaymentErrorCode.ALREADY_PROCESSED_PAYMENT);
@@ -104,14 +114,20 @@ public class PaymentService {
     }
 
     @Retryable(
-            retryFor = {DataAccessException.class},
-            noRetryFor = {BusinessException.class},
+            retryFor = {
+                    CannotAcquireLockException.class,
+                    QueryTimeoutException.class
+            },
+            noRetryFor = {
+                    BusinessException.class,
+                    DataIntegrityViolationException.class,
+            },
             maxAttempts = 3,
-            backoff = @Backoff(delay = 1000)
+            backoff = @Backoff(delay = 500, multiplier = 2, random = true)
     )
     @Transactional
     public Payment inprogressToDonePayment(ConfirmResponse confirmResponse) {
-        Payment payment = paymentJpaRepository.findByOrderId(confirmResponse.orderId())
+        Payment payment = paymentJpaRepository.findByOrderIdForUpdate(confirmResponse.orderId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.NOT_FOUND_PAYMENT));
 
         if (confirmResponse.totalAmount() == null ||
@@ -134,15 +150,21 @@ public class PaymentService {
         return payment;
     }
 
-    @Retryable( //최종 실패 처리 => 이마저도 처리하면 매우 위험한 상황이므로 개발자에게 알려야함
-            retryFor = {DataAccessException.class},
-            noRetryFor = {BusinessException.class},
+    @Retryable(
+            retryFor = {
+                    CannotAcquireLockException.class,
+                    QueryTimeoutException.class
+            },
+            noRetryFor = {
+                    BusinessException.class,
+                    DataIntegrityViolationException.class,
+            },
             maxAttempts = 3,
-            backoff = @Backoff(delay = 1000)
+            backoff = @Backoff(delay = 500, multiplier = 2, random = true)
     )
     @Transactional
     public void failConfirm(PaymentConfirmReq paymentConfirmReq, PaymentStatus paymentStatus) {
-        Payment payment = paymentJpaRepository.findByOrderId(paymentConfirmReq.orderId())
+        Payment payment = paymentJpaRepository.findByOrderIdForUpdate(paymentConfirmReq.orderId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.NOT_FOUND_PAYMENT));
 
         if (!payment.isStatus(PaymentStatus.IN_PROGRESS)) {
