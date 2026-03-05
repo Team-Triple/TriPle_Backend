@@ -1,4 +1,4 @@
-﻿package org.triple.backend.payment.entity;
+package org.triple.backend.payment.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
