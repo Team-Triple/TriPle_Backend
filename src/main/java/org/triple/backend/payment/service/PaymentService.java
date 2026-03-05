@@ -123,13 +123,15 @@ public class PaymentService {
             throw new BusinessException(PaymentErrorCode.ALREADY_PROCESSED_PAYMENT);
         }
 
-        return Payment.confirm(
+        payment.confirm(
                 confirmResponse.paymentKey(),
                 confirmResponse.totalAmount(),
                 PaymentStatus.DONE,
                 LocalDateTime.now(),    //clock으로 리팩토링 예정
                 confirmResponse.receipt().toString()
         );
+
+        return payment;
     }
 
     @Retryable( //최종 실패 처리 => 이마저도 처리하면 매우 위험한 상황이므로 개발자에게 알려야함
