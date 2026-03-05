@@ -1,10 +1,7 @@
 name: CI
 
 on:
-  push:
-    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main", "develop" ]
 
 jobs:
   test_build:
@@ -23,64 +20,18 @@ jobs:
       - run: ./gradlew test
         env:
           SPRING_PROFILES_ACTIVE: test
-      - run: ./gradlew bootJar
-      - run: ./gradlew build -x test
-
-      - name: Upload boot jar
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-jar
-          path: |
-            build/libs/*.jar
-            !build/libs/*-plain.jar
-          if-no-files-found: error
-
-  publish_image:
-    if: github.event_name == 'push'
-    needs: test_build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download boot jar
-        uses: actions/download-artifact@v4
-        with:
-          name: app-jar
-          path: build/libs
-
-      - name: Prepare jar for docker build
+      - name: Verify MySQL FULLTEXT integration test is executed
         run: |
-          set -e
-          JAR_PATH="$(find build -type f -name '*.jar' ! -name '*-plain.jar' | head -n 1)"
-          if [ -z "${JAR_PATH}" ]; then
-            echo "No jar found after artifact download"
-            find build -maxdepth 5 -type f || true
+          REPORT="build/test-results/test/TEST-org.triple.backend.group.Integration.GroupServiceSearchFullTextMySqlTest.xml"
+          if [ ! -f "$REPORT" ]; then
+            echo "Missing test report: $REPORT"
             exit 1
           fi
-
-          cp "${JAR_PATH}" /tmp/app.jar
-          rm -rf build/libs
-          mkdir -p build/libs
-          cp /tmp/app.jar build/libs/app.jar
-          ls -al build/libs
-
-      - name: Login GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Build Image
-        run: |
-          IMAGE_NAME=ghcr.io/team-triple/backend
-          docker build \
-            -t "${IMAGE_NAME}:${{ github.sha }}" \
-            -t "${IMAGE_NAME}:${{ github.ref_name }}" .
-
-      - name: Push Image
-        run: |
-          IMAGE_NAME=ghcr.io/team-triple/backend
-          docker push "${IMAGE_NAME}:${{ github.sha }}"
-          docker push "${IMAGE_NAME}:${{ github.ref_name }}"
+          SKIPPED=$(grep -o 'skipped="[0-9]*"' "$REPORT" | head -n1 | tr -dc '0-9')
+          if [ "$SKIPPED" != "0" ]; then
+            echo "MySQL FULLTEXT integration test was skipped."
+            cat "$REPORT"
+            exit 1
+          fi
+      - run: ./gradlew bootJar
+      - run: ./gradlew build -x test

@@ -2,9 +2,8 @@ name: CD
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["Build and Push"]
     types: [completed]
-    branches: [ "develop", "main" ]
   workflow_dispatch:
     inputs:
       branch_name:
@@ -30,11 +29,22 @@ jobs:
       (
         github.event_name == 'workflow_run' &&
         github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'push'
+        contains(fromJson('["develop","main"]'), github.event.workflow_run.head_branch)
       )
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
 
     steps:
+      - name: Debug trigger context
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "workflow_run.conclusion=${{ github.event.workflow_run.conclusion }}"
+          echo "workflow_run.event=${{ github.event.workflow_run.event }}"
+          echo "workflow_run.head_branch=${{ github.event.workflow_run.head_branch }}"
+          echo "workflow_run.head_sha=${{ github.event.workflow_run.head_sha }}"
+
       - name: Checkout deploy ref
         uses: actions/checkout@v4
         with:
@@ -79,6 +89,27 @@ jobs:
             printf "%s" "${{ secrets.ENV_PROD }}" > .env
           fi
 
+      - name: Validate profile mapping
+        run: |
+          set -e
+
+          PROFILE="$(grep -E '^SPRING_PROFILES_ACTIVE=' .env | tail -n1 | cut -d= -f2- | tr -d '\r' | xargs)"
+
+          if [ -z "${PROFILE}" ]; then
+            echo "SPRING_PROFILES_ACTIVE is empty"
+            exit 1
+          fi
+
+          if [ "${BRANCH_NAME}" = "develop" ] && [ "${PROFILE}" != "dev" ]; then
+            echo "Profile mismatch: develop branch requires SPRING_PROFILES_ACTIVE=dev"
+            exit 1
+          fi
+
+          if [ "${BRANCH_NAME}" = "main" ] && [ "${PROFILE}" != "prod" ]; then
+            echo "Profile mismatch: main branch requires SPRING_PROFILES_ACTIVE=prod"
+            exit 1
+          fi
+
       - name: Upload files
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
@@ -111,7 +142,26 @@ jobs:
           ssh -i ~/.ssh/deploy_key.pem -o StrictHostKeyChecking=no ubuntu@"${TARGET_HOST}" "
             set -e
             cd ${DEPLOY_PATH}
+
+            echo '[before cleanup]'
+            docker system df || true
+
+            # Previous deployments use SHA tags, so old images can accumulate quickly.
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
+
+            echo '[before pull]'
+            docker system df || true
+
             docker pull ghcr.io/team-triple/backend:${IMAGE_TAG}
-            IMAGE_TAG=${IMAGE_TAG} docker compose up -d
-            docker image prune -f
+            IMAGE_TAG=${IMAGE_TAG} docker compose up -d --remove-orphans
+
+            # Keep only images used by running containers to prevent disk-full failures.
+            docker image prune -af || true
+            docker builder prune -af || true
+
+            echo '[after cleanup]'
+            docker system df || true
           "
+

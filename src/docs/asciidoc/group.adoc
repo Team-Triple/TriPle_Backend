@@ -1,0 +1,205 @@
+= GROUP API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== 그룹 생성
+include::{snippets}/groups/create/http-request.adoc[]
+include::{snippets}/groups/create/http-response.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/groups/create-fail-unauthorized/http-response.adoc[]
+
+=== 실패: CSRF 토큰 불일치(403)
+include::{snippets}/groups/create-fail-invalid-csrf-token/http-response.adoc[]
+
+=== 실패: 잘못된 요청 값(400)
+include::{snippets}/groups/create-fail-bad-request/http-response.adoc[]
+
+== 그룹 조회(PUBLIC)
+include::{snippets}/groups/browse-public/query-parameters.adoc[]
+include::{snippets}/groups/browse-public/http-request.adoc[]
+include::{snippets}/groups/browse-public/http-response.adoc[]
+
+=== 실패: 키워드 길이 초과(400)
+include::{snippets}/groups/browse-public-fail-invalid-keyword/http-response.adoc[]
+
+== 내 그룹 조회
+include::{snippets}/groups/my-groups/query-parameters.adoc[]
+include::{snippets}/groups/my-groups/http-request.adoc[]
+include::{snippets}/groups/my-groups/http-response.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/groups/my-groups-fail-unauthorized/http-response.adoc[]
+
+== 그룹 메뉴 조회
+include::{snippets}/groups/menu/path-parameters.adoc[]
+include::{snippets}/groups/menu/http-request.adoc[]
+include::{snippets}/groups/menu/http-response.adoc[]
+include::{snippets}/groups/menu/response-fields.adoc[]
+
+=== 실패: 비멤버 비공개 그룹 조회(403)
+include::{snippets}/groups/menu-fail-not-group-member/http-response.adoc[]
+
+== 그룹 상세 조회
+include::{snippets}/groups/detail/path-parameters.adoc[]
+include::{snippets}/groups/detail/http-request.adoc[]
+include::{snippets}/groups/detail/http-response.adoc[]
+
+=== 실패: 그룹 없음(404)
+include::{snippets}/groups/detail-fail-group-not-found/http-response.adoc[]
+
+=== 실패: 비멤버 비공개 그룹 조회(403)
+include::{snippets}/groups/detail-fail-not-group-member/http-response.adoc[]
+
+== 그룹 멤버 목록 조회
+include::{snippets}/groups/users/path-parameters.adoc[]
+include::{snippets}/groups/users/http-request.adoc[]
+include::{snippets}/groups/users/http-response.adoc[]
+
+=== 실패: 그룹 없음(404)
+include::{snippets}/groups/users-fail-group-not-found/http-response.adoc[]
+
+=== 실패: PRIVATE 그룹 멤버 목록 조회(403)
+include::{snippets}/groups/users-fail-not-group-member/http-response.adoc[]
+
+== 그룹 삭제
+include::{snippets}/groups/delete/path-parameters.adoc[]
+include::{snippets}/groups/delete/http-request.adoc[]
+include::{snippets}/groups/delete/http-response.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/groups/delete-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 그룹 오너 아님(403)
+include::{snippets}/groups/delete-fail-not-group-owner/http-response.adoc[]
+
+=== 실패: 그룹 없음(404)
+include::{snippets}/groups/delete-fail-group-not-found/http-response.adoc[]
+
+== 그룹 멤버 추방
+include::{snippets}/groups/kick/path-parameters.adoc[]
+include::{snippets}/groups/kick/http-request.adoc[]
+include::{snippets}/groups/kick/http-response.adoc[]
+
+=== 실패: 그룹 오너 아님(403)
+include::{snippets}/groups/kick-fail-not-group-owner/http-response.adoc[]
+
+=== 실패: 자기 자신 추방 요청(403)
+include::{snippets}/groups/kick-fail-cannot-kick-self/http-response.adoc[]
+
+== 그룹 탈퇴
+include::{snippets}/groups/leave/path-parameters.adoc[]
+include::{snippets}/groups/leave/http-request.adoc[]
+include::{snippets}/groups/leave/http-response.adoc[]
+
+=== 실패: 그룹 오너 탈퇴 요청(403)
+include::{snippets}/groups/leave-fail-owner-not-leave/http-response.adoc[]
+
+=== 실패: 이미 탈퇴한 그룹(403)
+include::{snippets}/groups/leave-fail-already-left/http-response.adoc[]
+
+== 그룹 수정
+include::{snippets}/groups/update/path-parameters.adoc[]
+include::{snippets}/groups/update/http-request.adoc[]
+include::{snippets}/groups/update/http-response.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/groups/update-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 잘못된 요청 값(400)
+include::{snippets}/groups/update-fail-bad-request/http-response.adoc[]
+
+=== 실패: 그룹 오너 아님(403)
+include::{snippets}/groups/update-fail-not-group-owner/http-response.adoc[]
+
+=== 실패: 그룹 없음(404)
+include::{snippets}/groups/update-fail-group-not-found/http-response.adoc[]
+
+== 그룹 소유권 이전
+include::{snippets}/groups/owner-transfer/path-parameters.adoc[]
+include::{snippets}/groups/owner-transfer/http-request.adoc[]
+include::{snippets}/groups/owner-transfer/http-response.adoc[]
+
+=== 실패: 자기 자신 강등 요청(403)
+include::{snippets}/groups/owner-transfer-fail-cannot-demote-self/http-response.adoc[]
+
+=== 실패: 그룹 오너 아님(403)
+include::{snippets}/groups/owner-transfer-fail-not-group-owner/http-response.adoc[]
+
+
+== 그룹 가입 신청
+include::{snippets}/groups/join-apply/path-parameters.adoc[]
+include::{snippets}/groups/join-apply/http-request.adoc[]
+include::{snippets}/groups/join-apply/http-response.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/groups/join-apply-fail-unauthorized/http-response.adoc[]
+
+=== 실패: CSRF 토큰 불일치(403)
+include::{snippets}/groups/join-apply-fail-invalid-csrf-token/http-response.adoc[]
+
+=== 실패: 중복 가입 신청(409)
+include::{snippets}/groups/join-apply-fail-already-applied/http-response.adoc[]
+
+=== 실패: 그룹 없음(404)
+include::{snippets}/groups/join-apply-fail-group-not-found/http-response.adoc[]
+
+== 그룹 가입 신청 승인
+include::{snippets}/groups/join-apply-approve/path-parameters.adoc[]
+include::{snippets}/groups/join-apply-approve/http-request.adoc[]
+include::{snippets}/groups/join-apply-approve/http-response.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/groups/join-apply-approve-fail-unauthorized/http-response.adoc[]
+
+=== 실패: CSRF 토큰 불일치(403)
+include::{snippets}/groups/join-apply-approve-fail-invalid-csrf-token/http-response.adoc[]
+
+=== 실패: 그룹 오너 아님(403)
+include::{snippets}/groups/join-apply-approve-fail-not-group-owner/http-response.adoc[]
+
+=== 실패: 가입 신청 없음(404)
+include::{snippets}/groups/join-apply-approve-fail-join-apply-not-found/http-response.adoc[]
+
+=== 실패: 이미 가입된 사용자(409)
+include::{snippets}/groups/join-apply-approve-fail-already-joined/http-response.adoc[]
+
+== 그룹 가입 신청 거절
+include::{snippets}/groups/join-apply-reject/path-parameters.adoc[]
+include::{snippets}/groups/join-apply-reject/http-request.adoc[]
+include::{snippets}/groups/join-apply-reject/http-response.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/groups/join-apply-reject-fail-unauthorized/http-response.adoc[]
+
+=== 실패: CSRF 토큰 불일치(403)
+include::{snippets}/groups/join-apply-reject-fail-invalid-csrf-token/http-response.adoc[]
+
+=== 실패: 그룹 오너 아님(403)
+include::{snippets}/groups/join-apply-reject-fail-not-group-owner/http-response.adoc[]
+
+=== 실패: 가입 신청 없음(404)
+include::{snippets}/groups/join-apply-reject-fail-join-apply-not-found/http-response.adoc[]
+
+== 그룹 가입 신청 내역 조회
+include::{snippets}/groups/join-apply-users/path-parameters.adoc[]
+include::{snippets}/groups/join-apply-users/query-parameters.adoc[]
+include::{snippets}/groups/join-apply-users/http-request.adoc[]
+include::{snippets}/groups/join-apply-users/http-response.adoc[]
+include::{snippets}/groups/join-apply-users/response-fields.adoc[]
+
+== 그룹 가입 신청 내역 조회 실패
+=== 인증되지 않은 사용자(401)
+include::{snippets}/groups/join-apply-users-fail-unauthorized/http-response.adoc[]
+
+=== 그룹 오너 권한 없음(403)
+include::{snippets}/groups/join-apply-users-fail-not-group-owner/http-response.adoc[]
+
+=== 그룹 없음(404)
+include::{snippets}/groups/join-apply-users-fail-group-not-found/http-response.adoc[]
+
+=== 잘못된 상태값 요청(400)
+include::{snippets}/groups/join-apply-users-fail-invalid-status/http-response.adoc[]

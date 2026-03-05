@@ -1,0 +1,17 @@
+= User API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== 내 정보 조회
+include::{snippets}/users/me/http-request.adoc[]
+include::{snippets}/users/me/http-response.adoc[]
+include::{snippets}/users/me/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/users/me-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 사용자 없음(404)
+include::{snippets}/users/me-fail-user-not-found/http-response.adoc[]

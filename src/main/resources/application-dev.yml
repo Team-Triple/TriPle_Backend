@@ -1,0 +1,85 @@
+# 스프링
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL}
+    username: ${MYSQL_USERNAME}
+    password: ${MYSQL_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: false
+
+# 쿠키
+server:
+  servlet:
+    session:
+      cookie:
+        path: /
+        same-site: None
+        secure: true
+        http-only: true
+
+#CORS
+cors:
+  app-mapping: "/**"
+  allowed-origins:
+    - ${CORS_ALLOWED_ORIGINS_FRONT_LOCAL}
+    - ${CORS_ALLOWED_ORIGINS_FRONT_DEV}
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - "*"
+  allow-credentials: true
+  exposed-headers:
+    - X-CSRF-Token
+
+# 인증
+oauth:
+  kakao:
+    token-uri: https://kauth.kakao.com/oauth/token
+    user-info-uri: https://kapi.kakao.com/v2/user/me
+    client-id: ${KAKAO_CLIENT_ID}
+    client-secret: ${KAKAO_CLIENT_SECRET}
+    redirect-uri: ${KAKAO_REDIRECT_URI}
+
+rest-client:
+  connect-timeout: 2
+  read-timeout: 2
+
+# 보안
+security:
+  uuid:
+    secret: ${UUID_CRYPTO_SECRET}
+
+# 인프라
+app:
+  aws:
+    s3:
+      region: ap-northeast-2
+      bucket: triple-dev-s3
+      presign:
+        put-expire-seconds: 180
+      prefix:
+        pending: uploads/pending/
+        uploaded: uploads/uploaded/
+        get-url-prefix: https://triple-dev-s3.s3.ap-northeast-2.amazonaws.com/
+      upload-policy:
+        allowed-extensions: [jpg, jpeg, png]
+        allowed-content-types: [image/jpeg, image/png]
+
+# 결제
+toss:
+  payment:
+    uri: https://api.tosspayments.com/v1/payments/confirm
+    secret: ${TOSS_PAYMENT_SECRET}
+    content-type: application/json

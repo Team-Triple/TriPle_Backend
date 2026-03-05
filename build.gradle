@@ -2,6 +2,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '4.0.2'
     id 'io.spring.dependency-management' version '1.1.7'
+    id "org.asciidoctor.jvm.convert" version '4.0.2'
+    id 'jacoco'
 }
 
 group = 'org.triple'
@@ -14,7 +16,77 @@ java {
     }
 }
 
+jacoco {
+    toolVersion = "0.8.10"
+}
+
+def jacocoExclude = [
+        "**/auth/oauth/kakao/**",
+        "**/*Application*",
+        "**/*Properties*",
+        "**/config/**",
+        "**/global/**",
+        "**/*ArgumentResolver*",
+        "**/*Interceptor*",
+        "**/*Filter*",
+        "**/dto/**",
+        "**/entity/**",
+        "**/exception/**",
+        "**/error/**",
+        "**/*ErrorCode*",
+        "**/*Exception*"
+]
+
+jacocoTestReport {
+    reports {
+        xml.required.set(true)
+        csv.required.set(true)
+        html.required.set(true)
+
+        xml.outputLocation.set(layout.buildDirectory.file("jacoco/index.xml"))
+        csv.outputLocation.set(layout.buildDirectory.file("jacoco/index.csv"))
+        html.outputLocation.set(layout.buildDirectory.dir("jacoco/index.html"))
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(
+                files(classDirectories.files.collect {
+                    fileTree(dir: it, exclude: jacocoExclude)
+                })
+        )
+    }
+
+    finalizedBy 'jacocoTestCoverageVerification'
+}
+
+jacocoTestCoverageVerification {
+
+    dependsOn jacocoTestReport
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExclude)
+        }))
+    }
+
+    violationRules {
+        rule {
+            enabled = true
+            element = 'CLASS'
+
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+        }
+    }
+}
+
 configurations {
+
+    asciidoctorExt
+
     compileOnly {
         extendsFrom annotationProcessor
     }
@@ -27,14 +99,49 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.retry:spring-retry:2.0.12'
+
+    implementation platform("software.amazon.awssdk:bom:2.25.32")
+    implementation "software.amazon.awssdk:s3"
+
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'com.mysql:mysql-connector-j'
     annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
+    testImplementation platform('org.testcontainers:testcontainers-bom:1.20.4')
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
+    testRuntimeOnly 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('test') {
+ext {
+    snippetsDir = file('build/generated-snippets')
+    docsDir = file('build/docs/asciidoc')
+}
+
+
+test {
     useJUnitPlatform()
+    outputs.dir snippetsDir
+    finalizedBy 'jacocoTestReport'
+}
+
+asciidoctor {
+    inputs.dir snippetsDir
+    dependsOn test
+    outputDir docsDir
+    attributes 'snippets': snippetsDir
+}
+
+bootJar {
+    dependsOn asciidoctor
+    from(docsDir) {
+        into 'static/docs'
+    }
 }

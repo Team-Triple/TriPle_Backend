@@ -1,0 +1,52 @@
+= Payment API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== 결제 생성
+include::{snippets}/payments/create/path-parameters.adoc[]
+include::{snippets}/payments/create/http-request.adoc[]
+include::{snippets}/payments/create/request-fields.adoc[]
+include::{snippets}/payments/create/http-response.adoc[]
+include::{snippets}/payments/create/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/payments/create-fail-unauthorized/http-response.adoc[]
+
+=== 실패: CSRF 토큰 불일치 (403)
+include::{snippets}/payments/create-fail-invalid-csrf-token/http-response.adoc[]
+
+=== 실패: 잘못된 요청 값 (400)
+include::{snippets}/payments/create-fail-bad-request/http-response.adoc[]
+
+=== 실패: 결제 진행 불가 청구서 (403)
+include::{snippets}/payments/create-fail-payment-not-allowed/http-response.adoc[]
+
+=== 실패: 청구서 없음 (404)
+include::{snippets}/payments/create-fail-not-found-invoice/http-response.adoc[]
+
+=== 실패: 이미 결제 완료된 대상 (409)
+include::{snippets}/payments/create-fail-payment-already-completed/http-response.adoc[]
+
+=== 실패: 요청 결제 금액 초과 (409)
+include::{snippets}/payments/create-fail-payment-amount-exceeds-remaining/http-response.adoc[]
+
+=== 실패: 진행 중 결제 존재 (403)
+include::{snippets}/payments/create-fail-payment-already-active/http-response.adoc[]
+
+=== 실패: 중복 결제 생성 요청 (409)
+include::{snippets}/payments/create-fail-duplicated-payment/http-response.adoc[]
+
+== 결제 목록 조회
+include::{snippets}/payments/search/http-request.adoc[]
+include::{snippets}/payments/search/query-parameters.adoc[]
+include::{snippets}/payments/search/http-response.adoc[]
+include::{snippets}/payments/search/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/payments/search-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 검색어 길이 초과 (400)
+include::{snippets}/payments/search-fail-invalid-keyword/http-response.adoc[]
