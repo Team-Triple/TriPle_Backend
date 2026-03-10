@@ -283,8 +283,7 @@ class TravelControllerTest extends ControllerTest {
                 "2026-02-20T00:00",
                 "2026-02-22T00:00",
                 "수정 설명",
-                "https://example.com/updated.png",
-                10
+                "https://example.com/updated.png"
         );
 
         // when, then
@@ -302,8 +301,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         )
                 ));
     }
@@ -315,7 +313,7 @@ class TravelControllerTest extends ControllerTest {
                 .willThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
 
         String requestBody = buildTravelUpdateRequestBody(
-                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png", 10
+                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png"
         );
 
         mockMvc.perform(patch("/travels/{travelId}", 1L)
@@ -332,8 +330,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         ),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
@@ -348,7 +345,7 @@ class TravelControllerTest extends ControllerTest {
         given(csrfTokenManager.isValid(any(), any())).willReturn(false);
 
         String requestBody = buildTravelUpdateRequestBody(
-                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png", 10
+                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png"
         );
 
         mockMvc.perform(patch("/travels/{travelId}", 1L)
@@ -366,8 +363,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         ),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
@@ -383,7 +379,7 @@ class TravelControllerTest extends ControllerTest {
 
         String longDescription = "a".repeat(101);
         String requestBody = buildTravelUpdateRequestBody(
-                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", longDescription, "https://example.com/updated.png", 0
+                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", longDescription, "https://example.com/updated.png"
         );
 
         mockMvc.perform(patch("/travels/{travelId}", 1L)
@@ -401,8 +397,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         ),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
@@ -422,7 +417,7 @@ class TravelControllerTest extends ControllerTest {
                 .when(travelItineraryService).updateTravel(any(), eq(travelId), eq(1L));
 
         String requestBody = buildTravelUpdateRequestBody(
-                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png", 10
+                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png"
         );
 
         mockMvc.perform(patch("/travels/{travelId}", travelId)
@@ -440,8 +435,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         ),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
@@ -769,8 +763,7 @@ class TravelControllerTest extends ControllerTest {
             String startAt,
             String endAt,
             String description,
-            String thumbnailUrl,
-            int memberLimit
+            String thumbnailUrl
     ) {
         return """
                 {
@@ -778,9 +771,8 @@ class TravelControllerTest extends ControllerTest {
                   "startAt": "%s",
                   "endAt": "%s",
                   "description": "%s",
-                  "thumbnailUrl": "%s",
-                  "memberLimit": %d
+                  "thumbnailUrl": "%s"
                 }
-                """.formatted(title, startAt, endAt, description, thumbnailUrl, memberLimit);
+                """.formatted(title, startAt, endAt, description, thumbnailUrl);
     }
 }
