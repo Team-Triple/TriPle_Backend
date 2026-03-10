@@ -79,8 +79,7 @@ class TravelIntegrationTest {
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": %d,
                   "description": "설명",
-                  "thumbnailUrl": "test-url",
-                  "memberLimit": 5
+                  "thumbnailUrl": "test-url"
                 }
                 """.formatted(group.getId());
 
@@ -107,8 +106,7 @@ class TravelIntegrationTest {
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": 1,
                   "description": "설명",
-                  "thumbnailUrl": "test-url",
-                  "memberLimit": 5
+                  "thumbnailUrl": "test-url"
                 }
                 """;
 
@@ -131,8 +129,7 @@ class TravelIntegrationTest {
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": %d,
                   "description": "설명",
-                  "thumbnailUrl": "test-url",
-                  "memberLimit": 5
+                  "thumbnailUrl": "test-url"
                 }
                 """.formatted(group.getId());
 
@@ -156,7 +153,6 @@ class TravelIntegrationTest {
                 group,
                 "description",
                 "test-url",
-                5,
                 1,
                 false
         ));
@@ -186,7 +182,6 @@ class TravelIntegrationTest {
                 group,
                 "description",
                 "test-url",
-                5,
                 1,
                 false
         ));
@@ -199,7 +194,6 @@ class TravelIntegrationTest {
                 .andExpect(jsonPath("$.items[0].title").value("title"))
                 .andExpect(jsonPath("$.items[0].description").value("description"))
                 .andExpect(jsonPath("$.items[0].memberCount").value(1))
-                .andExpect(jsonPath("$.items[0].memberLimit").value(5))
                 .andExpect(jsonPath("$.hasNext").value(false));
     }
 
@@ -216,7 +210,6 @@ class TravelIntegrationTest {
                 group,
                 "description",
                 "test-url",
-                5,
                 2,
                 false
         ));
@@ -245,7 +238,6 @@ class TravelIntegrationTest {
                 group,
                 "description",
                 "test-url",
-                5,
                 1,
                 false
         ));
@@ -277,7 +269,6 @@ class TravelIntegrationTest {
                 group,
                 "description",
                 "test-url",
-                3,
                 1,
                 false
         ));
@@ -311,7 +302,6 @@ class TravelIntegrationTest {
                 group,
                 "description",
                 "test-url",
-                3,
                 2,
                 false
         ));
@@ -340,7 +330,6 @@ class TravelIntegrationTest {
                 group,
                 "description",
                 "test-url",
-                3,
                 1,
                 false
         ));
@@ -354,8 +343,8 @@ class TravelIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행 정원이 가득 차면 참가 요청 시 409를 반환한다.")
-    void 여행_정원이_가득_차면_참가_요청_시_409를_반환한다() throws Exception {
+    @DisplayName("여행 참가 요청 시 정원 제한 없이 성공한다.")
+    void 여행_참가_요청_정원제한없음_성공() throws Exception {
         User leader = userJpaRepository.save(createUser());
         User joiner = userJpaRepository.save(createUserWithProviderId("kakao-5"));
         Group group = groupJpaRepository.save(createGroup());
@@ -370,7 +359,6 @@ class TravelIntegrationTest {
                 "description",
                 "test-url",
                 1,
-                1,
                 false
         ));
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
@@ -379,7 +367,7 @@ class TravelIntegrationTest {
                         .sessionAttr(USER_SESSION_KEY, joiner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, "test-token")
                         .header(CSRF_HEADER, "test-token"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isOk());
     }
 
     private User createUser() {

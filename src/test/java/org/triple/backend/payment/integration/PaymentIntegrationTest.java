@@ -440,7 +440,6 @@ class PaymentIntegrationTest {
                         group,
                         "여행 설명",
                         "http://travel-thumb",
-                        5,
                         1,
                         false
                 )

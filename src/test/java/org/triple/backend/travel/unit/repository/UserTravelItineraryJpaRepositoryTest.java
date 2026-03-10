@@ -47,8 +47,7 @@ class UserTravelItineraryJpaRepositoryTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
                 "설명",
-                "test-url",
-                5
+                "test-url"
         );
         TravelItinerary travel = travelItineraryJpaRepository.save(TravelItinerary.of(request, group));
 

@@ -32,7 +32,6 @@ class UserTravelItineraryTest {
                         createGroup(),
                         "desc",
                         "test-url",
-                        5,
                         1,
                         false
                 ),
@@ -64,7 +63,6 @@ class UserTravelItineraryTest {
                 createGroup(),
                 "desc",
                 "test-url",
-                5,
                 1,
                 false
         );
