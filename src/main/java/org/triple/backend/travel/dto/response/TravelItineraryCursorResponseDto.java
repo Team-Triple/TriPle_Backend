@@ -16,8 +16,7 @@ public record TravelItineraryCursorResponseDto(
             LocalDateTime startAt,
             LocalDateTime endAt,
             String thumbnailUrl,
-            int memberCount,
-            int memberLimit
+            int memberCount
     ) {
     }
 
@@ -33,8 +32,7 @@ public record TravelItineraryCursorResponseDto(
                         travelItinerary.getStartAt(),
                         travelItinerary.getEndAt(),
                         travelItinerary.getThumbnailUrl(),
-                        travelItinerary.getMemberCount(),
-                        travelItinerary.getMemberLimit()
+                        travelItinerary.getMemberCount()
                 ))
                 .toList();
 

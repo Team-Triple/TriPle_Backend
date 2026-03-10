@@ -283,8 +283,7 @@ class TravelControllerTest extends ControllerTest {
                 "2026-02-20T00:00",
                 "2026-02-22T00:00",
                 "수정 설명",
-                "https://example.com/updated.png",
-                10
+                "https://example.com/updated.png"
         );
 
         // when, then
@@ -302,8 +301,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         )
                 ));
     }
@@ -315,7 +313,7 @@ class TravelControllerTest extends ControllerTest {
                 .willThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
 
         String requestBody = buildTravelUpdateRequestBody(
-                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png", 10
+                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png"
         );
 
         mockMvc.perform(patch("/travels/{travelId}", 1L)
@@ -332,8 +330,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         ),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
@@ -348,7 +345,7 @@ class TravelControllerTest extends ControllerTest {
         given(csrfTokenManager.isValid(any(), any())).willReturn(false);
 
         String requestBody = buildTravelUpdateRequestBody(
-                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png", 10
+                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png"
         );
 
         mockMvc.perform(patch("/travels/{travelId}", 1L)
@@ -366,8 +363,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         ),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
@@ -381,8 +377,9 @@ class TravelControllerTest extends ControllerTest {
         given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
         given(csrfTokenManager.isValid(any(), any())).willReturn(true);
 
+        String longDescription = "a".repeat(101);
         String requestBody = buildTravelUpdateRequestBody(
-                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png", 0
+                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", longDescription, "https://example.com/updated.png"
         );
 
         mockMvc.perform(patch("/travels/{travelId}", 1L)
@@ -390,7 +387,7 @@ class TravelControllerTest extends ControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("멤버 수 제한은 1명 이상이어야 합니다."))
+                .andExpect(jsonPath("$.message").value("여행 설명은 최대 100자까지 입력할 수 있습니다."))
                 .andDo(document("travels/update-fail-bad-request",
                         pathParameters(
                                 parameterWithName("travelId").description("수정할 여행 일정 ID")
@@ -400,8 +397,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         ),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
@@ -421,7 +417,7 @@ class TravelControllerTest extends ControllerTest {
                 .when(travelItineraryService).updateTravel(any(), eq(travelId), eq(1L));
 
         String requestBody = buildTravelUpdateRequestBody(
-                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png", 10
+                "수정 제목", "2026-02-20T00:00", "2026-02-22T00:00", "수정 설명", "https://example.com/updated.png"
         );
 
         mockMvc.perform(patch("/travels/{travelId}", travelId)
@@ -439,8 +435,7 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
                                 fieldWithPath("description").description("여행 설명 (최대 100자)").optional(),
-                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional(),
-                                fieldWithPath("memberLimit").description("멤버 수 제한 (1~20)").optional()
+                                fieldWithPath("thumbnailUrl").description("썸네일 URL").optional()
                         ),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
@@ -651,8 +646,7 @@ class TravelControllerTest extends ControllerTest {
                                         LocalDateTime.of(2026, 3, 1, 0, 0),
                                         LocalDateTime.of(2026, 3, 5, 0, 0),
                                         "https://example.com/thumb.png",
-                                        3,
-                                        5
+                                        3
                                 )
                         ),
                         100L,
@@ -672,7 +666,6 @@ class TravelControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.items[0].endAt").value("2026-03-05T00:00:00"))
                 .andExpect(jsonPath("$.items[0].thumbnailUrl").value("https://example.com/thumb.png"))
                 .andExpect(jsonPath("$.items[0].memberCount").value(3))
-                .andExpect(jsonPath("$.items[0].memberLimit").value(5))
                 .andExpect(jsonPath("$.nextCursor").value(100L))
                 .andExpect(jsonPath("$.hasNext").value(true))
                 .andDo(document("travels/list",
@@ -691,7 +684,6 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("items[].endAt").description("종료 일시"),
                                 fieldWithPath("items[].thumbnailUrl").description("썸네일 URL").optional(),
                                 fieldWithPath("items[].memberCount").description("현재 인원"),
-                                fieldWithPath("items[].memberLimit").description("최대 인원"),
                                 fieldWithPath("nextCursor").description("다음 페이지 커서").optional(),
                                 fieldWithPath("hasNext").description("다음 페이지 존재 여부")
                         )
@@ -771,8 +763,7 @@ class TravelControllerTest extends ControllerTest {
             String startAt,
             String endAt,
             String description,
-            String thumbnailUrl,
-            int memberLimit
+            String thumbnailUrl
     ) {
         return """
                 {
@@ -780,9 +771,8 @@ class TravelControllerTest extends ControllerTest {
                   "startAt": "%s",
                   "endAt": "%s",
                   "description": "%s",
-                  "thumbnailUrl": "%s",
-                  "memberLimit": %d
+                  "thumbnailUrl": "%s"
                 }
-                """.formatted(title, startAt, endAt, description, thumbnailUrl, memberLimit);
+                """.formatted(title, startAt, endAt, description, thumbnailUrl);
     }
 }

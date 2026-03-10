@@ -674,7 +674,6 @@ public class GroupIntegrationTest {
                         savedGroup,
                         "일정 설명",
                         "https://img/travel.png",
-                        5,
                         1,
                         false
                 )
@@ -692,7 +691,6 @@ public class GroupIntegrationTest {
                         savedOtherGroup,
                         "다른 그룹 일정",
                         "https://img/other-travel.png",
-                        6,
                         1,
                         false
                 )
@@ -733,7 +731,6 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.recentTravels[0].thumbnailUrl").value("https://img/travel.png"))
                 .andExpect(jsonPath("$.recentTravels[0].description").value("일정 설명"))
                 .andExpect(jsonPath("$.recentTravels[0].memberCount").value(1))
-                .andExpect(jsonPath("$.recentTravels[0].memberLimit").value(5))
                 .andExpect(jsonPath("$.recentTravels[0].startAt").value("2026-04-10T10:00:00"))
                 .andExpect(jsonPath("$.recentTravels[0].endAt").value("2026-04-12T18:00:00"))
                 .andExpect(jsonPath("$.recentReviews", hasSize(2)))

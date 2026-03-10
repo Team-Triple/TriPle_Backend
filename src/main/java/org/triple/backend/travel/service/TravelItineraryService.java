@@ -84,8 +84,6 @@ public class TravelItineraryService {
             travelItinerary.increaseMemberCount();
             userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.MEMBER));
             travelItineraryJpaRepository.flush();
-        } catch (IllegalStateException e) {
-            throw new BusinessException(TravelItineraryErrorCode.TRAVEL_MEMBER_LIMIT_EXCEEDED);
         } catch (OptimisticLockingFailureException e) {
             throw new BusinessException(TravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_JOIN);
         }
