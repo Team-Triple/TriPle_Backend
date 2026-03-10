@@ -179,7 +179,6 @@ public class GroupService {
                 itinerary.getThumbnailUrl(),
                 itinerary.getDescription(),
                 itinerary.getMemberCount(),
-                itinerary.getMemberLimit(),
                 itinerary.getStartAt(),
                 itinerary.getEndAt()
         );

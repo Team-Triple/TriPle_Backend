@@ -40,7 +40,6 @@ public record GroupDetailResponseDto(
             String thumbnailUrl,
             String description,
             int memberCount,
-            int memberLimit,
             LocalDateTime startAt,
             LocalDateTime endAt
     ) {}
