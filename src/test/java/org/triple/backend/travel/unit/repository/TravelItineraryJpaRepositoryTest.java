@@ -34,8 +34,7 @@ class TravelItineraryJpaRepositoryTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when
@@ -44,8 +43,8 @@ class TravelItineraryJpaRepositoryTest {
 
         // then
         assertThat(found)
-                .extracting("title", "description", "thumbnailUrl", "memberCount", "group")
-                .containsExactly("제목", "설명", "test-url", 1, group);
+                .extracting("title", "description", "memberCount", "group")
+                .containsExactly("제목", "설명", 1, group);
     }
 
     @Test
@@ -57,8 +56,7 @@ class TravelItineraryJpaRepositoryTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "desc",
-                "test-url"
+                "desc"
         );
 
         TravelItinerary saved = travelItineraryJpaRepository.save(TravelItinerary.of(request, group));

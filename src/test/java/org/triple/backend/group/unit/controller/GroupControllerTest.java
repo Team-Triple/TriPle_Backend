@@ -643,7 +643,6 @@ public class GroupControllerTest extends ControllerTest {
                 List.of(new GroupDetailResponseDto.RecentTravelDto(
                         200L,
                         "벚꽃여행",
-                        "https://example.com/travel-thumb-1.png",
                         "교토 벚꽃 시즌 여행",
                         2,
                         LocalDateTime.of(2026, 3, 20, 9, 0),
@@ -681,7 +680,6 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.recentTravels.length()").value(1))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(200))
                 .andExpect(jsonPath("$.recentTravels[0].title").value("벚꽃여행"))
-                .andExpect(jsonPath("$.recentTravels[0].thumbnailUrl").value("https://example.com/travel-thumb-1.png"))
                 .andExpect(jsonPath("$.recentTravels[0].description").value("교토 벚꽃 시즌 여행"))
                 .andExpect(jsonPath("$.recentTravels[0].memberCount").value(2))
                 .andExpect(jsonPath("$.recentTravels[0].startAt").value("2026-03-20T09:00:00"))
@@ -716,7 +714,6 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("recentTravels").description("최근 여행 일정 최대 4개"),
                                 fieldWithPath("recentTravels[].travelItineraryId").description("여행 일정 ID"),
                                 fieldWithPath("recentTravels[].title").description("여행 일정 제목"),
-                                fieldWithPath("recentTravels[].thumbnailUrl").description("여행 일정 썸네일 URL").optional(),
                                 fieldWithPath("recentTravels[].description").description("여행 일정 설명").optional(),
                                 fieldWithPath("recentTravels[].memberCount").description("현재 참여 인원"),
                                 fieldWithPath("recentTravels[].startAt").description("여행 시작 일시"),

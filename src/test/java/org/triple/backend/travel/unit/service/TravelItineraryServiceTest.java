@@ -74,8 +74,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 1L,
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when & then
@@ -95,8 +94,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 1L,
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when & then
@@ -117,8 +115,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when & then
@@ -141,8 +138,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when
@@ -153,13 +149,12 @@ class TravelItineraryServiceTest {
         Assertions.assertThat(response).isNotNull();
         Assertions.assertThat(saved).isNotNull();
         Assertions.assertThat(saved)
-                .extracting("title", "startAt", "endAt", "description", "thumbnailUrl")
+                .extracting("title", "startAt", "endAt", "description")
                 .containsExactly(
                         "제목",
                         LocalDateTime.of(2026, 2, 14, 0, 0),
                         LocalDateTime.of(2026, 2, 16, 0, 0),
-                        "설명",
-                        "test-url"
+                        "설명"
                 );
     }
 
@@ -187,7 +182,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -211,7 +205,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -237,7 +230,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -247,13 +239,13 @@ class TravelItineraryServiceTest {
 
         //when
         travelItineraryService.updateTravel(new TravelItineraryUpdateRequestDto(
-                "test", null, null, null, null), savedTravelItinerary.getId(), savedUser.getId());
+                "test", null, null, null), savedTravelItinerary.getId(), savedUser.getId());
         TravelItinerary searchedTravelItinerary = travelItineraryJpaRepository.findById(savedTravelItinerary.getId()).get();
 
         //then
         Assertions.assertThat(searchedTravelItinerary).isNotNull()
-                .extracting("title", "startAt", "endAt", "description", "thumbnailUrl")
-                .containsExactly("test", savedTravelItinerary.getStartAt(), savedTravelItinerary.getEndAt(), savedTravelItinerary.getDescription(), savedTravelItinerary.getThumbnailUrl());
+                .extracting("title", "startAt", "endAt", "description")
+                .containsExactly("test", savedTravelItinerary.getStartAt(), savedTravelItinerary.getEndAt(), savedTravelItinerary.getDescription());
     }
 
     @Test
@@ -275,7 +267,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -296,7 +287,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -318,7 +308,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -340,7 +329,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 2,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -362,7 +350,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -421,7 +408,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 2, 0, 0),
                 group,
                 "설명1",
-                "thumb-1",
                 1,
                 false
         ));
@@ -432,7 +418,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 4, 0, 0),
                 group,
                 "설명2",
-                "thumb-2",
                 2,
                 false
         ));
@@ -443,7 +428,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 6, 0, 0),
                 group,
                 "설명3",
-                "thumb-3",
                 3,
                 false
         ));
@@ -454,7 +438,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 8, 0, 0),
                 anotherGroup,
                 "설명4",
-                "thumb-4",
                 1,
                 false
         ));
@@ -465,7 +448,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 10, 0, 0),
                 group,
                 "설명5",
-                "thumb-5",
                 1,
                 true
         ));
@@ -478,14 +460,16 @@ class TravelItineraryServiceTest {
                 .extracting(item -> item.title())
                 .containsExactly(thirdTravel.getTitle(), secondTravel.getTitle());
         Assertions.assertThat(firstPage.items().get(0))
-                .extracting("description", "thumbnailUrl", "memberCount")
-                .containsExactly("설명3", "thumb-3", 3);
+                .extracting("description", "memberCount")
+                .containsExactly("설명3", 3);
+        Assertions.assertThat(firstPage.count()).isEqualTo(3);
 
         TravelItineraryCursorResponseDto secondPage = travelItineraryService.browseTravels(group.getId(), firstPage.nextCursor(), 2, user.getId());
         Assertions.assertThat(secondPage.items()).hasSize(1);
         Assertions.assertThat(secondPage.hasNext()).isFalse();
         Assertions.assertThat(secondPage.nextCursor()).isNull();
         Assertions.assertThat(secondPage.items().get(0).title()).isEqualTo(firstTravel.getTitle());
+        Assertions.assertThat(secondPage.count()).isEqualTo(3);
     }
 
     @Test
@@ -503,7 +487,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false
         ));
@@ -532,7 +515,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 2,
                 false
         ));
@@ -559,7 +541,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false
         ));
@@ -586,7 +567,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false
         ));
@@ -616,7 +596,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false
         ));
@@ -709,3 +688,4 @@ class TravelItineraryServiceTest {
                 .build();
     }
 }
+

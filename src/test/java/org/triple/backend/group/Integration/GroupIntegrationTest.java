@@ -673,7 +673,6 @@ public class GroupIntegrationTest {
                         LocalDateTime.of(2026, 4, 12, 18, 0),
                         savedGroup,
                         "일정 설명",
-                        "https://img/travel.png",
                         1,
                         false
                 )
@@ -690,7 +689,6 @@ public class GroupIntegrationTest {
                         LocalDateTime.of(2026, 5, 2, 18, 0),
                         savedOtherGroup,
                         "다른 그룹 일정",
-                        "https://img/other-travel.png",
                         1,
                         false
                 )
@@ -728,7 +726,6 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.recentTravels", hasSize(1)))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(itinerary.getId().intValue()))
                 .andExpect(jsonPath("$.recentTravels[0].title").value("봄 제주 여행"))
-                .andExpect(jsonPath("$.recentTravels[0].thumbnailUrl").value("https://img/travel.png"))
                 .andExpect(jsonPath("$.recentTravels[0].description").value("일정 설명"))
                 .andExpect(jsonPath("$.recentTravels[0].memberCount").value(1))
                 .andExpect(jsonPath("$.recentTravels[0].startAt").value("2026-04-10T10:00:00"))

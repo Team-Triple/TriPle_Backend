@@ -78,8 +78,7 @@ class TravelIntegrationTest {
                   "startAt": "2026-02-14T00:00:00",
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": %d,
-                  "description": "설명",
-                  "thumbnailUrl": "test-url"
+                  "description": "설명"
                 }
                 """.formatted(group.getId());
 
@@ -105,8 +104,7 @@ class TravelIntegrationTest {
                   "startAt": "2026-02-14T00:00:00",
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": 1,
-                  "description": "설명",
-                  "thumbnailUrl": "test-url"
+                  "description": "설명"
                 }
                 """;
 
@@ -128,8 +126,7 @@ class TravelIntegrationTest {
                   "startAt": "2026-02-14T00:00:00",
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": %d,
-                  "description": "설명",
-                  "thumbnailUrl": "test-url"
+                  "description": "설명"
                 }
                 """.formatted(group.getId());
 
@@ -152,7 +149,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
                 1,
                 false
         ));
@@ -181,7 +177,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
                 1,
                 false
         ));
@@ -194,7 +189,31 @@ class TravelIntegrationTest {
                 .andExpect(jsonPath("$.items[0].title").value("title"))
                 .andExpect(jsonPath("$.items[0].description").value("description"))
                 .andExpect(jsonPath("$.items[0].memberCount").value(1))
-                .andExpect(jsonPath("$.hasNext").value(false));
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.count").value(1));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 여행 목록 조회 시 count만 반환받는다.")
+    void 비로그인_여행_목록_조회_count만_반환() throws Exception {
+        Group group = groupJpaRepository.save(createGroup());
+
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                1,
+                false
+        ));
+
+        mockMvc.perform(get("/travels/{groupId}", group.getId())
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.count").value(1));
     }
 
     @Test
@@ -209,7 +228,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
                 2,
                 false
         ));
@@ -237,7 +255,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
                 1,
                 false
         ));
@@ -268,7 +285,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
                 1,
                 false
         ));
@@ -301,7 +317,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
                 2,
                 false
         ));
@@ -329,7 +344,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
                 1,
                 false
         ));
@@ -357,7 +371,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
                 1,
                 false
         ));
@@ -410,3 +423,4 @@ class TravelIntegrationTest {
                 .build();
     }
 }
+
