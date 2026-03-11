@@ -12,6 +12,7 @@ public record TravelItineraryCursorResponseDto(
         long count
 ) {
     public record TravelSummaryDto(
+            Long id,
             String title,
             String description,
             LocalDateTime startAt,
@@ -28,6 +29,7 @@ public record TravelItineraryCursorResponseDto(
     ) {
         List<TravelSummaryDto> items = travelItineraries.stream()
                 .map(travelItinerary -> new TravelSummaryDto(
+                        travelItinerary.getId(),
                         travelItinerary.getTitle(),
                         travelItinerary.getDescription(),
                         travelItinerary.getStartAt(),
