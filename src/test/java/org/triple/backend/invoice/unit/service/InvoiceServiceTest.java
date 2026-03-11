@@ -1039,7 +1039,6 @@ class InvoiceServiceTest {
                         LocalDateTime.of(2030, 3, 22, 18, 0),
                         group,
                         "여행 설명",
-                        "http://travel-thumb",
                         1,
                         false
                 )

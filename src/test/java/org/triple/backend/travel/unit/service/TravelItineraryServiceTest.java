@@ -74,8 +74,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 1L,
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when & then
@@ -95,8 +94,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 1L,
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when & then
@@ -117,8 +115,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when & then
@@ -141,8 +138,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "설명",
-                "test-url"
+                "설명"
         );
 
         // when
@@ -153,13 +149,12 @@ class TravelItineraryServiceTest {
         Assertions.assertThat(response).isNotNull();
         Assertions.assertThat(saved).isNotNull();
         Assertions.assertThat(saved)
-                .extracting("title", "startAt", "endAt", "description", "thumbnailUrl")
+                .extracting("title", "startAt", "endAt", "description")
                 .containsExactly(
                         "제목",
                         LocalDateTime.of(2026, 2, 14, 0, 0),
                         LocalDateTime.of(2026, 2, 16, 0, 0),
-                        "설명",
-                        "test-url"
+                        "설명"
                 );
     }
 
@@ -187,7 +182,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -211,7 +205,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -237,7 +230,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -247,13 +239,13 @@ class TravelItineraryServiceTest {
 
         //when
         travelItineraryService.updateTravel(new TravelItineraryUpdateRequestDto(
-                "test", null, null, null, null), savedTravelItinerary.getId(), savedUser.getId());
+                "test", null, null, null), savedTravelItinerary.getId(), savedUser.getId());
         TravelItinerary searchedTravelItinerary = travelItineraryJpaRepository.findById(savedTravelItinerary.getId()).get();
 
         //then
         Assertions.assertThat(searchedTravelItinerary).isNotNull()
-                .extracting("title", "startAt", "endAt", "description", "thumbnailUrl")
-                .containsExactly("test", savedTravelItinerary.getStartAt(), savedTravelItinerary.getEndAt(), savedTravelItinerary.getDescription(), savedTravelItinerary.getThumbnailUrl());
+                .extracting("title", "startAt", "endAt", "description")
+                .containsExactly("test", savedTravelItinerary.getStartAt(), savedTravelItinerary.getEndAt(), savedTravelItinerary.getDescription());
     }
 
     @Test
@@ -275,7 +267,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -296,7 +287,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -318,7 +308,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -340,7 +329,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 2,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -362,7 +350,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -375,35 +362,50 @@ class TravelItineraryServiceTest {
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 유저를 찾을 수 없으면 예외를 던진다.")
-    void 여행_목록_조회_유저_없음_예외() {
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, 1L))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+    @DisplayName("여행 목록 조회 시 유저가 그룹 멤버가 아니면 count만 반환한다.")
+    void 여행_목록_조회_유저_비멤버_count만_반환() {
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(1L, null, 10, 1L);
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(0);
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 그룹을 찾을 수 없으면 예외를 던진다.")
-    void 여행_목록_조회_그룹_없음_예외() {
+    @DisplayName("여행 목록 조회 시 그룹에 여행이 없어도 count만 반환한다.")
+    void 여행_목록_조회_그룹_여행_없음_count만_반환() {
         User user = userJpaRepository.save(createUser());
 
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, user.getId()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(1L, null, 10, user.getId());
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(0);
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 그룹 멤버가 아니면 예외를 던진다.")
-    void 여행_목록_조회_그룹_멤버_아님_예외() {
+    @DisplayName("여행 목록 조회 시 그룹 멤버가 아니면 count만 반환한다.")
+    void 여행_목록_조회_그룹_멤버_아님_count만_반환() {
         User user = userJpaRepository.save(createUser());
         Group group = groupJpaRepository.save(createGroup());
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                1,
+                false
+        ));
 
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(group.getId(), null, 10, user.getId()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(group.getId(), null, 10, user.getId());
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(1);
     }
 
     @Test
@@ -421,7 +423,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 2, 0, 0),
                 group,
                 "설명1",
-                "thumb-1",
                 1,
                 false
         ));
@@ -432,7 +433,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 4, 0, 0),
                 group,
                 "설명2",
-                "thumb-2",
                 2,
                 false
         ));
@@ -443,7 +443,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 6, 0, 0),
                 group,
                 "설명3",
-                "thumb-3",
                 3,
                 false
         ));
@@ -454,7 +453,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 8, 0, 0),
                 anotherGroup,
                 "설명4",
-                "thumb-4",
                 1,
                 false
         ));
@@ -465,7 +463,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 10, 0, 0),
                 group,
                 "설명5",
-                "thumb-5",
                 1,
                 true
         ));
@@ -478,14 +475,16 @@ class TravelItineraryServiceTest {
                 .extracting(item -> item.title())
                 .containsExactly(thirdTravel.getTitle(), secondTravel.getTitle());
         Assertions.assertThat(firstPage.items().get(0))
-                .extracting("description", "thumbnailUrl", "memberCount")
-                .containsExactly("설명3", "thumb-3", 3);
+                .extracting("description", "memberCount")
+                .containsExactly("설명3", 3);
+        Assertions.assertThat(firstPage.count()).isEqualTo(3);
 
         TravelItineraryCursorResponseDto secondPage = travelItineraryService.browseTravels(group.getId(), firstPage.nextCursor(), 2, user.getId());
         Assertions.assertThat(secondPage.items()).hasSize(1);
         Assertions.assertThat(secondPage.hasNext()).isFalse();
         Assertions.assertThat(secondPage.nextCursor()).isNull();
         Assertions.assertThat(secondPage.items().get(0).title()).isEqualTo(firstTravel.getTitle());
+        Assertions.assertThat(secondPage.count()).isEqualTo(3);
     }
 
     @Test
@@ -503,7 +502,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false
         ));
@@ -532,7 +530,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 2,
                 false
         ));
@@ -559,7 +556,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false
         ));
@@ -586,7 +582,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false
         ));
@@ -616,7 +611,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
                 1,
                 false
         ));
@@ -709,3 +703,4 @@ class TravelItineraryServiceTest {
                 .build();
     }
 }
+

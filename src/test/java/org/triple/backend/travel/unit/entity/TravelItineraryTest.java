@@ -30,8 +30,7 @@ class TravelItineraryTest {
                 START,
                 END,
                 1L,
-                "desc",
-                "test-url"
+                "desc"
         );
 
         TravelItinerary itinerary = TravelItinerary.of(req, createGroup());
@@ -48,7 +47,6 @@ class TravelItineraryTest {
                 END,
                 createGroup(),
                 "desc",
-                "test-url",
                 1,
                 false
         );
@@ -71,7 +69,6 @@ class TravelItineraryTest {
                 endAt,
                 group,
                 "desc",
-                "test-url",
                 1,
                 false
         )).isInstanceOf(IllegalArgumentException.class);
@@ -112,15 +109,15 @@ class TravelItineraryTest {
 
     private static Stream<Arguments> invalidTravelSaveRequestDto() {
         return Stream.of(
-                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, START, null, null)),
-                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, null, null, null)),
-                Arguments.of(new TravelItineraryUpdateRequestDto(null, null, START, null, null))
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, START, null)),
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, null, null)),
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, null, START, null))
         );
     }
 
     private TravelItinerary createTravelItinerary() {
         return new TravelItinerary(
-                "test", START, END, createGroup(), "test-description", "url", 1, false);
+                "test", START, END, createGroup(), "test-description", 1, false);
     }
 
     private static Group createGroup() {

@@ -176,7 +176,6 @@ public class GroupService {
         return new RecentTravelDto(
                 itinerary.getId(),
                 itinerary.getTitle(),
-                itinerary.getThumbnailUrl(),
                 itinerary.getDescription(),
                 itinerary.getMemberCount(),
                 itinerary.getStartAt(),

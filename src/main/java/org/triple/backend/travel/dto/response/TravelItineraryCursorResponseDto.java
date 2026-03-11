@@ -8,14 +8,14 @@ import java.util.List;
 public record TravelItineraryCursorResponseDto(
         List<TravelSummaryDto> items,
         Long nextCursor,
-        boolean hasNext
+        boolean hasNext,
+        long count
 ) {
     public record TravelSummaryDto(
             String title,
             String description,
             LocalDateTime startAt,
             LocalDateTime endAt,
-            String thumbnailUrl,
             int memberCount
     ) {
     }
@@ -23,7 +23,8 @@ public record TravelItineraryCursorResponseDto(
     public static TravelItineraryCursorResponseDto of(
             final List<TravelItinerary> travelItineraries,
             final Long nextCursor,
-            final boolean hasNext
+            final boolean hasNext,
+            final long count
     ) {
         List<TravelSummaryDto> items = travelItineraries.stream()
                 .map(travelItinerary -> new TravelSummaryDto(
@@ -31,11 +32,14 @@ public record TravelItineraryCursorResponseDto(
                         travelItinerary.getDescription(),
                         travelItinerary.getStartAt(),
                         travelItinerary.getEndAt(),
-                        travelItinerary.getThumbnailUrl(),
                         travelItinerary.getMemberCount()
                 ))
                 .toList();
 
-        return new TravelItineraryCursorResponseDto(items, nextCursor, hasNext);
+        return new TravelItineraryCursorResponseDto(items, nextCursor, hasNext, count);
+    }
+
+    public static TravelItineraryCursorResponseDto countOnly(final long count) {
+        return new TravelItineraryCursorResponseDto(List.of(), null, false, count);
     }
 }

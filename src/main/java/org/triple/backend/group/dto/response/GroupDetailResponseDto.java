@@ -37,7 +37,6 @@ public record GroupDetailResponseDto(
     public record RecentTravelDto(
             Long travelItineraryId,
             String title,
-            String thumbnailUrl,
             String description,
             int memberCount,
             LocalDateTime startAt,

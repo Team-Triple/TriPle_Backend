@@ -136,8 +136,14 @@ public class TravelItineraryService {
             final int size,
             final Long userId
     ) {
+        long count = travelItineraryJpaRepository.countByGroupIdAndIsDeletedFalse(groupId);
+
+        if (userId == null) {
+            return TravelItineraryCursorResponseDto.countOnly(count);
+        }
+
         if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)) {
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+            return TravelItineraryCursorResponseDto.countOnly(count);
         }
 
         int pageSize = normalizePageSize(size);
@@ -153,7 +159,7 @@ public class TravelItineraryService {
         }
 
         Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
-        return TravelItineraryCursorResponseDto.of(rows, nextCursor, hasNext);
+        return TravelItineraryCursorResponseDto.of(rows, nextCursor, hasNext, count);
     }
 
     private int normalizePageSize(int size) {
