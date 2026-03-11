@@ -629,6 +629,7 @@ class TravelControllerTest extends ControllerTest {
                 new TravelItineraryCursorResponseDto(
                         List.of(
                                 new TravelItineraryCursorResponseDto.TravelSummaryDto(
+                                        1L,
                                         "제주도 뚜벅코 탐험",
                                         "제주 맛집 투어",
                                         LocalDateTime.of(2026, 3, 1, 0, 0),
@@ -648,6 +649,7 @@ class TravelControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
                 .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(1L))
                 .andExpect(jsonPath("$.items[0].title").value("제주도 뚜벅코 탐험"))
                 .andExpect(jsonPath("$.items[0].description").value("제주 맛집 투어"))
                 .andExpect(jsonPath("$.items[0].startAt").value("2026-03-01T00:00:00"))
@@ -666,6 +668,7 @@ class TravelControllerTest extends ControllerTest {
                         ),
                         responseFields(
                                 fieldWithPath("items").description("여행 일정 목록"),
+                                fieldWithPath("items[].id").description("여행 일정 ID"),
                                 fieldWithPath("items[].title").description("여행 제목"),
                                 fieldWithPath("items[].description").description("여행 설명").optional(),
                                 fieldWithPath("items[].startAt").description("시작 일시"),
