@@ -362,35 +362,50 @@ class TravelItineraryServiceTest {
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 유저를 찾을 수 없으면 예외를 던진다.")
-    void 여행_목록_조회_유저_없음_예외() {
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, 1L))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+    @DisplayName("여행 목록 조회 시 유저가 그룹 멤버가 아니면 count만 반환한다.")
+    void 여행_목록_조회_유저_비멤버_count만_반환() {
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(1L, null, 10, 1L);
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(0);
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 그룹을 찾을 수 없으면 예외를 던진다.")
-    void 여행_목록_조회_그룹_없음_예외() {
+    @DisplayName("여행 목록 조회 시 그룹에 여행이 없어도 count만 반환한다.")
+    void 여행_목록_조회_그룹_여행_없음_count만_반환() {
         User user = userJpaRepository.save(createUser());
 
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, user.getId()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(1L, null, 10, user.getId());
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(0);
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 그룹 멤버가 아니면 예외를 던진다.")
-    void 여행_목록_조회_그룹_멤버_아님_예외() {
+    @DisplayName("여행 목록 조회 시 그룹 멤버가 아니면 count만 반환한다.")
+    void 여행_목록_조회_그룹_멤버_아님_count만_반환() {
         User user = userJpaRepository.save(createUser());
         Group group = groupJpaRepository.save(createGroup());
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                1,
+                false
+        ));
 
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(group.getId(), null, 10, user.getId()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(group.getId(), null, 10, user.getId());
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(1);
     }
 
     @Test

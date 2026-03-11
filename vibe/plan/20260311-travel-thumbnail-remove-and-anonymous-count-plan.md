@@ -27,6 +27,7 @@
 | T1 | Travel API/엔티티에서 thumbnailUrl 완전 제거 | 생성/수정/목록 API와 엔티티 모델에서 thumbnailUrl 제거 | `src/main/java/org/triple/backend/travel/dto/request/TravelItinerarySaveRequestDto.java`, `src/main/java/org/triple/backend/travel/dto/request/TravelItineraryUpdateRequestDto.java`, `src/main/java/org/triple/backend/travel/dto/response/TravelItineraryCursorResponseDto.java`, `src/main/java/org/triple/backend/travel/entity/TravelItinerary.java`, `src/main/java/org/triple/backend/group/service/GroupService.java`, `src/main/java/org/triple/backend/group/dto/response/GroupDetailResponseDto.java` | 도메인 모델 필드 제거 시 하위 시그니처/매핑 파급 관리 | Travel API DTO/엔티티에서 `thumbnailUrl`이 제거되고, 연관 컴파일 오류 없이 빌드된다. |
 | T2 | 비로그인 여행 목록 조회 count 응답 도입 | 비로그인 목록 조회를 숫자 기반으로 제공 | `src/main/java/org/triple/backend/travel/controller/TravelItineraryController.java`, `src/main/java/org/triple/backend/travel/service/TravelItineraryService.java`, `src/main/java/org/triple/backend/travel/repository/TravelItineraryJpaRepository.java`, `src/main/java/org/triple/backend/travel/dto/response/TravelItineraryCursorResponseDto.java` | 인증 상태별 조회 정책 분기(권한/데이터 최소화) | 비로그인 요청이 401이 아닌 `count` 응답을 반환하고, 로그인 멤버는 기존 커서 목록을 유지한다. |
 | T3 | 테스트/문서 스펙 동기화 | 변경된 API/엔티티 계약을 테스트와 문서에 반영 | `src/test/java/org/triple/backend/travel/unit/controller/TravelControllerTest.java`, `src/test/java/org/triple/backend/travel/unit/service/TravelItineraryServiceTest.java`, `src/test/java/org/triple/backend/travel/integration/TravelIntegrationTest.java`, `src/test/java/org/triple/backend/travel/unit/entity/TravelItineraryTest.java`, `src/test/java/org/triple/backend/travel/unit/entity/UserTravelItineraryTest.java`, `src/test/java/org/triple/backend/travel/unit/repository/TravelItineraryJpaRepositoryTest.java`, `src/test/java/org/triple/backend/travel/unit/repository/UserTravelItineraryJpaRepositoryTest.java`, `src/test/java/org/triple/backend/group/Integration/GroupIntegrationTest.java`, `src/test/java/org/triple/backend/group/unit/controller/GroupControllerTest.java`, `src/test/java/org/triple/backend/invoice/integration/InvoiceIntegrationTest.java`, `src/test/java/org/triple/backend/invoice/unit/service/InvoiceServiceTest.java`, `src/test/java/org/triple/backend/payment/integration/PaymentIntegrationTest.java`, `src/test/java/org/triple/backend/payment/unit/service/PaymentServiceTest.java`, `src/docs/asciidoc/travel.adoc`, `src/docs/asciidoc/group.adoc` | 엔티티 시그니처 변경 시 회귀 테스트 파급 추적 | 연관 모듈 테스트가 신규 계약 기준으로 통과하고 문서 include가 깨지지 않는다. |
+| T4 | 비멤버 사용자 목록 조회 count-only 응답으로 통일 | 로그인 상태라도 그룹 비멤버면 403 대신 count-only 반환 | `src/main/java/org/triple/backend/travel/service/TravelItineraryService.java`, `src/test/java/org/triple/backend/travel/unit/service/TravelItineraryServiceTest.java`, `src/test/java/org/triple/backend/travel/unit/controller/TravelControllerTest.java`, `src/test/java/org/triple/backend/travel/integration/TravelIntegrationTest.java`, `src/docs/asciidoc/travel.adoc` | 권한 실패 응답과 최소 데이터 응답 정책 분리 | 비멤버/비로그인 모두 목록 상세는 숨기고 `count`만 반환하며, 관련 테스트/문서가 동기화된다. |
 
 ## 4. 구현 전략
 
@@ -65,6 +66,9 @@
 - 상태: 반영 완료
 - 피드백 #3: `TravelItinerary` 엔티티에서도 `thumbnailUrl` 제거 요청
 - 반영 방식: T1을 DTO 제거에서 엔티티 필드/시그니처 제거로 확장하고, T3에 연관 모듈 테스트 동기화 범위를 추가
+- 상태: 반영 완료
+- 피드백 #4: 그룹 멤버가 아니어도 여행 목록 조회 시 count만 표시 요청
+- 반영 방식: T4를 추가해 서비스 권한 분기(비멤버 -> count-only)와 테스트/문서를 함께 갱신
 - 상태: 반영 완료
 
 ## 9. Merge Incident / Rollback Plan

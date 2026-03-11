@@ -143,7 +143,7 @@ public class TravelItineraryService {
         }
 
         if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)) {
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+            return TravelItineraryCursorResponseDto.countOnly(count);
         }
 
         int pageSize = normalizePageSize(size);

@@ -217,6 +217,33 @@ class TravelIntegrationTest {
     }
 
     @Test
+    @DisplayName("로그인 비멤버 사용자는 여행 목록 조회 시 count만 반환받는다.")
+    void 로그인_비멤버_여행_목록_조회_count만_반환() throws Exception {
+        User leader = userJpaRepository.save(createUser());
+        User outsider = userJpaRepository.save(createUserWithProviderId("kakao-outsider"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                1,
+                false
+        ));
+
+        mockMvc.perform(get("/travels/{groupId}", group.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.count").value(1));
+    }
+
+    @Test
     @DisplayName("여행 멤버가 탈퇴 요청하면 참가 정보가 삭제된다.")
     void 여행_멤버가_탈퇴_요청하면_참가_정보가_삭제된다() throws Exception {
         User user = userJpaRepository.save(createUser());

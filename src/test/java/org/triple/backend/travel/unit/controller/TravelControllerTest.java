@@ -17,7 +17,6 @@ import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
 import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
 import org.triple.backend.travel.service.TravelItineraryService;
-import org.triple.backend.group.exception.GroupErrorCode;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -713,18 +712,20 @@ class TravelControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("그룹 멤버가 아닌 사용자의 여행 목록 조회 요청 시 403을 반환한다.")
-    void 그룹_멤버가_아닌_사용자의_여행_목록_조회_요청_시_403을_반환한다() throws Exception {
-        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+    @DisplayName("그룹 멤버가 아닌 사용자의 여행 목록 조회 요청 시 count 응답을 반환한다.")
+    void 그룹_멤버가_아닌_사용자의_여행_목록_조회_요청_시_count_응답을_반환한다() throws Exception {
+        given(sessionManager.getUserId(any())).willReturn(1L);
         given(travelItineraryService.browseTravels(eq(10L), eq(null), eq(10), eq(1L)))
-                .willThrow(new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER));
+                .willReturn(TravelItineraryCursorResponseDto.countOnly(3L));
 
         mockMvc.perform(get("/travels/{groupId}", 10L)
-                        .requestAttr("LOGIN_USER_ID", 1L)
                         .param("size", "10"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."))
-                .andDo(document("travels/list-fail-not-group-member",
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.count").value(3))
+                .andDo(document("travels/list-non-member",
                         pathParameters(
                                 parameterWithName("groupId").description("그룹 ID")
                         ),
@@ -733,9 +734,14 @@ class TravelControllerTest extends ControllerTest {
                                 parameterWithName("size").optional().description("조회할 개수")
                         ),
                         responseFields(
-                                fieldWithPath("message").description("오류 메시지")
+                                fieldWithPath("items").description("여행 일정 목록 (그룹 비멤버 시 빈 배열)"),
+                                fieldWithPath("nextCursor").description("다음 페이지 커서").optional(),
+                                fieldWithPath("hasNext").description("다음 페이지 존재 여부"),
+                                fieldWithPath("count").description("그룹 내 생성 여행 개수")
                         )
                 ));
+
+        verify(travelItineraryService, times(1)).browseTravels(eq(10L), eq(null), eq(10), eq(1L));
     }
 
     private String buildTravelSaveRequestBody(Object... values) {
