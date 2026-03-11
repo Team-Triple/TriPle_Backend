@@ -34,8 +34,6 @@ public class TravelItinerary extends BaseEntity {
 
     private String description;
 
-    private String thumbnailUrl;
-
     private int memberCount = 1;
 
     private boolean isDeleted;
@@ -53,7 +51,6 @@ public class TravelItinerary extends BaseEntity {
             LocalDateTime endAt,
             Group group,
             String description,
-            String thumbnailUrl,
             int memberCount,
             boolean isDeleted
     ) {
@@ -63,7 +60,6 @@ public class TravelItinerary extends BaseEntity {
         validateDateOrder(this.startAt, this.endAt);
         this.group = validateGroup(group);
         this.description = description;
-        this.thumbnailUrl = thumbnailUrl;
         this.memberCount = memberCount;
         this.isDeleted = isDeleted;
     }
@@ -81,7 +77,6 @@ public class TravelItinerary extends BaseEntity {
         updateEndAt(travelItineraryUpdateRequestDto.endAt());
         validateDateOrder(this.startAt, this.endAt);
         updateDescription(travelItineraryUpdateRequestDto.description());
-        updateThumbnailUrl(travelItineraryUpdateRequestDto.thumbnailUrl());
     }
 
     public void deleteTravelItinerary() {
@@ -112,11 +107,6 @@ public class TravelItinerary extends BaseEntity {
         this.description = description;
     }
 
-    private void updateThumbnailUrl(String thumbnailUrl) {
-        if (thumbnailUrl == null) return;
-        this.thumbnailUrl = thumbnailUrl;
-    }
-
     //첫 생성 정적 팩터리 메서드
     public static TravelItinerary of(final TravelItinerarySaveRequestDto travelsRequestDto, final Group group) {
         return TravelItinerary.builder()
@@ -125,7 +115,6 @@ public class TravelItinerary extends BaseEntity {
                 .endAt(travelsRequestDto.endAt())
                 .group(group)
                 .description(travelsRequestDto.description())
-                .thumbnailUrl(travelsRequestDto.thumbnailUrl())
                 .memberCount(1)
                 .isDeleted(false)
                 .build();
