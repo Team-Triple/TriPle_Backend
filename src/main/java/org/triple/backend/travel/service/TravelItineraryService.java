@@ -28,6 +28,7 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -85,7 +86,7 @@ public class TravelItineraryService {
         }
 
         Set<Long> addedUserIds = new HashSet<>();
-        addedUserIds.add(leaderUserId);
+        List<Long> memberUserIds = new ArrayList<>();
 
         for (UUID memberUuid : memberUuids) {
             Long memberUserId = sessionManager.resolveUserId(memberUuid);
@@ -93,18 +94,36 @@ public class TravelItineraryService {
                 throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
             }
 
-            if (!addedUserIds.add(memberUserId)) {
+            if (leaderUserId.equals(memberUserId) || !addedUserIds.add(memberUserId)) {
                 continue;
             }
+            memberUserIds.add(memberUserId);
+        }
 
-            User member = userJpaRepository.findById(memberUserId)
-                    .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        if (memberUserIds.isEmpty()) {
+            return;
+        }
 
-            if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, memberUserId, JoinStatus.JOINED)) {
-                throw new BusinessException(TravelItineraryErrorCode.SAVE_FORBIDDEN);
-            }
+        List<User> members = userJpaRepository.findAllById(memberUserIds);
+        if (members.size() != memberUserIds.size()) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
 
-            userTravelItineraryJpaRepository.save(UserTravelItinerary.of(member, travelItinerary, UserRole.MEMBER));
+        long joinedMemberCount = userGroupJpaRepository.countByGroupIdAndUserIdInAndJoinStatus(
+                groupId,
+                memberUserIds,
+                JoinStatus.JOINED
+        );
+        if (joinedMemberCount != memberUserIds.size()) {
+            throw new BusinessException(TravelItineraryErrorCode.SAVE_FORBIDDEN);
+        }
+
+        List<UserTravelItinerary> memberMappings = members.stream()
+                .map(member -> UserTravelItinerary.of(member, travelItinerary, UserRole.MEMBER))
+                .toList();
+        userTravelItineraryJpaRepository.saveAll(memberMappings);
+
+        for (int i = 0; i < memberMappings.size(); i++) {
             travelItinerary.increaseMemberCount();
         }
     }

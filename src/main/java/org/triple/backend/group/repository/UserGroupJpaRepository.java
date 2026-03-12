@@ -22,6 +22,7 @@ public interface UserGroupJpaRepository extends JpaRepository<UserGroup, Long> {
     boolean existsByGroupIdAndUserIdAndRoleAndJoinStatus(Long groupId, Long userId, Role role, JoinStatus status);
 
     boolean existsByGroupIdAndUserIdAndJoinStatus(Long groupId, Long userId, JoinStatus joinStatus);
+    long countByGroupIdAndUserIdInAndJoinStatus(Long groupId, List<Long> userIds, JoinStatus joinStatus);
 
     Optional<UserGroup> findByGroupIdAndUserIdAndJoinStatus(Long groupId, Long userId, JoinStatus joinStatus);
 
