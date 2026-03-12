@@ -5,8 +5,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
@@ -63,6 +65,9 @@ class TravelItineraryServiceTest {
 
     @Autowired
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
+
+    @MockitoBean
+    private SessionManager sessionManager;
 
     @Test
     @DisplayName("여행 저장 시 유저를 찾을 수 없으면 예외를 던진다.")
