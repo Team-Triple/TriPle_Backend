@@ -7,7 +7,6 @@ import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.triple.backend.auth.session.SessionManager;
-import org.triple.backend.global.log.MaskUtil;
 import org.triple.backend.global.log.RequestMdcFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,18 +33,19 @@ class RequestMdcFilterTest {
         given(sessionManager.getUserId(any())).willReturn(null);
 
         filter.doFilter(request, response, (req, res) -> {
+            assertThat(MDC.get("traceId")).isNotBlank();
             assertThat(MDC.get("method")).isEqualTo("GET");
             assertThat(MDC.get("path")).isEqualTo("/users/me");
             assertThat(MDC.get("userId")).isEqualTo("anonymous");
-            assertThat(MDC.get("sessionId")).isEqualTo("none");
+            assertThat(MDC.get("sessionId")).isNull();
         });
 
         assertThat(MDC.getCopyOfContextMap()).isNull();
     }
 
     @Test
-    @DisplayName("세션이 있으면 마스킹된 세션 값을 MDC에 설정한다")
-    void 세션있음_MDC_마스킹값_설정() throws Exception {
+    @DisplayName("세션이 있으면 원본 세션 값을 MDC에 설정한다")
+    void 세션있음_MDC_원본값_설정() throws Exception {
         SessionManager sessionManager = mock(SessionManager.class);
         RequestMdcFilter filter = new RequestMdcFilter(sessionManager);
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/auth/login");
@@ -55,8 +55,11 @@ class RequestMdcFilterTest {
         given(sessionManager.getUserId(any())).willReturn(12345L);
 
         filter.doFilter(request, response, (req, res) -> {
-            assertThat(MDC.get("userId")).isEqualTo(MaskUtil.maskId(12345L));
-            assertThat(MDC.get("sessionId")).isEqualTo(MaskUtil.maskString(sessionId));
+            assertThat(MDC.get("traceId")).isNotBlank();
+            assertThat(MDC.get("method")).isEqualTo("POST");
+            assertThat(MDC.get("path")).isEqualTo("/auth/login");
+            assertThat(MDC.get("userId")).isEqualTo("12345");
+            assertThat(MDC.get("sessionId")).isEqualTo(sessionId);
         });
 
         assertThat(MDC.getCopyOfContextMap()).isNull();

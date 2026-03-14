@@ -1,43 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 스프링 기본 로그 -->
+    <appender name="ROOT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <!-- 콘솔에 아래와 같은 정보들이 출력될 수 있습니다.-->
-            <!-- MDC 객체와 매핑됩니다.-->
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 디버깅 로그 -->
+    <appender name="DEBUG" class="ch.qos.logback.core.ConsoleAppender" additivity="false">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>DEBUG</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level %X{traceId} user=%X{userId:-anonymous} session=%X{sessionId:-none} method = %X{method:none} path=%X{path:none} msg="%msg"%n%ex</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 어플리케이션 로그 -->
+    <appender name="APPLICATION" class="ch.qos.logback.core.ConsoleAppender" additivity="false">
+        <encoder>
             <pattern>
-                %d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level
-                where.path=%X{method:-}:%X{path:-}
-                where.class=%logger{36}
-                who.user=%X{userId:-anonymous}
-                who.session=%X{sessionId:-none}
-                how.status=%X{status:-}
-                how.latencyMs=%X{latencyMs:-}
-                what.msg="%msg"%n%ex
+                {"traceId":"%X{traceId:-}", "timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}", "level":"%-5level", "user":"%X{userId:-anonymous}", "session":"%X{sessionId:-none}", "method":"%X{method:none}", "path":"%X{path:none}", "msg":"%msg", "exception":"%ex"}%n
             </pattern>
         </encoder>
     </appender>
 
-    <!-- dev 환경에서는 로그 레벨을 DEBUG로 설정합니다.-->
+    <!-- 개발 서버 로그 설정 -->
     <springProfile name="dev">
-        <logger name="org.triple.backend" level="DEBUG"/>
+        <logger name="org.triple.backend" level="DEBUG" additivity="true">
+            <appender-ref ref="DEBUG"/>
+            <appender-ref ref="APPLICATION"/>
+        </logger>
         <logger name="org.hibernate.SQL" level="DEBUG"/>
         <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ROOT"/>
         </root>
     </springProfile>
 
-    <!-- prod 환경에서는 로그 레벨을 INFO로 설정합니다.-->
+    <!-- 운영 서버 로그 설정 -->
     <springProfile name="prod">
-        <logger name="org.triple.backend" level="INFO"/>
+        <logger name="org.triple.backend" level="INFO" additivity="true">
+            <appender-ref ref="APPLICATION"/>
+        </logger>
         <logger name="org.hibernate.SQL" level="WARN"/>
         <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ROOT"/>
+        </root>
+    </springProfile>
+
+    <!-- 로컬 로그 설정 -->
+    <springProfile name="local">
+        <logger name="org.triple.backend" level="DEBUG" additivity="true">
+            <appender-ref ref="DEBUG"/>
+            <appender-ref ref="APPLICATION"/>
+        </logger>
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <root level="INFO">
+            <appender-ref ref="ROOT"/>
         </root>
     </springProfile>
 
     <springProfile name="!dev &amp; !prod">
         <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ROOT"/>
         </root>
     </springProfile>
 </configuration>
