@@ -7,11 +7,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.NonNull;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.triple.backend.auth.session.SessionManager;
+import org.triple.backend.auth.session.UserIdentityResolver;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -20,8 +19,7 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class RequestMdcFilter extends OncePerRequestFilter {
-
-    private final SessionManager sessionManager;
+    private final UserIdentityResolver userIdentityResolver;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -38,7 +36,7 @@ public class RequestMdcFilter extends OncePerRequestFilter {
         LogData logData = getLogData(request);
 
         MDC.put("traceId", logData.traceId);
-        MDC.put("userId", logData.userId);
+        MDC.put("userUuid", logData.userId);
         MDC.put("sessionId", logData.sessionId);
         MDC.put("method", logData.method());
         MDC.put("path", logData.path());
@@ -46,19 +44,19 @@ public class RequestMdcFilter extends OncePerRequestFilter {
 
     private LogData getLogData(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
-        String userId = getUserIdStr(request);
-        String sessionId = getSessionId(session);
-        return new LogData(UUID.randomUUID().toString(), userId, sessionId, request.getMethod(), request.getRequestURI());
+        String userUuid = MaskUtil.maskString(getUserUuid(session));
+        String sessionId = MaskUtil.maskString(getSessionId(session));
+        return new LogData(UUID.randomUUID().toString(), userUuid, sessionId, request.getMethod(), request.getRequestURI());
     }
 
-    private String getUserIdStr(HttpServletRequest request) {
-        Long userId = sessionManager.getUserId(request);
+    private String getUserUuid(HttpSession session) {
+        if(session == null) return "anonymous";
 
-        String userIdStr;
-        if (userId == null) userIdStr = "anonymous";
-        else userIdStr = String.valueOf(userId);
+        Object principal = session.getAttribute("USER_ID");
+        if(principal == null) return "anonymous";
+        UUID uuid = userIdentityResolver.parsePublicUuid(principal);
 
-        return userIdStr;
+        return MaskUtil.maskString(uuid.toString());
     }
 
     private static String getSessionId(HttpSession session) {
