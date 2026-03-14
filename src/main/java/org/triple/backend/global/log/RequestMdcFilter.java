@@ -24,10 +24,14 @@ public class RequestMdcFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        long startTime = System.currentTimeMillis();
         try {
             putMdc(request);
             filterChain.doFilter(request, response);
         } finally {
+            long endTime = System.currentTimeMillis();
+
+            MDC.put("latency", Long.toString(endTime - startTime));
             MDC.clear();
         }
     }
