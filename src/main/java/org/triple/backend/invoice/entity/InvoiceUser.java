@@ -51,9 +51,10 @@ public class InvoiceUser {
     }
 
     public void decreaseRemainAmount(BigDecimal amount) {
-        remainAmount = remainAmount.subtract(amount);
-        if(remainAmount.compareTo(BigDecimal.ZERO) < 0) {
+        BigDecimal newRemainAmount = remainAmount.subtract(amount);
+        if(newRemainAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("잔액은 음수일 수 없습니다.");
         }
+        this.remainAmount = newRemainAmount;
     }
 }

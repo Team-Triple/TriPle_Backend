@@ -47,17 +47,17 @@ public class PaymentEvent extends BaseEntity {
     }
 
     public void markRetryable(Error error, LocalDateTime lastEventTime) {
-        this.paymentEventMeta.markRetryable(error, lastEventTime);
+        this.paymentEventMeta.updateRetry(error, lastEventTime);
         this.paymentEventStatus = PaymentEventStatus.RETRYABLE;
     }
 
     public void markFailed(Error error, LocalDateTime lastEventTime) {
-        this.paymentEventMeta.markNonRetryable(error, lastEventTime);
+        this.paymentEventMeta.updateRetry(error, lastEventTime);
         this.paymentEventStatus = PaymentEventStatus.FAILED;
     }
 
     public void markDead(Error error, LocalDateTime lastEventTime) {
-        this.paymentEventMeta.markNonRetryable(error, lastEventTime);
+        this.paymentEventMeta.updateRetry(error, lastEventTime);
         this.paymentEventStatus = PaymentEventStatus.DEAD;
     }
 

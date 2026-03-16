@@ -28,13 +28,7 @@ public class PaymentEventMeta {
                 .build();
     }
 
-    public void markRetryable(Error error, LocalDateTime lastEventTime) {
-        this.retryCount = (this.retryCount == null) ? 1 : this.retryCount + 1;
-        this.lastError = error;
-        this.lastEventTime = lastEventTime;
-    }
-
-    public void markNonRetryable(Error error, LocalDateTime lastEventTime) {
+    public void updateRetry(Error error, LocalDateTime lastEventTime) {
         this.retryCount = (this.retryCount == null) ? 1 : this.retryCount + 1;
         this.lastError = error;
         this.lastEventTime = lastEventTime;

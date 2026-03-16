@@ -1,6 +1,7 @@
 package org.triple.backend.payment.service.event;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
@@ -24,6 +25,7 @@ import org.triple.backend.payment.repository.PaymentJpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentEventService {
@@ -107,24 +109,33 @@ public class PaymentEventService {
 
     @Transactional
     public void finalizeException(String orderId) {
-        PaymentEvent paymentEvent = paymentEventJpaRepository.findByOrderIdForUpdate(orderId)
-                .orElse(null);
+        try {
+            PaymentEvent event = paymentEventJpaRepository.findByOrderIdForUpdate(orderId).orElse(null);
+            if (event == null) {
+                log.error("finalizeException: 결제 이벤트가 발견되지 않았습니다.. orderId={}", orderId);
+                return;
+            }
+            if (event.getPaymentEventStatus() != PaymentEventStatus.IN_PROGRESS) {
+                return;
+            }
 
-        if (paymentEvent == null) return;
+            Payment payment = paymentJpaRepository.findByOrderIdForUpdate(orderId).orElse(null);
 
-        if (paymentEvent.getPaymentEventStatus() != PaymentEventStatus.IN_PROGRESS) {
-            return;
+            if (payment == null) {
+                event.markDead(Error.UNKNOWN, LocalDateTime.now());
+                log.error("finalizeException: 결제가 발견되지 않았습니다. DEAD 상태가 됩니다. orderId={}", orderId);
+                return;
+            }
+
+            if (event.isRetryCountExceeded(paymentEventProperties.maxRetryCount() - 1)) {
+                event.markDead(Error.UNKNOWN, LocalDateTime.now());
+                payment.processPaymentEvent(payment.getPaymentKey(), PaymentStatus.FAILED);
+                return;
+            }
+
+            event.markRetryable(Error.UNKNOWN, LocalDateTime.now());
+        } catch (Exception e) {
+            log.error("finalizeException failed. orderId={}", orderId, e);
         }
-
-        Payment payment = paymentJpaRepository.findByOrderIdForUpdate(orderId)
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.NOT_FOUND_PAYMENT));
-
-        if (paymentEvent.isRetryCountExceeded(paymentEventProperties.maxRetryCount() - 1)) {
-            paymentEvent.markDead(Error.UNKNOWN, LocalDateTime.now());
-            payment.processPaymentEvent(payment.getPaymentKey(), PaymentStatus.FAILED);
-            return;
-        }
-
-        paymentEvent.markRetryable(Error.UNKNOWN, LocalDateTime.now());
     }
 }
