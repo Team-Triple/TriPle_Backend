@@ -76,7 +76,7 @@ public class TravelItineraryService {
     }
 
     private void addTravelMembers(
-            final List<UUID> memberUuids,
+            final List<String> memberUuids,
             final TravelItinerary travelItinerary,
             final Long groupId,
             final Long leaderUserId
@@ -88,7 +88,7 @@ public class TravelItineraryService {
         Set<Long> addedUserIds = new HashSet<>();
         List<Long> memberUserIds = new ArrayList<>();
 
-        for (UUID memberUuid : memberUuids) {
+        for (String memberUuid : memberUuids) {
             Long memberUserId = sessionManager.resolveUserId(memberUuid);
             if (memberUserId == null) {
                 throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
