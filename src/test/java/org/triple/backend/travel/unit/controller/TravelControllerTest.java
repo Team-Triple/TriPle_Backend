@@ -747,7 +747,24 @@ class TravelControllerTest extends ControllerTest {
         verify(travelItineraryService, times(1)).browseTravels(eq(10L), eq(null), eq(10), eq(1L));
     }
 
-    private String buildTravelSaveRequestBody(Object... values) {
+    private String buildTravelSaveRequestBody(
+            String title,
+            String startAt,
+            String endAt,
+            Long groupId,
+            String description
+    ) {
+        return buildTravelSaveRequestBody(title, startAt, endAt, groupId, description, "[]");
+    }
+
+    private String buildTravelSaveRequestBody(
+            String title,
+            String startAt,
+            String endAt,
+            Long groupId,
+            String description,
+            String memberUuidsJson
+    ) {
         String answer =
                 """
                 {
@@ -759,7 +776,7 @@ class TravelControllerTest extends ControllerTest {
                   "memberUuids": %s
                 }
                 """;
-        return answer.formatted(values);
+        return answer.formatted(title, startAt, endAt, groupId, description, memberUuidsJson);
     }
 
     private String buildTravelUpdateRequestBody(
