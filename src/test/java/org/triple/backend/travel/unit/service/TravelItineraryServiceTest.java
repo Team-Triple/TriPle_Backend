@@ -687,7 +687,7 @@ class TravelItineraryServiceTest {
         userGroupJpaRepository.save(createUserGroup(member, group));
 
         UUID memberUuid = member.getPublicUuid();
-        given(sessionManager.resolveUserId(memberUuid)).willReturn(member.getId());
+        given(sessionManager.resolveUserId(memberUuid.toString())).willReturn(member.getId());
 
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "title",
@@ -695,7 +695,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
                 "description",
-                List.of(memberUuid)
+                List.of(memberUuid.toString())
         );
 
         TravelItinerarySaveResponseDto response = travelItineraryService.saveTravels(request, leader.getId());
@@ -716,7 +716,7 @@ class TravelItineraryServiceTest {
         userGroupJpaRepository.save(createUserGroup(leader, group));
 
         UUID unknownMemberUuid = UUID.randomUUID();
-        given(sessionManager.resolveUserId(unknownMemberUuid)).willReturn(null);
+        given(sessionManager.resolveUserId(unknownMemberUuid.toString())).willReturn(null);
 
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "title",
@@ -724,7 +724,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
                 "description",
-                List.of(unknownMemberUuid)
+                List.of(unknownMemberUuid.toString())
         );
 
         Assertions.assertThatThrownBy(() -> travelItineraryService.saveTravels(request, leader.getId()))
@@ -742,7 +742,7 @@ class TravelItineraryServiceTest {
         userGroupJpaRepository.save(createUserGroup(leader, group));
 
         UUID outsiderUuid = outsider.getPublicUuid();
-        given(sessionManager.resolveUserId(outsiderUuid)).willReturn(outsider.getId());
+        given(sessionManager.resolveUserId(outsiderUuid.toString())).willReturn(outsider.getId());
 
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "title",
@@ -750,7 +750,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
                 "description",
-                List.of(outsiderUuid)
+                List.of(outsiderUuid.toString())
         );
 
         Assertions.assertThatThrownBy(() -> travelItineraryService.saveTravels(request, leader.getId()))
@@ -770,8 +770,8 @@ class TravelItineraryServiceTest {
 
         UUID leaderUuid = leader.getPublicUuid();
         UUID memberUuid = member.getPublicUuid();
-        given(sessionManager.resolveUserId(leaderUuid)).willReturn(leader.getId());
-        given(sessionManager.resolveUserId(memberUuid)).willReturn(member.getId());
+        given(sessionManager.resolveUserId(leaderUuid.toString())).willReturn(leader.getId());
+        given(sessionManager.resolveUserId(memberUuid.toString())).willReturn(member.getId());
 
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "title",
@@ -779,7 +779,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
                 "description",
-                List.of(leaderUuid, memberUuid, memberUuid)
+                List.of(leaderUuid.toString(), memberUuid.toString(), memberUuid.toString())
         );
 
         TravelItinerarySaveResponseDto response = travelItineraryService.saveTravels(request, leader.getId());
