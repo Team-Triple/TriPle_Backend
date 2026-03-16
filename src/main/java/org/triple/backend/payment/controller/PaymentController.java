@@ -11,13 +11,11 @@ import org.triple.backend.payment.dto.response.PaymentConfirmRes;
 import org.triple.backend.payment.dto.response.PaymentCreateRes;
 import org.triple.backend.payment.dto.response.PaymentCursorRes;
 import org.triple.backend.payment.service.PaymentService;
-import org.triple.backend.payment.service.PaymentServiceFacade;
 
 @RestController
 @RequestMapping("/payments")
 @RequiredArgsConstructor
 public class PaymentController {
-    private final PaymentServiceFacade paymentServiceFacade;
     private final PaymentService paymentService;
 
     @LoginRequired
@@ -29,12 +27,9 @@ public class PaymentController {
 
     @LoginRequired
     @PostMapping("/{invoiceId}/confirm")
-    public PaymentConfirmRes confirm(
-            @Valid @RequestBody PaymentConfirmReq paymentConfirmReq,
-            @PathVariable Long invoiceId,
-            @LoginUser Long userId
-    ) {
-        return paymentServiceFacade.confirm(paymentConfirmReq, invoiceId, userId);
+    public void processPaymentEvent(@Valid @RequestBody final PaymentConfirmReq paymentConfirmReq,
+                                    @PathVariable final Long invoiceId, @LoginUser Long userId) {
+        paymentService.processPaymentEvent(paymentConfirmReq, invoiceId, userId);
     }
 
     @LoginRequired
