@@ -3,173 +3,172 @@ package org.triple.backend.payment.unit.infra;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.retry.annotation.EnableRetry;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.triple.backend.payment.config.TossPaymentProperties;
-import org.triple.backend.payment.entity.Payment;
+import org.triple.backend.payment.entity.outbox.Error;
+import org.triple.backend.payment.entity.outbox.PaymentEventBody;
 import org.triple.backend.payment.infra.TossPayment;
-import org.triple.backend.payment.infra.dto.request.ConfirmRequest;
-import org.triple.backend.payment.infra.dto.response.ConfirmFailResponse;
-import org.triple.backend.payment.infra.dto.response.ConfirmResponse;
-import org.triple.backend.payment.infra.exception.ConfirmAnonymousException;
-import org.triple.backend.payment.infra.exception.ConfirmRecoverFailedException;
-import org.triple.backend.payment.infra.exception.ConfirmServerException;
+import org.triple.backend.payment.infra.dto.request.PaymentEventReq;
+import org.triple.backend.payment.infra.dto.response.PaymentEventFailRes;
+import org.triple.backend.payment.infra.dto.response.PaymentEventRes;
+import org.triple.backend.payment.infra.dto.response.PaymentEventSuccessRes;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
-@SpringBootTest(classes = {TossPayment.class, TossPaymentTest.RetryTestConfig.class})
-@ActiveProfiles("test")
+@ExtendWith(MockitoExtension.class)
 class TossPaymentTest {
 
     private static final String URI = "https://api.tosspayments.com/v1/payments/confirm";
     private static final String SECRET = "test-secret";
     private static final String CONTENT_TYPE = "application/json";
 
-    @Autowired
-    private TossPayment tossPayment;
-
-    @MockitoBean
+    @Mock
     private RestClient tossPaymentClient;
 
-    @MockitoBean
+    @Mock
     private RestClient.RequestBodyUriSpec postSpec;
 
-    @MockitoBean
+    @Mock
     private RestClient.RequestBodySpec bodySpec;
 
-    @MockitoBean
+    @Mock
     private RestClient.ResponseSpec responseSpec;
 
-    @TestConfiguration
-    @EnableRetry
-    static class RetryTestConfig {
-
-        @Bean
-        TossPaymentProperties tossPaymentProperties() {
-            return new TossPaymentProperties(URI, SECRET, CONTENT_TYPE);
-        }
-    }
+    private TossPayment tossPayment;
 
     @BeforeEach
     void setUp() {
+        TossPaymentProperties properties = new TossPaymentProperties(URI, SECRET, CONTENT_TYPE, 3000L);
+        tossPayment = new TossPayment(tossPaymentClient, properties);
+
         given(tossPaymentClient.post()).willReturn(postSpec);
         given(postSpec.uri(URI)).willReturn(bodySpec);
-        given(bodySpec.header("Authorization", SECRET)).willReturn(bodySpec);
+        given(bodySpec.header("Authorization", encodedSecretHeader())).willReturn(bodySpec);
         given(bodySpec.header("Content-Type", CONTENT_TYPE)).willReturn(bodySpec);
-        given(bodySpec.body(any(ConfirmRequest.class))).willReturn(bodySpec);
+        given(bodySpec.body(any(PaymentEventReq.class))).willReturn(bodySpec);
         given(bodySpec.retrieve()).willReturn(responseSpec);
     }
 
     @Test
-    @DisplayName("confirm request succeeds and returns confirm response")
-    void confirmSuccess() {
-        ConfirmResponse expected = new ConfirmResponse(
+    @DisplayName("토스 승인 호출이 성공하면 성공 응답을 반환한다")
+    void 토스_승인_호출이_성공하면_성공_응답을_반환한다() {
+        PaymentEventSuccessRes expected = new PaymentEventSuccessRes(
                 "order-1",
-                "payment-1",
+                "payment-key-1",
                 "DONE",
                 new BigDecimal("10000"),
-                new ConfirmResponse.Receipt("https://receipt")
+                LocalDateTime.of(2030, 3, 20, 10, 0),
+                new PaymentEventSuccessRes.Receipt("https://receipt")
         );
-        given(responseSpec.body(ConfirmResponse.class)).willReturn(expected);
+        given(responseSpec.body(PaymentEventSuccessRes.class)).willReturn(expected);
 
-        ConfirmResponse result = tossPayment.confirmRequest(samplePayment());
+        PaymentEventRes result = tossPayment.request(sampleBody());
 
         assertThat(result).isEqualTo(expected);
-        then(tossPaymentClient).should(times(1)).post();
+        verify(tossPaymentClient).post();
     }
 
     @Test
-    @DisplayName("429 response is retried and eventually fails with recover exception")
-    void retryWhen429() {
-        RestClientResponseException exception = responseException(
-                HttpStatus.TOO_MANY_REQUESTS,
-                new ConfirmFailResponse("PROVIDER_ERROR", "temporary error")
-        );
-        given(responseSpec.body(ConfirmResponse.class)).willThrow(exception);
+    @DisplayName("네트워크 예외는 NETWORK_TIMEOUT으로 매핑한다")
+    void 네트워크_예외는_NETWORK_TIMEOUT으로_매핑한다() {
+        given(responseSpec.body(PaymentEventSuccessRes.class))
+                .willThrow(new ResourceAccessException("timeout"));
 
-        assertThatThrownBy(() -> tossPayment.confirmRequest(samplePayment()))
-                .isInstanceOf(ConfirmRecoverFailedException.class);
-        then(tossPaymentClient).should(times(3)).post();
+        PaymentEventRes result = tossPayment.request(sampleBody());
+
+        assertThat(result).isInstanceOf(PaymentEventFailRes.class);
+        PaymentEventFailRes failRes = (PaymentEventFailRes) result;
+        assertThat(failRes.orderId()).isEqualTo("order-1");
+        assertThat(failRes.error()).isEqualTo(Error.NETWORK_TIMEOUT);
     }
 
     @Test
-    @DisplayName("400 response throws confirm server exception without retry")
-    void throwConfirmServerExceptionWhen400() {
-        RestClientResponseException exception = responseException(
-                HttpStatus.BAD_REQUEST,
-                new ConfirmFailResponse("INVALID_REQUEST", "bad request")
-        );
-        given(responseSpec.body(ConfirmResponse.class)).willThrow(exception);
+    @DisplayName("429 응답은 UPSTREAM_429로 매핑한다")
+    void 응답코드_429는_UPSTREAM_429로_매핑한다() {
+        given(responseSpec.body(PaymentEventSuccessRes.class))
+                .willThrow(responseException(HttpStatus.TOO_MANY_REQUESTS));
 
-        assertThatThrownBy(() -> tossPayment.confirmRequest(samplePayment()))
-                .isInstanceOf(ConfirmServerException.class);
-        then(tossPaymentClient).should(times(1)).post();
+        PaymentEventRes result = tossPayment.request(sampleBody());
+
+        assertThat(result).isInstanceOf(PaymentEventFailRes.class);
+        PaymentEventFailRes failRes = (PaymentEventFailRes) result;
+        assertThat(failRes.error()).isEqualTo(Error.UPSTREAM_429);
     }
 
     @Test
-    @DisplayName("runtime exception is wrapped as confirm anonymous exception")
-    void throwConfirmAnonymousExceptionWhenRuntimeException() {
-        given(responseSpec.body(ConfirmResponse.class)).willThrow(new IllegalStateException("boom"));
+    @DisplayName("5xx 응답은 UPSTREAM_5XX로 매핑한다")
+    void 응답코드_5xx는_UPSTREAM_5XX로_매핑한다() {
+        given(responseSpec.body(PaymentEventSuccessRes.class))
+                .willThrow(responseException(HttpStatus.INTERNAL_SERVER_ERROR));
 
-        assertThatThrownBy(() -> tossPayment.confirmRequest(samplePayment()))
-                .isInstanceOf(ConfirmAnonymousException.class);
-        then(tossPaymentClient).should(times(1)).post();
+        PaymentEventRes result = tossPayment.request(sampleBody());
+
+        assertThat(result).isInstanceOf(PaymentEventFailRes.class);
+        PaymentEventFailRes failRes = (PaymentEventFailRes) result;
+        assertThat(failRes.error()).isEqualTo(Error.UPSTREAM_5XX);
     }
 
     @Test
-    @DisplayName("resource access exception is retried and eventually fails with recover exception")
-    void retryWhenResourceAccessException() {
-        given(responseSpec.body(ConfirmResponse.class)).willThrow(new ResourceAccessException("timeout"));
+    @DisplayName("4xx 응답은 UPSTREAM_4XX로 매핑한다")
+    void 응답코드_4xx는_UPSTREAM_4XX로_매핑한다() {
+        given(responseSpec.body(PaymentEventSuccessRes.class))
+                .willThrow(responseException(HttpStatus.BAD_REQUEST));
 
-        assertThatThrownBy(() -> tossPayment.confirmRequest(samplePayment()))
-                .isInstanceOf(ConfirmRecoverFailedException.class);
-        then(tossPaymentClient).should(times(3)).post();
+        PaymentEventRes result = tossPayment.request(sampleBody());
+
+        assertThat(result).isInstanceOf(PaymentEventFailRes.class);
+        PaymentEventFailRes failRes = (PaymentEventFailRes) result;
+        assertThat(failRes.error()).isEqualTo(Error.UPSTREAM_4XX);
     }
 
-    private RestClientResponseException responseException(
-            HttpStatus status,
-            ConfirmFailResponse body
-    ) {
-        RestClientResponseException exception = new RestClientResponseException(
+    @Test
+    @DisplayName("알 수 없는 런타임 예외는 UNKNOWN으로 매핑한다")
+    void 알수없는_런타임_예외는_UNKNOWN으로_매핑한다() {
+        given(responseSpec.body(PaymentEventSuccessRes.class))
+                .willThrow(new IllegalStateException("boom"));
+
+        PaymentEventRes result = tossPayment.request(sampleBody());
+
+        assertThat(result).isInstanceOf(PaymentEventFailRes.class);
+        PaymentEventFailRes failRes = (PaymentEventFailRes) result;
+        assertThat(failRes.error()).isEqualTo(Error.UNKNOWN);
+    }
+
+    private RestClientResponseException responseException(HttpStatus httpStatus) {
+        return new RestClientResponseException(
                 "toss error",
-                status,
-                status.getReasonPhrase(),
+                httpStatus.value(),
+                httpStatus.getReasonPhrase(),
                 HttpHeaders.EMPTY,
                 "{}".getBytes(StandardCharsets.UTF_8),
                 StandardCharsets.UTF_8
         );
-        exception.setBodyConvertFunction(resolvableType -> {
-            if (ConfirmFailResponse.class.equals(resolvableType.toClass())) {
-                return body;
-            }
-            return null;
-        });
-        return exception;
     }
 
-    private Payment samplePayment() {
-        return Payment.builder()
-                .paymentKey("payment-1")
+    private PaymentEventBody sampleBody() {
+        return PaymentEventBody.builder()
+                .paymentKey("payment-key-1")
                 .orderId("order-1")
-                .approvedAmount(new BigDecimal("10000"))
+                .requestedAmount(new BigDecimal("10000"))
                 .build();
+    }
+
+    private String encodedSecretHeader() {
+        return "Basic " + Base64.getEncoder().encodeToString((SECRET + ":").getBytes(StandardCharsets.UTF_8));
     }
 }
