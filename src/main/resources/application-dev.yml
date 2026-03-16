@@ -83,3 +83,17 @@ toss:
     uri: https://api.tosspayments.com/v1/payments/confirm
     secret: ${TOSS_PAYMENT_SECRET}
     content-type: application/json
+    timeout: 60
+
+payment:
+  event:
+    batch-size: 20
+    max-retry-count: 3
+    poll-fixed-rate-ms: 1500
+    retry-fixed-rate-ms: 1500
+    worker-core-size: 20
+    worker-max-size: 20
+    worker-queue-capacity: 200
+    retry-worker-core-size: 20
+    retry-worker-max-size: 20
+    retry-worker-queue-capacity: 200
