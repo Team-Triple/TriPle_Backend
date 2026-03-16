@@ -32,7 +32,7 @@ public class UserIdentityResolver {
         return findUserIdByPublicUuid(publicUuid);
     }
 
-    private @Nullable UUID parsePublicUuid(Object principal) {
+    public @Nullable UUID parsePublicUuid(Object principal) {
         if (principal instanceof UUID uuid) {
             return uuid;
         }

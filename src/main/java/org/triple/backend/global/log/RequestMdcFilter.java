@@ -10,44 +10,71 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.triple.backend.auth.session.SessionManager;
+import org.triple.backend.auth.session.UserIdentityResolver;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class RequestMdcFilter extends OncePerRequestFilter {
-
-    private final SessionManager sessionManager;
+    private final UserIdentityResolver userIdentityResolver;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        long startNanos = System.nanoTime();
-
+        long startTime = System.currentTimeMillis();
         try {
             putMdc(request);
             filterChain.doFilter(request, response);
         } finally {
-            long latencyMs = (System.nanoTime() - startNanos) / 1_000_000L;
-            MDC.put("status", String.valueOf(response.getStatus()));
-            MDC.put("latencyMs", String.valueOf(latencyMs));
-            log.info("http request completed");
+            long endTime = System.currentTimeMillis();
+
+            MDC.put("latency", Long.toString(endTime - startTime));
             MDC.clear();
         }
     }
 
     private void putMdc(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        Long userId = sessionManager.getUserId(request);
-        String sessionId = session == null ? null : session.getId();
-        String maskedUserId = userId == null ? "anonymous" : MaskUtil.maskId(userId);
-        String maskedSessionId = sessionId == null ? "none" : MaskUtil.maskString(sessionId);
+        LogData logData = getLogData(request);
 
-        MDC.put("method", request.getMethod());
-        MDC.put("path", request.getRequestURI());
-        MDC.put("userId", maskedUserId);
-        MDC.put("sessionId", maskedSessionId);
+        MDC.put("traceId", logData.traceId);
+        MDC.put("userUuid", logData.userId);
+        MDC.put("sessionId", logData.sessionId);
+        MDC.put("method", logData.method());
+        MDC.put("path", logData.path());
+    }
+
+    private LogData getLogData(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        String userUuid = MaskUtil.maskString(getUserUuid(session));
+        String sessionId = MaskUtil.maskString(getSessionId(session));
+        return new LogData(UUID.randomUUID().toString(), userUuid, sessionId, request.getMethod(), request.getRequestURI());
+    }
+
+    private String getUserUuid(HttpSession session) {
+        if(session == null) return "anonymous";
+
+        Object principal = session.getAttribute("USER_ID");
+        if(principal == null) return "anonymous";
+        UUID uuid = userIdentityResolver.parsePublicUuid(principal);
+
+        return MaskUtil.maskString(uuid.toString());
+    }
+
+    private static String getSessionId(HttpSession session) {
+        String sessionId = null;
+        if(session != null) sessionId = session.getId();
+        return sessionId;
+    }
+
+    record LogData(
+            String traceId,
+            String userId,
+            String sessionId,
+            String method,
+            String path
+    ) {
     }
 }
