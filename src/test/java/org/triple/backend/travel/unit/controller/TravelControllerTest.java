@@ -756,7 +756,7 @@ class TravelControllerTest extends ControllerTest {
                   "endAt": "%s",
                   "groupId": %d,
                   "description": "%s",
-                  "memberUuids": []
+                  "memberUuids": %s
                 }
                 """;
         return answer.formatted(values);
