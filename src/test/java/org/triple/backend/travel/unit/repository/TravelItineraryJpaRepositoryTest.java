@@ -12,6 +12,7 @@ import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,29 +27,27 @@ class TravelItineraryJpaRepositoryTest {
 
     @Test
     @DisplayName("여행 일정을 저장하고 조회한다.")
-    void 여행_일정을_저장하고_조회한다() {
-        // given
+    void 여행_일정_저장_조회() {
         Group group = groupJpaRepository.save(createGroup());
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "제목",
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "설명"
+                "설명",
+                List.of()
         );
 
-        // when
         TravelItinerary saved = travelItineraryJpaRepository.save(TravelItinerary.of(request, group));
         TravelItinerary found = travelItineraryJpaRepository.findById(saved.getId()).orElseThrow();
 
-        // then
         assertThat(found)
                 .extracting("title", "description", "memberCount", "group")
                 .containsExactly("제목", "설명", 1, group);
     }
 
     @Test
-    @DisplayName("삭제된 여행 일정은 활성 조회에서 제외된다.")
+    @DisplayName("삭제된 여행 일정은 활성 조회에서 제외한다.")
     void 삭제된_여행_일정_활성조회_제외() {
         Group group = groupJpaRepository.save(createGroup());
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
@@ -56,7 +55,8 @@ class TravelItineraryJpaRepositoryTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "desc"
+                "desc",
+                List.of()
         );
 
         TravelItinerary saved = travelItineraryJpaRepository.save(TravelItinerary.of(request, group));

@@ -12,6 +12,7 @@ import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
 import org.triple.backend.travel.entity.TravelItinerary;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,7 +31,8 @@ class TravelItineraryTest {
                 START,
                 END,
                 1L,
-                "desc"
+                "desc",
+                List.of()
         );
 
         TravelItinerary itinerary = TravelItinerary.of(req, createGroup());

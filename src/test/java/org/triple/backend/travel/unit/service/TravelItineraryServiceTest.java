@@ -5,8 +5,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
@@ -36,12 +38,15 @@ import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.mockito.BDDMockito.given;
 
 @ServiceTest
 @Import({TravelItineraryService.class})
@@ -63,6 +68,9 @@ class TravelItineraryServiceTest {
 
     @Autowired
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
+
+    @MockitoBean
+    private SessionManager sessionManager;
 
     @Test
     @DisplayName("여행 저장 시 유저를 찾을 수 없으면 예외를 던진다.")
@@ -667,6 +675,121 @@ class TravelItineraryServiceTest {
         Assertions.assertThat(joinedCount).isEqualTo(3);
 
         executorService.shutdownNow();
+    }
+
+    @Test
+    @DisplayName("여행 저장 시 멤버 UUID 목록을 함께 저장한다.")
+    void saveTravel_withMembers_success() {
+        User leader = userJpaRepository.save(createUser());
+        User member = userJpaRepository.save(createUserWithProviderId("kakao-member"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+        userGroupJpaRepository.save(createUserGroup(member, group));
+
+        UUID memberUuid = member.getPublicUuid();
+        given(sessionManager.resolveUserId(memberUuid)).willReturn(member.getId());
+
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "description",
+                List.of(memberUuid)
+        );
+
+        TravelItinerarySaveResponseDto response = travelItineraryService.saveTravels(request, leader.getId());
+        TravelItinerary saved = travelItineraryJpaRepository.findById(response.itineraryId()).orElseThrow();
+
+        Assertions.assertThat(saved.getMemberCount()).isEqualTo(2);
+        Assertions.assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(leader.getId(), saved.getId()))
+                .isPresent();
+        Assertions.assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(member.getId(), saved.getId()))
+                .isPresent();
+    }
+
+    @Test
+    @DisplayName("멤버 UUID 매핑 실패 시 예외를 던진다.")
+    void saveTravel_memberUuidMappingFail_throws() {
+        User leader = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+
+        UUID unknownMemberUuid = UUID.randomUUID();
+        given(sessionManager.resolveUserId(unknownMemberUuid)).willReturn(null);
+
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "description",
+                List.of(unknownMemberUuid)
+        );
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.saveTravels(request, leader.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("그룹 비멤버 UUID가 포함되면 저장을 거부한다.")
+    void saveTravel_nonGroupMemberUuid_forbidden() {
+        User leader = userJpaRepository.save(createUser());
+        User outsider = userJpaRepository.save(createUserWithProviderId("kakao-outsider"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+
+        UUID outsiderUuid = outsider.getPublicUuid();
+        given(sessionManager.resolveUserId(outsiderUuid)).willReturn(outsider.getId());
+
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "description",
+                List.of(outsiderUuid)
+        );
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.saveTravels(request, leader.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(TravelItineraryErrorCode.SAVE_FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("리더/중복 UUID는 멤버로 중복 저장하지 않는다.")
+    void saveTravel_duplicateAndLeaderUuid_skipped() {
+        User leader = userJpaRepository.save(createUser());
+        User member = userJpaRepository.save(createUserWithProviderId("kakao-dup"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+        userGroupJpaRepository.save(createUserGroup(member, group));
+
+        UUID leaderUuid = leader.getPublicUuid();
+        UUID memberUuid = member.getPublicUuid();
+        given(sessionManager.resolveUserId(leaderUuid)).willReturn(leader.getId());
+        given(sessionManager.resolveUserId(memberUuid)).willReturn(member.getId());
+
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "description",
+                List.of(leaderUuid, memberUuid, memberUuid)
+        );
+
+        TravelItinerarySaveResponseDto response = travelItineraryService.saveTravels(request, leader.getId());
+        TravelItinerary saved = travelItineraryJpaRepository.findById(response.itineraryId()).orElseThrow();
+        long mappedCount = userTravelItineraryJpaRepository.findAll().stream()
+                .filter(mapping -> mapping.getTravelItinerary().getId().equals(saved.getId()))
+                .count();
+
+        Assertions.assertThat(saved.getMemberCount()).isEqualTo(2);
+        Assertions.assertThat(mappedCount).isEqualTo(2);
     }
 
     private static Group createGroup() {
