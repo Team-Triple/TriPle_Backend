@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.invoice.entity.Invoice;
 import org.triple.backend.invoice.entity.InvoiceStatus;
+import org.triple.backend.payment.infra.dto.response.PaymentEventSuccessRes;
 import org.triple.backend.user.entity.User;
 
 import java.math.BigDecimal;
@@ -74,22 +75,16 @@ public class Payment extends BaseEntity {
         return this.requestedAmount.equals(approvedAmount);
     }
 
-    public void updateStatus(PaymentStatus paymentStatus) {
+    public void processPaymentEvent(String paymentKey, PaymentStatus paymentStatus) {
+        this.paymentKey = paymentKey;
         this.paymentStatus = paymentStatus;
     }
 
-    public void confirm(
-            final String paymentKey,
-            final BigDecimal approvedAmount,
-            final PaymentStatus paymentStatus,
-            final LocalDateTime approvedAt,
-            final String receiptUrl
-    ) {
-        this.paymentKey = paymentKey;
-        this.approvedAmount = approvedAmount;
-        this.paymentStatus = paymentStatus;
-        this.approvedAt = approvedAt;
-        this.receiptUrl = receiptUrl;
+    public void confirm(PaymentEventSuccessRes paymentEventSuccessRes) {
+        this.approvedAmount = paymentEventSuccessRes.totalAmount();
+        this.paymentStatus = PaymentStatus.SUCCESS;
+        this.approvedAt = paymentEventSuccessRes.approvedAt();
+        this.receiptUrl = paymentEventSuccessRes.receipt() == null ? null : paymentEventSuccessRes.receipt().url();
     }
 
     public static Payment create(

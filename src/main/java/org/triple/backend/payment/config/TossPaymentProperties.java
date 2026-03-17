@@ -6,5 +6,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record TossPaymentProperties(
         String uri,
         String secret,
-        String contentType
+        String contentType,
+        Long timeout
 ) {}

@@ -2,22 +2,20 @@ package org.triple.backend.payment.infra;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Recover;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
-import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.payment.config.TossPaymentProperties;
-import org.triple.backend.payment.entity.Payment;
-import org.triple.backend.payment.infra.dto.request.ConfirmRequest;
-import org.triple.backend.payment.infra.dto.response.ConfirmFailResponse;
-import org.triple.backend.payment.infra.dto.response.ConfirmResponse;
-import org.triple.backend.payment.infra.exception.ConfirmAnonymousException;
-import org.triple.backend.payment.infra.exception.ConfirmRecoverFailedException;
-import org.triple.backend.payment.infra.exception.ConfirmServerException;
+import org.triple.backend.payment.entity.outbox.Error;
+import org.triple.backend.payment.entity.outbox.PaymentEventBody;
+import org.triple.backend.payment.infra.dto.request.PaymentEventReq;
+import org.triple.backend.payment.infra.dto.response.PaymentEventFailRes;
+import org.triple.backend.payment.infra.dto.response.PaymentEventRes;
+import org.triple.backend.payment.infra.dto.response.PaymentEventSuccessRes;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 @Slf4j
 @Component
@@ -29,57 +27,36 @@ public class TossPayment {
     private final RestClient tossPaymentClient;
     private final TossPaymentProperties tossPaymentProperties;
 
-    @Retryable(
-            retryFor = {ResourceAccessException.class},
-            noRetryFor = {BusinessException.class, ConfirmServerException.class, ConfirmAnonymousException.class},
-            notRecoverable = {BusinessException.class, ConfirmServerException.class, ConfirmAnonymousException.class},
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 500, multiplier = 2, random = true)
-    )
-    public ConfirmResponse confirmRequest(Payment payment) {
-        try {
-            return exchangeRequestToResponse(payment);
+    public PaymentEventRes request(PaymentEventBody paymentEventBody) {
+        try{
+            return exchangeRequestToResponse(paymentEventBody);
         } catch (ResourceAccessException e) {
-            log.error("네트워크 예외가 발생했습니다.", e);
-            throw e;
+            return new PaymentEventFailRes(paymentEventBody.getOrderId(), Error.NETWORK_TIMEOUT, e.getMessage());
         } catch (RestClientResponseException e) {
-            int status = e.getStatusCode().value();
-            ConfirmFailResponse confirmFailResponse = e.getResponseBodyAs(ConfirmFailResponse.class);
-            log.error("Toss API error. status={}, body={}", status, confirmFailResponse, e);
-
-            if (status == 429 || status >= 500) {
-                throw new ResourceAccessException("네트워크 예외가 발생했습니다.");
-            }
-
-            if (status == 400
-                    && confirmFailResponse != null
-                    && "ALREADY_PROCESSED_PAYMENT".equals(confirmFailResponse.code())) {
-                // TODO: 이미 처리된 결제는 조회 API로 최종 상태 동기화 필요
-            }
-
-            throw new ConfirmServerException("결제 승인 서버에서 예외가 발생했습니다.", e);
+            int statusCode = e.getStatusCode().value();
+            if(statusCode == 429) return new PaymentEventFailRes(paymentEventBody.getOrderId(), Error.UPSTREAM_429, e.getMessage());
+            if(statusCode >= 500) return new PaymentEventFailRes(paymentEventBody.getOrderId(), Error.UPSTREAM_5XX, e.getMessage());
+            return new PaymentEventFailRes(paymentEventBody.getOrderId(), Error.UPSTREAM_4XX, e.getMessage());
         } catch (RuntimeException e) {
-            throw new ConfirmAnonymousException("알 수 없는 예외가 발생했습니다.", e);
+            return new PaymentEventFailRes(paymentEventBody.getOrderId(), Error.UNKNOWN, e.getMessage());
         }
     }
 
-    private ConfirmResponse exchangeRequestToResponse(Payment payment) {
+    private PaymentEventRes exchangeRequestToResponse(PaymentEventBody paymentEventBody) {
         return tossPaymentClient.post()
                 .uri(tossPaymentProperties.uri())
-                .header(AUTHORIZATION_HEADER_KEY, tossPaymentProperties.secret())
+                .header(AUTHORIZATION_HEADER_KEY, encodeBase64(tossPaymentProperties.secret()))
                 .header(CONTENT_TYPE_HEADER_KEY, tossPaymentProperties.contentType())
-                .body(makeRequestBody(payment))
+                .body(makeRequestBody(paymentEventBody))
                 .retrieve()
-                .body(ConfirmResponse.class);
+                .body(PaymentEventSuccessRes.class);
     }
 
-    private ConfirmRequest makeRequestBody(Payment payment) {
-        return ConfirmRequest.from(payment);
+    private PaymentEventReq makeRequestBody(PaymentEventBody paymentEventBody) {
+        return PaymentEventReq.from(paymentEventBody);
     }
 
-    @Recover
-    private ConfirmResponse recoverConfirmRequest(ResourceAccessException e, Payment payment) {
-        log.error("재시도 3회 실패, 네트워크 예외 발생", e);
-        throw new ConfirmRecoverFailedException("재시도 3회 실패, 네트워크 예외 발생", e);
+    private String encodeBase64(String secretKey) {
+        return "Basic " + Base64.getEncoder().encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
     }
 }

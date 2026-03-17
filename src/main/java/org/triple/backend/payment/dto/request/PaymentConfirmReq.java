@@ -1,11 +1,15 @@
 package org.triple.backend.payment.dto.request;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 import java.math.BigDecimal;
 
 public record PaymentConfirmReq(
-        String method,
-        String orderId,
-        String paymentKey,
-        BigDecimal requestedAmount,
-        String pgProvider
+        @NotBlank String method,
+        @NotBlank String orderId,
+        @NotBlank String paymentKey,
+        @NotNull @DecimalMin(value = "0.01", inclusive = true) BigDecimal requestedAmount,
+        @NotBlank String pgProvider
 ) {}

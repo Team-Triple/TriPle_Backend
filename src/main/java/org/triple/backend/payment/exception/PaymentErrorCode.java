@@ -15,7 +15,9 @@ public enum PaymentErrorCode implements ErrorCode {
     PAYMENT_CONFIRM_NOT_ALLOWED(HttpStatus.FORBIDDEN, "결제 승인 권한이 없습니다."),
     PAYMENT_SEARCH_NOT_ALLOWED(HttpStatus.FORBIDDEN, "결제 조회 권한이 없습니다."),
     PAYMENT_ALREADY_IS_ACTIVE(HttpStatus.FORBIDDEN, "이미 실행중인 결제입니다."),
-    INVALID_SEARCH_KEYWORD_LENGTH(HttpStatus.BAD_REQUEST, "검색어는 최대 20자까지 입력할 수 있습니다.");
+    INVALID_SEARCH_KEYWORD_LENGTH(HttpStatus.BAD_REQUEST, "검색어는 최대 20자까지 입력할 수 있습니다."),
+    NOT_FOUND_PAYMENT_EVENT(HttpStatus.NOT_FOUND, "결제 승인 이벤트가 없습니다.")
+    ;
 
     PaymentErrorCode(final HttpStatus status, final String message) {
         this.status = status;

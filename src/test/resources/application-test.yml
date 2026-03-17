@@ -75,3 +75,23 @@ app:
       upload-policy:
         allowed-extensions: [jpg, jpeg, png]
         allowed-content-types: [image/jpeg, image/png]
+
+payment:
+  event:
+    batch-size: 20
+    max-retry-count: 3
+    poll-fixed-rate-ms: 1000
+    retry-fixed-rate-ms: 1000
+    worker-core-size: 4
+    worker-max-size: 4
+    worker-queue-capacity: 100
+    retry-worker-core-size: 2
+    retry-worker-max-size: 2
+    retry-worker-queue-capacity: 100
+
+toss:
+  payment:
+    uri: http://localhost:8081/payment/confirm
+    secret: test-secret
+    content-type: application/json
+    timeout: 3

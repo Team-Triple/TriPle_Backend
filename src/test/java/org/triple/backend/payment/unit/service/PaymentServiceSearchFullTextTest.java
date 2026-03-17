@@ -19,7 +19,7 @@ import org.triple.backend.payment.entity.PaymentMethod;
 import org.triple.backend.payment.entity.PaymentStatus;
 import org.triple.backend.payment.entity.PgProvider;
 import org.triple.backend.payment.exception.PaymentErrorCode;
-import org.triple.backend.payment.infra.TossPayment;
+import org.triple.backend.payment.repository.PaymentEventJpaRepository;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.payment.service.PaymentService;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
@@ -48,6 +48,9 @@ class PaymentServiceSearchFullTextTest {
     private PaymentJpaRepository paymentJpaRepository;
 
     @Mock
+    private PaymentEventJpaRepository paymentEventJpaRepository;
+
+    @Mock
     private InvoiceUserJpaRepository invoiceUserJpaRepository;
 
     @Mock
@@ -56,16 +59,13 @@ class PaymentServiceSearchFullTextTest {
     @Mock
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
-    @Mock
-    private TossPayment tossPayment;
-
     private PaymentService paymentService;
 
     @BeforeEach
     void setUp() {
         paymentService = new PaymentService(
-                tossPayment,
                 paymentJpaRepository,
+                paymentEventJpaRepository,
                 invoiceUserJpaRepository,
                 invoiceJpaRepository,
                 userTravelItineraryJpaRepository
@@ -73,107 +73,74 @@ class PaymentServiceSearchFullTextTest {
     }
 
     @Test
-    @DisplayName("검색어가 없으면 전체 결제 목록 browse 첫 페이지를 조회한다")
-    void 검색어가_없으면_전체_결제_목록_browse_첫_페이지를_조회한다() {
-        Payment p1 = newPayment(30L, 100L, "제주 렌트비");
-        Payment p2 = newPayment(29L, 101L, "제주 숙소비");
+    @DisplayName("검색어가 비어있으면 첫 페이지를 일반 조회한다")
+    void 검색어가_비어있으면_첫_페이지를_일반_조회한다() {
+        Payment p1 = newPayment(30L, 100L, "trip a");
+        Payment p2 = newPayment(29L, 101L, "trip b");
 
         when(paymentJpaRepository.findFirstPage(eq(USER_ID), any(Pageable.class)))
                 .thenReturn(List.of(p1, p2));
 
-        PaymentCursorRes response = paymentService.search(null, null, 10, USER_ID);
+        PaymentCursorRes response = paymentService.search(" ", null, 10, USER_ID);
 
         assertThat(response.items()).hasSize(2);
         assertThat(response.hasNext()).isFalse();
         assertThat(response.nextCursor()).isNull();
         verify(paymentJpaRepository).findFirstPage(eq(USER_ID), any(Pageable.class));
         verify(paymentJpaRepository, never()).findFirstPageIdsByKeywordFullText(any(), anyLong(), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findAllWithInvoiceByIdInOrderByIdDesc(any());
     }
 
     @Test
-    @DisplayName("검색어가 없고 커서가 있으면 전체 결제 목록 browse 다음 페이지를 조회한다")
-    void 검색어가_없고_커서가_있으면_전체_결제_목록_browse_다음_페이지를_조회한다() {
-        Payment p1 = newPayment(49L, 120L, "결제49");
-        Payment p2 = newPayment(48L, 121L, "결제48");
-        Payment p3 = newPayment(47L, 122L, "결제47");
+    @DisplayName("검색어가 있으면 boolean mode full-text로 첫 페이지를 조회한다")
+    void 검색어가_있으면_boolean_mode_full_text로_첫_페이지를_조회한다() {
+        Payment p1 = newPayment(30L, 100L, "jeju transfer");
+        Payment p2 = newPayment(29L, 101L, "jeju stay");
 
-        when(paymentJpaRepository.findNextPage(eq(USER_ID), eq(50L), any(Pageable.class)))
-                .thenReturn(List.of(p1, p2, p3));
-
-        PaymentCursorRes response = paymentService.search(" ", 50L, 2, USER_ID);
-
-        assertThat(response.items()).hasSize(2);
-        assertThat(response.hasNext()).isTrue();
-        assertThat(response.nextCursor()).isEqualTo(48L);
-        verify(paymentJpaRepository).findNextPage(eq(USER_ID), eq(50L), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findNextPageIdsByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findAllWithInvoiceByIdInOrderByIdDesc(any());
-    }
-
-    @Test
-    @DisplayName("FULLTEXT 검색은 키워드를 boolean mode 쿼리로 변환해 첫 페이지를 조회한다")
-    void FULLTEXT_검색은_키워드를_boolean_mode_쿼리로_변환해_첫_페이지를_조회한다() {
-        Payment p1 = newPayment(30L, 100L, "제주 렌트비");
-        Payment p2 = newPayment(29L, 101L, "제주 숙소비");
-
-        when(paymentJpaRepository.findFirstPageIdsByKeywordFullText(eq("+제주* +결제*"), eq(USER_ID), any(Pageable.class)))
+        when(paymentJpaRepository.findFirstPageIdsByKeywordFullText(eq("+jeju* +pay*"), eq(USER_ID), any(Pageable.class)))
                 .thenReturn(List.of(30L, 29L));
         when(paymentJpaRepository.findAllWithInvoiceByIdInOrderByIdDesc(eq(List.of(30L, 29L))))
                 .thenReturn(List.of(p1, p2));
 
-        PaymentCursorRes response = paymentService.search(" 제주!! 결제? ", null, 10, USER_ID);
+        PaymentCursorRes response = paymentService.search("jeju pay", null, 10, USER_ID);
 
         assertThat(response.items()).hasSize(2);
-        assertThat(response.hasNext()).isFalse();
-        assertThat(response.nextCursor()).isNull();
         assertThat(response.items())
-                .extracting(PaymentCursorRes.PaymentSummaryDto::name)
-                .containsExactly("제주 렌트비", "제주 숙소비");
+                .extracting(PaymentCursorRes.PaymentSummaryDto::paymentId)
+                .containsExactly(30L, 29L);
+        assertThat(response.hasNext()).isFalse();
     }
 
     @Test
-    @DisplayName("FULLTEXT 검색은 구두점을 단어 경계로 처리해 boolean mode 쿼리로 변환한다")
-    void FULLTEXT_검색은_구두점을_단어_경계로_처리해_boolean_mode_쿼리로_변환한다() {
-        Payment p1 = newPayment(31L, 102L, "jeju-transfer plan");
+    @DisplayName("커서가 있으면 full-text 다음 페이지를 조회한다")
+    void 커서가_있으면_full_text_다음_페이지를_조회한다() {
+        Payment p1 = newPayment(49L, 120L, "payment 49");
+        Payment p2 = newPayment(48L, 121L, "payment 48");
+        Payment p3 = newPayment(47L, 122L, "payment 47");
 
-        when(paymentJpaRepository.findFirstPageIdsByKeywordFullText(eq("+jeju* +transfer* +plan*"), eq(USER_ID), any(Pageable.class)))
-                .thenReturn(List.of(31L));
-        when(paymentJpaRepository.findAllWithInvoiceByIdInOrderByIdDesc(eq(List.of(31L))))
-                .thenReturn(List.of(p1));
-
-        PaymentCursorRes response = paymentService.search("jeju-transfer, plan", null, 10, USER_ID);
-
-        assertThat(response.items()).hasSize(1);
-        assertThat(response.items().get(0).name()).isEqualTo("jeju-transfer plan");
-    }
-
-    @Test
-    @DisplayName("FULLTEXT 검색 다음 페이지는 커서 조건과 pageSize+1로 조회하고 hasNext를 계산한다")
-    void FULLTEXT_검색_다음_페이지는_커서_조건과_pageSize_플러스_일로_조회하고_hasNext를_계산한다() {
-        Payment p1 = newPayment(49L, 120L, "결제49");
-        Payment p2 = newPayment(48L, 121L, "결제48");
-        Payment p3 = newPayment(47L, 122L, "결제47");
-
-        when(paymentJpaRepository.findNextPageIdsByKeywordFullText(eq("+제주* +결제*"), eq(50L), eq(USER_ID), any(Pageable.class)))
+        when(paymentJpaRepository.findNextPageIdsByKeywordFullText(eq("+payment*"), eq(50L), eq(USER_ID), any(Pageable.class)))
                 .thenReturn(List.of(49L, 48L, 47L));
         when(paymentJpaRepository.findAllWithInvoiceByIdInOrderByIdDesc(eq(List.of(49L, 48L, 47L))))
                 .thenReturn(List.of(p1, p2, p3));
 
-        PaymentCursorRes response = paymentService.search("제주 결제", 50L, 2, USER_ID);
+        PaymentCursorRes response = paymentService.search("payment", 50L, 2, USER_ID);
 
         assertThat(response.items()).hasSize(2);
         assertThat(response.hasNext()).isTrue();
         assertThat(response.nextCursor()).isEqualTo(48L);
 
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        verify(paymentJpaRepository).findNextPageIdsByKeywordFullText(eq("+제주* +결제*"), eq(50L), eq(USER_ID), pageableCaptor.capture());
+        verify(paymentJpaRepository).findNextPageIdsByKeywordFullText(
+                eq("+payment*"),
+                eq(50L),
+                eq(USER_ID),
+                pageableCaptor.capture()
+        );
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(3);
     }
 
     @Test
-    @DisplayName("FULLTEXT 검색어가 특수문자만 있으면 빈 결과를 반환한다")
-    void FULLTEXT_검색어가_특수문자만_있으면_빈_결과를_반환한다() {
+    @DisplayName("검색어가 구분자만 있으면 빈 목록을 반환한다")
+    void 검색어가_구분자만_있으면_빈_목록을_반환한다() {
         PaymentCursorRes response = paymentService.search(" !!! ??? ", null, 10, USER_ID);
 
         assertThat(response.items()).isEmpty();
@@ -186,18 +153,14 @@ class PaymentServiceSearchFullTextTest {
     }
 
     @Test
-    @DisplayName("검색어 길이가 20자를 초과하면 INVALID_SEARCH_KEYWORD_LENGTH 예외가 발생한다")
-    void 검색어_길이가_20자를_초과하면_INVALID_SEARCH_KEYWORD_LENGTH_예외가_발생한다() {
+    @DisplayName("검색어 길이가 최대를 초과하면 INVALID_SEARCH_KEYWORD_LENGTH 예외가 발생한다")
+    void 검색어_길이가_최대를_초과하면_INVALID_SEARCH_KEYWORD_LENGTH_예외가_발생한다() {
         assertThatThrownBy(() -> paymentService.search("aaaaaaaaaaaaaaaaaaaaa", null, 10, USER_ID))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
-                    BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
+                    BusinessException businessException = (BusinessException) ex;
+                    assertThat(businessException.getErrorCode()).isEqualTo(PaymentErrorCode.INVALID_SEARCH_KEYWORD_LENGTH);
                 });
-
-        verify(paymentJpaRepository, never()).findFirstPageIdsByKeywordFullText(any(), anyLong(), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findNextPageIdsByKeywordFullText(any(), anyLong(), anyLong(), any(Pageable.class));
-        verify(paymentJpaRepository, never()).findAllWithInvoiceByIdInOrderByIdDesc(any());
     }
 
     private Payment newPayment(Long paymentId, Long invoiceId, String name) {

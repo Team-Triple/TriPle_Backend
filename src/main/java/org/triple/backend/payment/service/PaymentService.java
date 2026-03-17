@@ -1,13 +1,9 @@
 package org.triple.backend.payment.service;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.global.error.BusinessException;
@@ -26,15 +22,13 @@ import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.payment.entity.PaymentMethod;
 import org.triple.backend.payment.entity.PaymentStatus;
 import org.triple.backend.payment.entity.PgProvider;
+import org.triple.backend.payment.entity.outbox.PaymentEvent;
 import org.triple.backend.payment.exception.PaymentErrorCode;
-import org.triple.backend.payment.infra.TossPayment;
-import org.triple.backend.payment.infra.dto.response.ConfirmResponse;
 import org.triple.backend.payment.repository.PaymentJpaRepository;
+import org.triple.backend.payment.repository.PaymentEventJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
-import org.triple.backend.user.exception.UserErrorCode;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -48,8 +42,8 @@ public class PaymentService {
     private static final int MAX_PAGE_SIZE = 10;
     private static final int KEYWORD_MAX_LENGTH = 20;
 
-    private final TossPayment tossPayment;
     private final PaymentJpaRepository paymentJpaRepository;
+    private final PaymentEventJpaRepository paymentEventJpaRepository;
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
     private final InvoiceJpaRepository invoiceJpaRepository;
     private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
@@ -84,93 +78,19 @@ public class PaymentService {
     }
 
     @Transactional
-    public Payment readyToInProgressPayment(PaymentConfirmReq paymentConfirmReq, Long paymentId, Long userId) {
+    public void processPaymentEvent(PaymentConfirmReq paymentConfirmReq, Long invoiceId, Long userId) {
         Payment payment = paymentJpaRepository.findByOrderIdForUpdate(paymentConfirmReq.orderId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.NOT_FOUND_PAYMENT));
-
-        if(payment.getUser() == null) {
-            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        if(!payment.getUser().getId().equals(userId) || !payment.getInvoice().getId().equals(invoiceId)) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_NOT_ALLOWED);
         }
-
-        if(!payment.getUser().getId().equals(userId)) {
-            throw new BusinessException(PaymentErrorCode.PAYMENT_CONFIRM_NOT_ALLOWED);
+        if(!payment.getPaymentStatus().equals(PaymentStatus.READY)) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ALREADY_IS_ACTIVE);
         }
+        payment.processPaymentEvent(paymentConfirmReq.paymentKey(), PaymentStatus.IN_PROGRESS);
 
-        if(!payment.isStatus(PaymentStatus.READY)) {
-            throw new BusinessException(PaymentErrorCode.ALREADY_PROCESSED_PAYMENT);
-        }
-
-        if(!payment.isRequestedAmount(paymentConfirmReq.requestedAmount())) {
-            throw new BusinessException(PaymentErrorCode.ILLEGAL_AMOUNT);
-        }
-
-        payment.updateStatus(PaymentStatus.IN_PROGRESS);
-        return payment;
-    }
-
-    public ConfirmResponse confirm(Payment payment) {
-        return tossPayment.confirmRequest(payment);
-    }
-
-    @Retryable(
-            retryFor = {
-                    CannotAcquireLockException.class,
-                    QueryTimeoutException.class
-            },
-            noRetryFor = {
-                    BusinessException.class,
-                    DataIntegrityViolationException.class,
-            },
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 500, multiplier = 2, random = true)
-    )
-    @Transactional
-    public Payment inprogressToDonePayment(ConfirmResponse confirmResponse) {
-        Payment payment = paymentJpaRepository.findByOrderIdForUpdate(confirmResponse.orderId())
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.NOT_FOUND_PAYMENT));
-
-        if (confirmResponse.totalAmount() == null ||
-                payment.getRequestedAmount().compareTo(confirmResponse.totalAmount()) != 0) {
-            throw new BusinessException(PaymentErrorCode.ILLEGAL_AMOUNT);
-        }
-
-        if(!payment.isStatus(PaymentStatus.IN_PROGRESS)) {
-            throw new BusinessException(PaymentErrorCode.ALREADY_PROCESSED_PAYMENT);
-        }
-
-        payment.confirm(
-                confirmResponse.paymentKey(),
-                confirmResponse.totalAmount(),
-                PaymentStatus.DONE,
-                LocalDateTime.now(),    //clock으로 리팩토링 예정
-                confirmResponse.receipt().url()
-        );
-
-        return payment;
-    }
-
-    @Retryable(
-            retryFor = {
-                    CannotAcquireLockException.class,
-                    QueryTimeoutException.class
-            },
-            noRetryFor = {
-                    BusinessException.class,
-                    DataIntegrityViolationException.class,
-            },
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 500, multiplier = 2, random = true)
-    )
-    @Transactional
-    public void failConfirm(PaymentConfirmReq paymentConfirmReq, PaymentStatus paymentStatus) {
-        Payment payment = paymentJpaRepository.findByOrderIdForUpdate(paymentConfirmReq.orderId())
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.NOT_FOUND_PAYMENT));
-
-        if (!payment.isStatus(PaymentStatus.IN_PROGRESS)) {
-            throw new BusinessException(PaymentErrorCode.ALREADY_PROCESSED_PAYMENT);
-        }
-
-        payment.updateStatus(paymentStatus);
+        PaymentEvent paymentEvent = PaymentEvent.create(payment);
+        paymentEventJpaRepository.save(paymentEvent);
     }
 
     @Transactional(readOnly = true)
