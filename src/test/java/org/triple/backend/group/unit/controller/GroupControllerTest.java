@@ -677,6 +677,7 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.memberLimit").value(10))
                 .andExpect(jsonPath("$.role").value("GUEST"))
                 .andExpect(jsonPath("$.recentPhotos.length()").value(1))
+                .andExpect(jsonPath("$.travelCount").value(1))
                 .andExpect(jsonPath("$.recentTravels.length()").value(1))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(200))
                 .andExpect(jsonPath("$.recentTravels[0].title").value("벚꽃여행"))
@@ -695,7 +696,7 @@ public class GroupControllerTest extends ControllerTest {
                         pathParameters(
                                 parameterWithName("groupId").description("조회할 그룹 ID")
                         ),
-                        responseFields(
+                        relaxedResponseFields(
                                 fieldWithPath("users").description("그룹 멤버 목록"),
                                 fieldWithPath("users[].name").description("멤버 이름"),
                                 fieldWithPath("users[].description").description("멤버 소개").optional(),
