@@ -1,4 +1,4 @@
-package org.triple.backend.invoice.entity;
+package org.triple.backend.transfer.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -21,18 +21,18 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(
-        name = "invoice",
+        name = "transfer",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_invoice_travel_itinerary",
+                        name = "uk_transfer_travel_itinerary",
                         columnNames = {"travel_itinerary_id"}
                 )
         }
 )
-public class Invoice extends BaseEntity {
+public class Transfer extends BaseEntity {
 
     @Id
-    @Column(name = "invoice_id")
+    @Column(name = "transfer_id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -49,10 +49,10 @@ public class Invoice extends BaseEntity {
     private TravelItinerary travelItinerary;
 
     @Builder.Default
-    @OneToMany(mappedBy = "invoice")
-    private List<InvoiceUser> invoiceUsers = new ArrayList<>();
+    @OneToMany(mappedBy = "transfer")
+    private List<TransferUser> transferUsers = new ArrayList<>();
 
-    private InvoiceStatus invoiceStatus;
+    private TransferStatus transferStatus;
 
     private String title;
 
@@ -62,10 +62,19 @@ public class Invoice extends BaseEntity {
 
     private String description;
 
+    private String accountNumber;
+
+    private String bankName;
+
+    private String accountHolder;
+
     @Version
     private Long version;
 
-    public static Invoice create(
+    public static Transfer create(
+            final String accountNumber,
+            final String bankName,
+            final String accountHolder,
             final String title,
             final String description,
             final BigDecimal totalAmount,
@@ -74,13 +83,16 @@ public class Invoice extends BaseEntity {
             final TravelItinerary travelItinerary,
             final Group group
     ) {
-        return Invoice.builder()
+        return Transfer.builder()
+                .accountNumber(accountNumber)
+                .bankName(bankName)
+                .accountHolder(accountHolder)
                 .title(title)
                 .description(description)
                 .totalAmount(totalAmount)
                 .dueAt(dueAt)
                 .group(group)
-                .invoiceStatus(InvoiceStatus.UNCONFIRM)
+                .transferStatus(TransferStatus.UNCONFIRM)
                 .creator(creator)
                 .travelItinerary(travelItinerary)
                 .build();
@@ -91,15 +103,15 @@ public class Invoice extends BaseEntity {
     }
 
     public boolean isDeletableStatus() {
-        return invoiceStatus == InvoiceStatus.UNCONFIRM;
+        return transferStatus == TransferStatus.UNCONFIRM;
     }
 
     public void markDeleted() {
-        this.invoiceStatus = InvoiceStatus.DELETED;
+        this.transferStatus = TransferStatus.DELETED;
     }
 
     public void update(final String title, final String description, final LocalDateTime dueAt) {
-        if(!invoiceStatus.equals(InvoiceStatus.UNCONFIRM)) {
+        if(!transferStatus.equals(TransferStatus.UNCONFIRM)) {
             throw new IllegalStateException("청구서 수정이 불가합니다.");
         }
         this.title = title;
@@ -108,21 +120,42 @@ public class Invoice extends BaseEntity {
     }
 
     public void updateAmount(final BigDecimal totalAmount) {
-        if (invoiceStatus != InvoiceStatus.UNCONFIRM) {
+        updateSettlementInfo(accountNumber, bankName, accountHolder, totalAmount);
+    }
+
+    public void updateSettlementInfo(
+            final String accountNumber,
+            final String bankName,
+            final String accountHolder,
+            final BigDecimal totalAmount
+    ) {
+        if (transferStatus != TransferStatus.UNCONFIRM) {
             throw new IllegalStateException("확정되지 않은 청구서만 수정할 수 있습니다.");
+        }
+        if (accountNumber == null || accountNumber.isBlank()) {
+            throw new IllegalArgumentException("계좌번호는 필수입니다.");
+        }
+        if (bankName == null || bankName.isBlank()) {
+            throw new IllegalArgumentException("은행명은 필수입니다.");
+        }
+        if (accountHolder == null || accountHolder.isBlank()) {
+            throw new IllegalArgumentException("예금주명은 필수입니다.");
         }
         if (totalAmount == null || totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("총 금액은 0보다 커야 합니다.");
         }
 
+        this.accountNumber = accountNumber;
+        this.bankName = bankName;
+        this.accountHolder = accountHolder;
         this.totalAmount = totalAmount;
     }
 
     public void confirm() {
-        if(invoiceStatus != InvoiceStatus.UNCONFIRM) {
+        if(transferStatus != TransferStatus.UNCONFIRM) {
             throw new IllegalStateException("확정되지 않은 청구서만 확정지을 수 있습니다.");
         }
 
-        this.invoiceStatus = InvoiceStatus.CONFIRM;
+        this.transferStatus = TransferStatus.CONFIRM;
     }
 }
