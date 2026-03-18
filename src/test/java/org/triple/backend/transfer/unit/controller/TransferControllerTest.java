@@ -182,8 +182,6 @@ class TransferControllerTest extends ControllerTest {
                     { "id": "2", "name": "멤버1", "avatar": "http://profile/2", "amount": 30000, "settled": false },
                     { "id": "3", "name": "멤버2", "avatar": "http://profile/3", "amount": 40000, "settled": false }
                   ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
                   "totalAmount": 70000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
@@ -218,8 +216,6 @@ class TransferControllerTest extends ControllerTest {
                                 fieldWithPath("members[].avatar").description("정산 멤버 아바타 URL"),
                                 fieldWithPath("members[].amount").description("정산 금액"),
                                 fieldWithPath("members[].settled").description("정산 완료 여부"),
-                                fieldWithPath("title").description("청구서 제목"),
-                                fieldWithPath("description").description("청구서 설명"),
                                 fieldWithPath("totalAmount").description("총 청구 금액"),
                                 fieldWithPath("dueAt").description("납부 기한")
                         ),
@@ -332,8 +328,6 @@ class TransferControllerTest extends ControllerTest {
                     { "id": "2", "name": "멤버1", "avatar": "http://profile/2", "amount": 10000, "settled": false },
                     { "id": "3", "name": "멤버2", "avatar": "http://profile/3", "amount": 10000, "settled": false }
                   ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
@@ -385,8 +379,6 @@ class TransferControllerTest extends ControllerTest {
         Long transferId = 1L;
         TransferUpdateResponseDto response = new TransferUpdateResponseDto(
                 transferId,
-                "수정된 정산 제목",
-                "수정된 설명",
                 new BigDecimal("70000"),
                 LocalDateTime.of(2030, 4, 1, 18, 0),
                 TransferStatus.UNCONFIRM,
@@ -397,8 +389,6 @@ class TransferControllerTest extends ControllerTest {
 
         String body = """
                 {
-                  "title": "수정된 정산 제목",
-                  "description": "수정된 설명",
                   "dueAt": "2030-04-01T18:00:00"
                 }
                 """;
@@ -410,8 +400,6 @@ class TransferControllerTest extends ControllerTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.transferId").value(transferId))
-                .andExpect(jsonPath("$.title").value("수정된 정산 제목"))
-                .andExpect(jsonPath("$.description").value("수정된 설명"))
                 .andExpect(jsonPath("$.totalAmount").value(70000))
                 .andExpect(jsonPath("$.dueAt").value("2030-04-01T18:00:00"))
                 .andExpect(jsonPath("$.transferStatus").value("UNCONFIRM"))
@@ -423,14 +411,10 @@ class TransferControllerTest extends ControllerTest {
                                 parameterWithName("transferId").description("수정할 청구서 ID")
                         ),
                         requestFields(
-                                fieldWithPath("title").description("청구서 제목"),
-                                fieldWithPath("description").description("청구서 설명"),
                                 fieldWithPath("dueAt").description("납부 기한")
                         ),
                         responseFields(
                                 fieldWithPath("transferId").description("청구서 ID"),
-                                fieldWithPath("title").description("청구서 제목"),
-                                fieldWithPath("description").description("청구서 설명"),
                                 fieldWithPath("totalAmount").description("총 청구 금액"),
                                 fieldWithPath("dueAt").description("납부 기한"),
                                 fieldWithPath("transferStatus").description("청구서 상태"),
@@ -446,8 +430,6 @@ class TransferControllerTest extends ControllerTest {
     void 비로그인_사용자가_청구서_메타_정보_수정을_요청하면_401을_반환한다() throws Exception {
         String body = """
                 {
-                  "title": "수정된 정산 제목",
-                  "description": "수정된 설명",
                   "dueAt": "2030-04-01T18:00:00"
                 }
                 """;
@@ -464,8 +446,6 @@ class TransferControllerTest extends ControllerTest {
                                 parameterWithName("transferId").description("수정할 청구서 ID")
                         ),
                         requestFields(
-                                fieldWithPath("title").description("청구서 제목"),
-                                fieldWithPath("description").description("청구서 설명"),
                                 fieldWithPath("dueAt").description("납부 기한")
                         ),
                         responseFields(
@@ -483,8 +463,6 @@ class TransferControllerTest extends ControllerTest {
         mockCsrfValid();
         String invalidBody = """
                 {
-                  "title": " ",
-                  "description": " ",
                   "dueAt": null
                 }
                 """;
@@ -503,8 +481,6 @@ class TransferControllerTest extends ControllerTest {
                                 parameterWithName("transferId").description("수정할 청구서 ID")
                         ),
                         requestFields(
-                                fieldWithPath("title").description("청구서 제목"),
-                                fieldWithPath("description").description("청구서 설명"),
                                 fieldWithPath("dueAt").description("납부 기한")
                         ),
                         responseFields(
@@ -525,8 +501,6 @@ class TransferControllerTest extends ControllerTest {
 
         String body = """
                 {
-                  "title": "수정된 정산 제목",
-                  "description": "수정된 설명",
                   "dueAt": "2030-04-01T18:00:00"
                 }
                 """;
@@ -544,8 +518,6 @@ class TransferControllerTest extends ControllerTest {
                                 parameterWithName("transferId").description("수정할 청구서 ID")
                         ),
                         requestFields(
-                                fieldWithPath("title").description("청구서 제목"),
-                                fieldWithPath("description").description("청구서 설명"),
                                 fieldWithPath("dueAt").description("납부 기한")
                         ),
                         responseFields(
@@ -564,8 +536,6 @@ class TransferControllerTest extends ControllerTest {
 
         String body = """
                 {
-                  "title": "수정된 정산 제목",
-                  "description": "수정된 설명",
                   "dueAt": "2030-04-01T18:00:00"
                 }
                 """;
@@ -583,8 +553,6 @@ class TransferControllerTest extends ControllerTest {
                                 parameterWithName("transferId").description("수정할 청구서 ID")
                         ),
                         requestFields(
-                                fieldWithPath("title").description("청구서 제목"),
-                                fieldWithPath("description").description("청구서 설명"),
                                 fieldWithPath("dueAt").description("납부 기한")
                         ),
                         responseFields(
@@ -603,8 +571,6 @@ class TransferControllerTest extends ControllerTest {
 
         String body = """
                 {
-                  "title": "수정된 정산 제목",
-                  "description": "수정된 설명",
                   "dueAt": "2030-04-01T18:00:00"
                 }
                 """;
@@ -622,8 +588,6 @@ class TransferControllerTest extends ControllerTest {
                                 parameterWithName("transferId").description("수정할 청구서 ID")
                         ),
                         requestFields(
-                                fieldWithPath("title").description("청구서 제목"),
-                                fieldWithPath("description").description("청구서 설명"),
                                 fieldWithPath("dueAt").description("납부 기한")
                         ),
                         responseFields(
@@ -1524,8 +1488,6 @@ class TransferControllerTest extends ControllerTest {
                   "groupId": 10,
                   "travelItineraryId": 20,
                   "members": [ { "id": "2", "name": "멤버1", "avatar": "http://profile/2", "amount": 30000, "settled": false } ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
                   "totalAmount": 30000,
                   "dueAt": "2030-03-31T18:00:00"
                 }
@@ -1541,8 +1503,6 @@ class TransferControllerTest extends ControllerTest {
                   "groupId": 10,
                   "travelItineraryId": 20,
                   "members": [ { "id": "2", "name": "멤버1", "avatar": "http://profile/2", "amount": 30000, "settled": false } ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
                   "totalAmount": 0,
                   "dueAt": "2030-03-31T18:00:00"
                 }
@@ -1562,8 +1522,6 @@ class TransferControllerTest extends ControllerTest {
                 fieldWithPath("members[].avatar").description("정산 멤버 아바타 URL"),
                 fieldWithPath("members[].amount").description("정산 멤버 금액"),
                 fieldWithPath("members[].settled").description("정산 완료 여부"),
-                fieldWithPath("title").description("청구서 제목"),
-                fieldWithPath("description").description("청구서 설명"),
                 fieldWithPath("totalAmount").description("총 청구 금액"),
                 fieldWithPath("dueAt").description("납부 기한")
         };

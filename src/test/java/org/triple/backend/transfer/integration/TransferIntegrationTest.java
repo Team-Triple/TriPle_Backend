@@ -271,8 +271,6 @@ class TransferIntegrationTest {
 
         String body = """
                 {
-                  "title": "수정된 제목",
-                  "description": "수정된 설명",
                   "dueAt": "2030-04-01T18:00:00"
                 }
                 """;
@@ -286,14 +284,10 @@ class TransferIntegrationTest {
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.transferId").value(transfer.getId()))
-                .andExpect(jsonPath("$.title").value("수정된 제목"))
-                .andExpect(jsonPath("$.description").value("수정된 설명"))
                 .andExpect(jsonPath("$.dueAt").value("2030-04-01T18:00:00"))
                 .andExpect(jsonPath("$.transferStatus").value("UNCONFIRM"));
 
         Transfer updatedTransfer = transferJpaRepository.findById(transfer.getId()).orElseThrow();
-        assertThat(updatedTransfer.getTitle()).isEqualTo("수정된 제목");
-        assertThat(updatedTransfer.getDescription()).isEqualTo("수정된 설명");
         assertThat(updatedTransfer.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
     }
 
@@ -313,8 +307,6 @@ class TransferIntegrationTest {
 
         String body = """
                 {
-                  "title": "수정 시도",
-                  "description": "수정 시도 설명",
                   "dueAt": "2030-04-02T18:00:00"
                 }
                 """;
@@ -335,8 +327,6 @@ class TransferIntegrationTest {
     void 비로그인_사용자가_청구서_메타_정보_수정을_요청하면_401을_반환한다() throws Exception {
         String body = """
                 {
-                  "title": "수정된 제목",
-                  "description": "수정된 설명",
                   "dueAt": "2030-04-01T18:00:00"
                 }
                 """;
@@ -753,8 +743,6 @@ class TransferIntegrationTest {
                         .creator(creator)
                         .travelItinerary(travelItinerary)
                         .transferStatus(transferStatus)
-                        .title(title)
-                        .description("기존 설명")
                         .accountNumber("999999-00-999999")
                         .bankName("KB국민")
                         .accountHolder("김민준")
@@ -776,8 +764,6 @@ class TransferIntegrationTest {
                         .creator(creator)
                         .travelItinerary(travelItinerary)
                         .transferStatus(transferStatus)
-                        .title("청구서")
-                        .description("청구서 설명")
                         .accountNumber("999999-00-999999")
                         .bankName("KB국민")
                         .accountHolder("김민준")
@@ -819,8 +805,6 @@ class TransferIntegrationTest {
                   "members": [
                     { "id": "%s", "name": "멤버", "avatar": "http://img", "amount": %d, "settled": %s }
                   ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
                   "totalAmount": %d,
                   "dueAt": "2030-03-31T18:00:00"
                 }

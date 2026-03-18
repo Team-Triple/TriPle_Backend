@@ -54,13 +54,9 @@ public class Transfer extends BaseEntity {
 
     private TransferStatus transferStatus;
 
-    private String title;
-
     private BigDecimal totalAmount;
 
     private LocalDateTime dueAt;
-
-    private String description;
 
     private String accountNumber;
 
@@ -75,8 +71,6 @@ public class Transfer extends BaseEntity {
             final String accountNumber,
             final String bankName,
             final String accountHolder,
-            final String title,
-            final String description,
             final BigDecimal totalAmount,
             final LocalDateTime dueAt,
             final User creator,
@@ -87,8 +81,6 @@ public class Transfer extends BaseEntity {
                 .accountNumber(accountNumber)
                 .bankName(bankName)
                 .accountHolder(accountHolder)
-                .title(title)
-                .description(description)
                 .totalAmount(totalAmount)
                 .dueAt(dueAt)
                 .group(group)
@@ -110,12 +102,10 @@ public class Transfer extends BaseEntity {
         this.transferStatus = TransferStatus.DELETED;
     }
 
-    public void update(final String title, final String description, final LocalDateTime dueAt) {
+    public void update(final LocalDateTime dueAt) {
         if(!transferStatus.equals(TransferStatus.UNCONFIRM)) {
             throw new IllegalStateException("청구서 수정이 불가합니다.");
         }
-        this.title = title;
-        this.description = description;
         this.dueAt = dueAt;
     }
 

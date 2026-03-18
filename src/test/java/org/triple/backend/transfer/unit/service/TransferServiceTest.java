@@ -132,7 +132,6 @@ class TransferServiceTest {
         assertThat(savedTransfer.getCreator().getId()).isEqualTo(leader.getId());
         assertThat(savedTransfer.getGroup().getId()).isEqualTo(group.getId());
         assertThat(savedTransfer.getTravelItinerary().getId()).isEqualTo(travelItinerary.getId());
-        assertThat(savedTransfer.getTitle()).isEqualTo("제주 렌트비 정산");
 
         List<TransferUser> transferUsers = transferUserJpaRepository.findAll();
         assertThat(transferUsers).extracting(iu -> iu.getUser().getId())
@@ -261,8 +260,6 @@ class TransferServiceTest {
                 ),
                 group.getId(),
                 travelItinerary.getId(),
-                "제주 렌트비 정산",
-                "렌트비 N빵",
                 LocalDateTime.of(2030, 3, 31, 18, 0)
         );
 
@@ -469,25 +466,17 @@ class TransferServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "수정 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
-        TransferUpdateRequestDto request = new TransferUpdateRequestDto(
-                "수정된 제목",
-                "수정된 설명",
-                LocalDateTime.of(2030, 4, 1, 18, 0)
-        );
+        TransferUpdateRequestDto request = new TransferUpdateRequestDto(LocalDateTime.of(2030, 4, 1, 18, 0));
 
         // when
         TransferUpdateResponseDto response = transferService.updateMetaInfo(leader.getId(), transfer.getId(), request);
 
         // then
         assertThat(response.transferId()).isEqualTo(transfer.getId());
-        assertThat(response.title()).isEqualTo("수정된 제목");
-        assertThat(response.description()).isEqualTo("수정된 설명");
         assertThat(response.dueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
         assertThat(response.transferStatus()).isEqualTo(TransferStatus.UNCONFIRM);
 
         Transfer updatedTransfer = transferRepository.findById(transfer.getId()).orElseThrow();
-        assertThat(updatedTransfer.getTitle()).isEqualTo("수정된 제목");
-        assertThat(updatedTransfer.getDescription()).isEqualTo("수정된 설명");
         assertThat(updatedTransfer.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
     }
 
@@ -501,11 +490,7 @@ class TransferServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확정 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.CONFIRM, "확정 제목");
-        TransferUpdateRequestDto request = new TransferUpdateRequestDto(
-                "수정 시도",
-                "수정 시도 설명",
-                LocalDateTime.of(2030, 4, 2, 18, 0)
-        );
+        TransferUpdateRequestDto request = new TransferUpdateRequestDto(LocalDateTime.of(2030, 4, 2, 18, 0));
 
         // when & then
         assertThatThrownBy(() -> transferService.updateMetaInfo(leader.getId(), transfer.getId(), request))
@@ -527,11 +512,7 @@ class TransferServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "멤버 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
-        TransferUpdateRequestDto request = new TransferUpdateRequestDto(
-                "수정 시도",
-                "수정 시도 설명",
-                LocalDateTime.of(2030, 4, 3, 18, 0)
-        );
+        TransferUpdateRequestDto request = new TransferUpdateRequestDto(LocalDateTime.of(2030, 4, 3, 18, 0));
 
         // when & then
         assertThatThrownBy(() -> transferService.updateMetaInfo(outsider.getId(), transfer.getId(), request))
@@ -555,11 +536,7 @@ class TransferServiceTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
         Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
-        TransferUpdateRequestDto request = new TransferUpdateRequestDto(
-                "수정 시도",
-                "수정 시도 설명",
-                LocalDateTime.of(2030, 4, 4, 18, 0)
-        );
+        TransferUpdateRequestDto request = new TransferUpdateRequestDto(LocalDateTime.of(2030, 4, 4, 18, 0));
 
         // when & then
         assertThatThrownBy(() -> transferService.updateMetaInfo(member.getId(), transfer.getId(), request))
@@ -888,7 +865,7 @@ class TransferServiceTest {
                 transferService.updateMetaInfo(
                         leader.getId(),
                         transfer.getId(),
-                        new TransferUpdateRequestDto("수정 제목 A", "수정 설명 A", LocalDateTime.of(2030, 4, 10, 18, 0))
+                        new TransferUpdateRequestDto(LocalDateTime.of(2030, 4, 10, 18, 0))
                 );
                 successCount.incrementAndGet();
             } catch (Throwable throwable) {
@@ -905,7 +882,7 @@ class TransferServiceTest {
                 transferService.updateMetaInfo(
                         leader.getId(),
                         transfer.getId(),
-                        new TransferUpdateRequestDto("수정 제목 B", "수정 설명 B", LocalDateTime.of(2030, 4, 11, 18, 0))
+                        new TransferUpdateRequestDto(LocalDateTime.of(2030, 4, 11, 18, 0))
                 );
                 successCount.incrementAndGet();
             } catch (Throwable throwable) {
@@ -935,7 +912,6 @@ class TransferServiceTest {
             assertThat(failures.size()).isBetween(0, 1);
             assertThat(successCount.get() + failures.size()).isEqualTo(2);
             assertThat(concurrentConflictCount).isEqualTo(failures.size());
-            assertThat(List.of("수정 제목 A", "수정 제목 B")).contains(updatedTransfer.getTitle());
         } finally {
             executorService.shutdownNow();
             transferUserJpaRepository.deleteAllInBatch();
@@ -1072,8 +1048,6 @@ class TransferServiceTest {
                 members,
                 groupId,
                 travelItineraryId,
-                title,
-                description,
                 dueAt
         );
     }
@@ -1114,8 +1088,6 @@ class TransferServiceTest {
                         .creator(creator)
                         .travelItinerary(travelItinerary)
                         .transferStatus(transferStatus)
-                        .title(title)
-                        .description("기존 설명")
                         .accountNumber("999999-00-999999")
                         .bankName("KB국민")
                         .accountHolder("김민준")
@@ -1137,8 +1109,6 @@ class TransferServiceTest {
                         .creator(creator)
                         .travelItinerary(travelItinerary)
                         .transferStatus(transferStatus)
-                        .title("청구서")
-                        .description("청구서 설명")
                         .accountNumber("999999-00-999999")
                         .bankName("KB국민")
                         .accountHolder("김민준")

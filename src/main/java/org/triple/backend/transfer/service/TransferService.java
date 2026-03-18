@@ -109,7 +109,7 @@ public class TransferService {
         validateStatusOrThrow(transfer, TransferErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
         validateLeaderAuthorityOrThrow(userId, transfer);
 
-        transfer.update(dto.title(), dto.description(), dto.dueAt());
+        transfer.update(dto.dueAt());
 
         try {
             transferJpaRepository.flush();
@@ -232,8 +232,6 @@ public class TransferService {
                             dto.accountNumber(),
                             dto.bankName(),
                             dto.accountHolder(),
-                            dto.title(),
-                            dto.description(),
                             dto.totalAmount(),
                             dto.dueAt(),
                             owner,

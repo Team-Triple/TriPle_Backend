@@ -8,8 +8,6 @@ import java.time.LocalDateTime;
 
 public record TransferUpdateResponseDto(
         Long transferId,
-        String title,
-        String description,
         BigDecimal totalAmount,
         LocalDateTime dueAt,
         TransferStatus transferStatus,
@@ -19,8 +17,6 @@ public record TransferUpdateResponseDto(
     public static TransferUpdateResponseDto from(Transfer transfer) {
         return new TransferUpdateResponseDto(
                 transfer.getId(),
-                transfer.getTitle(),
-                transfer.getDescription(),
                 transfer.getTotalAmount(),
                 transfer.getDueAt(),
                 transfer.getTransferStatus(),

@@ -27,8 +27,6 @@ public class TransferUserIdMapper {
                 decryptCreateMembers(request.members()),
                 request.groupId(),
                 request.travelItineraryId(),
-                request.title(),
-                request.description(),
                 request.dueAt()
         );
     }
