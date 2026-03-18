@@ -3,7 +3,7 @@ package org.triple.backend.user.unit.service;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.triple.backend.global.error.BusinessException;
-import org.triple.backend.invoice.exception.InvoiceErrorCode;
+import org.triple.backend.transfer.exception.TransferErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 import org.triple.backend.user.service.UserFinder;
 
@@ -26,9 +26,9 @@ class UserFinderTest {
         UserJpaRepository userJpaRepository = mock(UserJpaRepository.class);
         UserFinder userFinder = new UserFinder(userJpaRepository);
 
-        assertThatThrownBy(() -> userFinder.findIdByPublicUuidOrThrow(null, InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND))
+        assertThatThrownBy(() -> userFinder.findIdByPublicUuidOrThrow(null, TransferErrorCode.RECIPIENT_USER_NOT_FOUND))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND.getMessage());
+                .hasMessage(TransferErrorCode.RECIPIENT_USER_NOT_FOUND.getMessage());
 
         then(userJpaRepository).should(never()).findIdByPublicUuid(any(UUID.class));
     }
@@ -39,9 +39,9 @@ class UserFinderTest {
         UserJpaRepository userJpaRepository = mock(UserJpaRepository.class);
         UserFinder userFinder = new UserFinder(userJpaRepository);
 
-        assertThatThrownBy(() -> userFinder.findIdByPublicUuidOrThrow("   ", InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND))
+        assertThatThrownBy(() -> userFinder.findIdByPublicUuidOrThrow("   ", TransferErrorCode.RECIPIENT_USER_NOT_FOUND))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND.getMessage());
+                .hasMessage(TransferErrorCode.RECIPIENT_USER_NOT_FOUND.getMessage());
 
         then(userJpaRepository).should(never()).findIdByPublicUuid(any(UUID.class));
     }
@@ -52,9 +52,9 @@ class UserFinderTest {
         UserJpaRepository userJpaRepository = mock(UserJpaRepository.class);
         UserFinder userFinder = new UserFinder(userJpaRepository);
 
-        assertThatThrownBy(() -> userFinder.findIdByPublicUuidOrThrow("invalid-uuid", InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND))
+        assertThatThrownBy(() -> userFinder.findIdByPublicUuidOrThrow("invalid-uuid", TransferErrorCode.RECIPIENT_USER_NOT_FOUND))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND.getMessage());
+                .hasMessage(TransferErrorCode.RECIPIENT_USER_NOT_FOUND.getMessage());
 
         then(userJpaRepository).should(never()).findIdByPublicUuid(any(UUID.class));
     }
@@ -67,9 +67,9 @@ class UserFinderTest {
         UUID publicUuid = UUID.randomUUID();
         given(userJpaRepository.findIdByPublicUuid(publicUuid)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userFinder.findIdByPublicUuidOrThrow(publicUuid.toString(), InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND))
+        assertThatThrownBy(() -> userFinder.findIdByPublicUuidOrThrow(publicUuid.toString(), TransferErrorCode.RECIPIENT_USER_NOT_FOUND))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage(InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND.getMessage());
+                .hasMessage(TransferErrorCode.RECIPIENT_USER_NOT_FOUND.getMessage());
 
         then(userJpaRepository).should().findIdByPublicUuid(publicUuid);
     }
@@ -82,7 +82,7 @@ class UserFinderTest {
         UUID publicUuid = UUID.randomUUID();
         given(userJpaRepository.findIdByPublicUuid(publicUuid)).willReturn(Optional.of(1L));
 
-        Long userId = userFinder.findIdByPublicUuidOrThrow(publicUuid.toString(), InvoiceErrorCode.RECIPIENT_USER_NOT_FOUND);
+        Long userId = userFinder.findIdByPublicUuidOrThrow(publicUuid.toString(), TransferErrorCode.RECIPIENT_USER_NOT_FOUND);
 
         assertThat(userId).isEqualTo(1L);
         then(userJpaRepository).should().findIdByPublicUuid(publicUuid);

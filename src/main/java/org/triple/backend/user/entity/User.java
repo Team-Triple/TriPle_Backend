@@ -9,7 +9,7 @@ import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.joinApply.JoinApply;
 import org.triple.backend.group.entity.userGroup.UserGroup;
-import org.triple.backend.invoice.entity.InvoiceUser;
+import org.triple.backend.transfer.entity.TransferUser;
 import org.triple.backend.travel.entity.UserTravelItinerary;
 
 import java.time.LocalDate;
@@ -73,7 +73,7 @@ public class User extends BaseEntity {
 
     @OneToMany(mappedBy = "user")
     @Builder.Default
-    private List<InvoiceUser> invoiceUsers = new ArrayList<>();
+    private List<TransferUser> transferUsers = new ArrayList<>();
 
     @PrePersist
     void initPublicUuid() {
