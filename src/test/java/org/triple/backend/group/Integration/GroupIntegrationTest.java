@@ -551,6 +551,7 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.users[0].name").value("상윤"))
                 .andExpect(jsonPath("$.users[0].isOwner").value(true))
                 .andExpect(jsonPath("$.recentPhotos", hasSize(0)))
+                .andExpect(jsonPath("$.travelCount").value(0))
                 .andExpect(jsonPath("$.recentTravels", hasSize(0)))
                 .andExpect(jsonPath("$.recentReviews", hasSize(0)));
     }
@@ -636,6 +637,7 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.users[*].name", containsInAnyOrder("상윤", "민규")))
                 .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)))
                 .andExpect(jsonPath("$.recentPhotos", hasSize(0)))
+                .andExpect(jsonPath("$.travelCount").value(0))
                 .andExpect(jsonPath("$.recentTravels", hasSize(0)))
                 .andExpect(jsonPath("$.recentReviews", hasSize(0)));
     }
@@ -721,8 +723,10 @@ public class GroupIntegrationTest {
         );
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.travelCount").value(1))
                 .andExpect(jsonPath("$.recentTravels", hasSize(1)))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(itinerary.getId().intValue()))
                 .andExpect(jsonPath("$.recentTravels[0].title").value("봄 제주 여행"))
@@ -746,6 +750,13 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.recentPhotos[*].imageUrl", not(hasItem("https://img/other-group.png"))))
                 .andExpect(jsonPath("$.recentPhotos[*].imageUrl", not(hasItem("https://img/deleted.png"))))
                 .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)));
+
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value(Role.GUEST.toString()))
+                .andExpect(jsonPath("$.travelCount").value(1))
+                .andExpect(jsonPath("$.recentTravels", hasSize(0)))
+                .andExpect(jsonPath("$.recentReviews", hasSize(2)));
     }
 
     @Test

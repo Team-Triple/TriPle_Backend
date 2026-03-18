@@ -640,6 +640,7 @@ public class GroupControllerTest extends ControllerTest {
                 10,
                 Role.GUEST,
                 List.of(new GroupDetailResponseDto.RecentPhotoDto(100L, "https://example.com/review-image-1.png")),
+                1,
                 List.of(new GroupDetailResponseDto.RecentTravelDto(
                         200L,
                         "벚꽃여행",
@@ -677,6 +678,7 @@ public class GroupControllerTest extends ControllerTest {
                 .andExpect(jsonPath("$.memberLimit").value(10))
                 .andExpect(jsonPath("$.role").value("GUEST"))
                 .andExpect(jsonPath("$.recentPhotos.length()").value(1))
+                .andExpect(jsonPath("$.travelCount").value(1))
                 .andExpect(jsonPath("$.recentTravels.length()").value(1))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(200))
                 .andExpect(jsonPath("$.recentTravels[0].title").value("벚꽃여행"))
@@ -711,6 +713,7 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("recentPhotos").description("최근 사진 최대 4개"),
                                 fieldWithPath("recentPhotos[].imageId").description("사진 ID"),
                                 fieldWithPath("recentPhotos[].imageUrl").description("사진 URL"),
+                                fieldWithPath("travelCount").description("여행 수"),
                                 fieldWithPath("recentTravels").description("최근 여행 일정 최대 4개"),
                                 fieldWithPath("recentTravels[].travelItineraryId").description("여행 일정 ID"),
                                 fieldWithPath("recentTravels[].title").description("여행 일정 제목"),
