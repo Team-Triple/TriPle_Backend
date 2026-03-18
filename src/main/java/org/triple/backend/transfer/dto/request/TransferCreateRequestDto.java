@@ -26,10 +26,20 @@ public record TransferCreateRequestDto(
         @NotEmpty(message = "정산 멤버 목록은 비어 있을 수 없습니다.")
         List<@Valid MemberDto> members,
 
+        @NotNull(message = "그룹 ID는 필수입니다.")
         Long groupId,
+
+        @NotNull(message = "여행 일정 ID는 필수입니다.")
         Long travelItineraryId,
+
+        @NotBlank(message = "청구서 제목은 필수입니다.")
         String title,
+
+        @NotBlank(message = "청구서 설명은 필수입니다.")
         String description,
+
+        @NotNull(message = "납부 기한은 필수입니다.")
+        @Future(message = "납부 기한은 현재 시각 이후여야 합니다.")
         LocalDateTime dueAt
 ) {
     public List<RecipientAmountDto> recipients() {

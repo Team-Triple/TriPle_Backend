@@ -233,6 +233,49 @@ class TransferServiceTest {
     }
 
     @Test
+    @DisplayName("정산 완료 멤버의 금액이 0보다 크면 INVALID_SETTLED_AMOUNT 예외가 발생한다.")
+    void 정산_완료_멤버_금액이_양수면_INVALID_SETTLED_AMOUNT_예외가_발생한다() {
+        // given
+        User leader = saveUser("leader-settled");
+        User member = saveUser("member-settled");
+        Group group = saveGroup("정산 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "제주 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+
+        TransferCreateRequestDto request = new TransferCreateRequestDto(
+                "999999-00-999999",
+                "KB국민",
+                "김민준",
+                new BigDecimal("30000"),
+                List.of(
+                        new TransferCreateRequestDto.MemberDto(
+                                member.getPublicUuid().toString(),
+                                "멤버",
+                                "http://img",
+                                new BigDecimal("30000"),
+                                true
+                        )
+                ),
+                group.getId(),
+                travelItinerary.getId(),
+                "제주 렌트비 정산",
+                "렌트비 N빵",
+                LocalDateTime.of(2030, 3, 31, 18, 0)
+        );
+
+        // when & then
+        assertThatThrownBy(() -> transferService.create(leader.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.INVALID_SETTLED_AMOUNT);
+                });
+    }
+
+    @Test
     @DisplayName("청구 대상 사용자에 중복이 있으면 DUPLICATE_RECIPIENT 예외가 발생한다.")
     void 청구_대상_사용자에_중복이_있으면_DUPLICATE_RECIPIENT_예외가_발생한다() {
         // given
@@ -546,7 +589,7 @@ class TransferServiceTest {
         Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
         transferUserJpaRepository.save(TransferUser.create(transfer, member1, new BigDecimal("70000")));
 
-        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
+        TransferAdjustRequestDto request = createAdjustRequest(
                 new BigDecimal("30000"),
                 List.of(
                         new RecipientAmountDto(member1.getPublicUuid().toString(), new BigDecimal("10000")),
@@ -588,7 +631,7 @@ class TransferServiceTest {
 
         Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
 
-        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
+        TransferAdjustRequestDto request = createAdjustRequest(
                 new BigDecimal("50000"),
                 List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000")))
         );
@@ -599,6 +642,45 @@ class TransferServiceTest {
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.INVALID_TOTAL_AMOUNT);
+                });
+    }
+
+    @Test
+    @DisplayName("청구서 금액/대상 정보 수정 시 정산 완료 멤버 금액이 양수면 INVALID_SETTLED_AMOUNT 예외가 발생한다.")
+    void 청구서_금액_대상_정보_수정_시_정산_완료_멤버_금액이_양수면_INVALID_SETTLED_AMOUNT_예외가_발생한다() {
+        // given
+        User leader = saveUser("leader-adjust-settled");
+        User member = saveUser("member-adjust-settled");
+        Group group = saveGroup("정산 상태 검증 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 상태 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
+
+        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
+                "999999-00-999999",
+                "KB국민",
+                "김민준",
+                new BigDecimal("30000"),
+                List.of(
+                        new TransferAdjustRequestDto.MemberDto(
+                                member.getPublicUuid().toString(),
+                                "멤버",
+                                "http://img",
+                                new BigDecimal("30000"),
+                                true
+                        )
+                )
+        );
+
+        // when & then
+        assertThatThrownBy(() -> transferService.updateInfo(leader.getId(), transfer.getId(), request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException be = (BusinessException) ex;
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.INVALID_SETTLED_AMOUNT);
                 });
     }
 
@@ -615,7 +697,7 @@ class TransferServiceTest {
 
         Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
 
-        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
+        TransferAdjustRequestDto request = createAdjustRequest(
                 new BigDecimal("10000"),
                 List.of(new RecipientAmountDto(outsider.getPublicUuid().toString(), new BigDecimal("10000")))
         );
@@ -643,7 +725,7 @@ class TransferServiceTest {
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
         Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
 
-        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
+        TransferAdjustRequestDto request = createAdjustRequest(
                 new BigDecimal("20000"),
                 List.of(
                         new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")),
@@ -993,6 +1075,29 @@ class TransferServiceTest {
                 title,
                 description,
                 dueAt
+        );
+    }
+
+    private TransferAdjustRequestDto createAdjustRequest(
+            final BigDecimal totalAmount,
+            final List<RecipientAmountDto> recipients
+    ) {
+        List<TransferAdjustRequestDto.MemberDto> members = recipients.stream()
+                .map(recipient -> new TransferAdjustRequestDto.MemberDto(
+                        recipient.userId(),
+                        "멤버",
+                        "http://img",
+                        recipient.amount(),
+                        recipient.amount().compareTo(BigDecimal.ZERO) == 0
+                ))
+                .toList();
+
+        return new TransferAdjustRequestDto(
+                "999999-00-999999",
+                "KB국민",
+                "김민준",
+                totalAmount,
+                members
         );
     }
 

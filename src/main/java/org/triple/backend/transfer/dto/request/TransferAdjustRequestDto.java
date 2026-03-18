@@ -2,7 +2,6 @@ package org.triple.backend.transfer.dto.request;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
-import org.triple.backend.transfer.dto.RecipientAmountDto;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,37 +23,6 @@ public record TransferAdjustRequestDto(
         @NotEmpty(message = "정산 멤버 목록은 비어 있을 수 없습니다.")
         List<@Valid MemberDto> members
 ) {
-    public TransferAdjustRequestDto(
-            final BigDecimal totalAmount,
-            final List<RecipientAmountDto> recipients
-    ) {
-        this(
-                "999999-00-999999",
-                "KB국민",
-                "김민준",
-                totalAmount,
-                toMembers(recipients)
-        );
-    }
-
-    public List<RecipientAmountDto> recipients() {
-        return members.stream()
-                .map(member -> new RecipientAmountDto(member.id(), member.amount()))
-                .toList();
-    }
-
-    private static List<MemberDto> toMembers(final List<RecipientAmountDto> recipients) {
-        return recipients.stream()
-                .map(recipient -> new MemberDto(
-                        recipient.userId(),
-                        "멤버",
-                        "https://example.com/avatar.png",
-                        recipient.amount(),
-                        recipient.amount().compareTo(BigDecimal.ZERO) == 0
-                ))
-                .toList();
-    }
-
     public record MemberDto(
             @NotBlank(message = "멤버 ID는 필수입니다.")
             String id,

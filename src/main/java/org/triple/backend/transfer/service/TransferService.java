@@ -12,7 +12,6 @@ import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
-import org.triple.backend.transfer.dto.RecipientAmountDto;
 import org.triple.backend.transfer.dto.request.TransferAdjustRequestDto;
 import org.triple.backend.transfer.dto.request.TransferCreateRequestDto;
 import org.triple.backend.transfer.dto.request.TransferUpdateRequestDto;
@@ -38,6 +37,7 @@ import org.triple.backend.user.service.UserFinder;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,7 +54,7 @@ public class TransferService {
 
     @Transactional
     public TransferCreateResponseDto create(final Long userId, final TransferCreateRequestDto dto) {
-        validateTotalAmount(dto.recipients(), dto.totalAmount());
+        validateCreateMembers(dto.members(), dto.totalAmount());
 
         Group group = groupJpaRepository.findByIdAndIsDeletedFalse(dto.groupId()).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
@@ -125,7 +125,7 @@ public class TransferService {
         validateLeaderAuthorityOrThrow(userId, transfer);
 
         Map<Long, TransferAdjustRequestDto.MemberDto> memberByUserId = toAdjustMemberMap(dto.members());
-        validateTotalAmount(dto.recipients(), dto.totalAmount());
+        validateAdjustMembers(dto.members(), dto.totalAmount());
         Map<Long, User> userById = loadRecipientUsersOrThrow(transfer.getGroup().getId(), memberByUserId.keySet());
 
         transferUserJpaRepository.deleteAllByTransferIdInBatch(transferId);
@@ -266,12 +266,52 @@ public class TransferService {
         }
     }
 
-    private void validateTotalAmount(final List<RecipientAmountDto> recipients, final BigDecimal totalAmount) {
-        BigDecimal sum = recipients.stream().map(RecipientAmountDto::amount)
+    private void validateCreateMembers(
+            final List<TransferCreateRequestDto.MemberDto> members,
+            final BigDecimal totalAmount
+    ) {
+        validateSettledAmountConsistency(
+                members,
+                TransferCreateRequestDto.MemberDto::settled,
+                TransferCreateRequestDto.MemberDto::amount
+        );
+        BigDecimal sum = members.stream()
+                .map(TransferCreateRequestDto.MemberDto::amount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        if(sum.compareTo(totalAmount) != 0) {
+        if (sum.compareTo(totalAmount) != 0) {
             throw new BusinessException(TransferErrorCode.INVALID_TOTAL_AMOUNT);
+        }
+    }
+
+    private void validateAdjustMembers(
+            final List<TransferAdjustRequestDto.MemberDto> members,
+            final BigDecimal totalAmount
+    ) {
+        validateSettledAmountConsistency(
+                members,
+                TransferAdjustRequestDto.MemberDto::settled,
+                TransferAdjustRequestDto.MemberDto::amount
+        );
+        BigDecimal sum = members.stream()
+                .map(TransferAdjustRequestDto.MemberDto::amount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (sum.compareTo(totalAmount) != 0) {
+            throw new BusinessException(TransferErrorCode.INVALID_TOTAL_AMOUNT);
+        }
+    }
+
+    private <M> void validateSettledAmountConsistency(
+            final List<M> members,
+            final Function<M, Boolean> settledExtractor,
+            final Function<M, BigDecimal> amountExtractor
+    ) {
+        boolean hasInvalidMember = members.stream()
+                .anyMatch(member -> Boolean.TRUE.equals(settledExtractor.apply(member))
+                        && amountExtractor.apply(member).compareTo(BigDecimal.ZERO) > 0);
+        if (hasInvalidMember) {
+            throw new BusinessException(TransferErrorCode.INVALID_SETTLED_AMOUNT);
         }
     }
 

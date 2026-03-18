@@ -8,6 +8,7 @@ public enum TransferErrorCode implements ErrorCode {
     NOT_FOUND_INVOICE(HttpStatus.NOT_FOUND, "존재하지 않는 청구서 입니다."),
     DUPLICATE_RECIPIENT(HttpStatus.CONFLICT, "청구 대상에 중복된 사용자가 포함되어 있습니다."),
     INVALID_TOTAL_AMOUNT(HttpStatus.FORBIDDEN, "총 금액과 대상 금액 합계가 일치하지 않습니다."),
+    INVALID_SETTLED_AMOUNT(HttpStatus.BAD_REQUEST, "정산 완료 멤버의 금액은 0이어야 합니다."),
     RECIPIENT_USER_NOT_FOUND(HttpStatus.BAD_REQUEST, "청구 대상자에 존재하지 않는 사용자가 포함되어 있습니다."),
     DUPLICATE_INVOICE(HttpStatus.CONFLICT, "중복된 청구서 생성입니다."),
     NOT_TRAVEL_LEADER(HttpStatus.FORBIDDEN, "여행장 권한이 필요합니다."),
