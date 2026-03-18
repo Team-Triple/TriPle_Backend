@@ -6,6 +6,9 @@
 - JOB: {JOB_NAME}
 - TASK ID: {TASK_ID}
 - 대상 브랜치: {branch_name}
+- DRAFT 작성 승인 명령: {사용자 `작업 진행` 확인}
+- 코드 반영 승인 명령: {사용자 `병합!` 확인}
+- 커밋 전 이슈번호 확인 상태: {대기/완료}
 
 ## 1. TASK 목표
 
@@ -90,6 +93,7 @@
 - 피드백 #1: {내용}
 - 반영 계획: {수정 예정 내용}
 - 상태: {대기/진행/완료}
+- `병합!` 승인 상태: {대기/완료}
 
 ## 10. Merge Incident Handling
 
@@ -99,3 +103,5 @@
 - User confirmation status: {확인 완료 여부}
 - Rollback executed: {롤백 여부 / 범위}
 - Re-merge condition: {재병합 전 필수 테스트/검증}
+- DRAFT 삭제 상태(병합 후): {대기/완료}
+- PLAN 삭제 조건 확인 상태(커밋 후): {대기/완료}

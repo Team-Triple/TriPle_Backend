@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.triple.backend.global.common.BaseEntity;
 import org.triple.backend.group.entity.group.Group;
-import org.triple.backend.payment.entity.Payment;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.user.entity.User;
 
@@ -52,10 +51,6 @@ public class Invoice extends BaseEntity {
     @Builder.Default
     @OneToMany(mappedBy = "invoice")
     private List<InvoiceUser> invoiceUsers = new ArrayList<>();
-
-    @Builder.Default
-    @OneToMany(mappedBy = "invoice")
-    private List<Payment> payments = new ArrayList<>();
 
     private InvoiceStatus invoiceStatus;
 

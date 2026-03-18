@@ -26,7 +26,6 @@ import org.triple.backend.invoice.entity.InvoiceUser;
 import org.triple.backend.invoice.exception.InvoiceErrorCode;
 import org.triple.backend.invoice.repository.InvoiceJpaRepository;
 import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
-import org.triple.backend.payment.repository.PaymentJpaRepository;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
@@ -50,7 +49,6 @@ public class InvoiceService {
     private final TravelItineraryJpaRepository travelItineraryJpaRepository;
     private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
     private final InvoiceUserJpaRepository invoiceUserJpaRepository;
-    private final PaymentJpaRepository paymentJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
     private final UserFinder userFinder;
 
@@ -125,7 +123,6 @@ public class InvoiceService {
 
         validateStatusOrThrow(invoice, InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
         validateLeaderAuthorityOrThrow(userId, invoice);
-        validateNoPaymentOrThrow(invoiceId, InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
 
         Map<Long, RecipientAmountDto> recipientByUserId = toRecipientMap(dto.recipients());
         validateTotalAmount(dto.recipients(), dto.totalAmount());
@@ -249,12 +246,6 @@ public class InvoiceService {
         }
     }
 
-    private void validateNoPaymentOrThrow(final Long invoiceId, final InvoiceErrorCode errorCode) {
-        if (paymentJpaRepository.existsByInvoiceId(invoiceId)) {
-            throw new BusinessException(errorCode);
-        }
-    }
-
     @Transactional
     public void delete(final Long userId, final Long invoiceId) {
         Invoice invoice = invoiceJpaRepository.findByIdForUpdate(invoiceId)
@@ -268,10 +259,6 @@ public class InvoiceService {
             throw new BusinessException(InvoiceErrorCode.DELETE_FORBIDDEN_STATUS);
         }
 
-        if (paymentJpaRepository.existsByInvoiceId(invoiceId)) {
-            throw new BusinessException(InvoiceErrorCode.DELETE_FORBIDDEN_PAYMENT_EXISTS);
-        }
-
         invoiceUserJpaRepository.deleteAllByInvoiceIdInBatch(invoiceId);
         invoice.markDeleted();
     }
@@ -281,7 +268,6 @@ public class InvoiceService {
         Invoice invoice = invoiceJpaRepository.findByIdForUpdateWithGroupAndTravelItinerary(invoiceId).orElseThrow(() -> new BusinessException(InvoiceErrorCode.NOT_FOUND_INVOICE));
         validateLeaderAuthorityOrThrow(userId, invoice);
         validateStatusOrThrow(invoice, InvoiceErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS);
-        validateNoPaymentOrThrow(invoiceId, InvoiceErrorCode.CHECK_FORBIDDEN_PAYMENT_EXISTS);
         invoice.confirm();
     }
 }
