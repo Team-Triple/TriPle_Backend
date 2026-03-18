@@ -30,6 +30,7 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -155,7 +156,14 @@ class UserControllerTest extends ControllerTest {
                 .andExpect(status().isOk())
                 .andDo(document("users/update",
                         preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint())));
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("nickname").description("닉네임").optional(),
+                                fieldWithPath("gender").description("성별").optional(),
+                                fieldWithPath("birth").description("생일").optional(),
+                                fieldWithPath("description").description("소개").optional(),
+                                fieldWithPath("profileUrl").description("프로필 이미지 URL").optional()
+                        )));
 
         verify(userService).updateUserInfo(eq(userId), eq(request));
     }
@@ -179,7 +187,13 @@ class UserControllerTest extends ControllerTest {
                                 """)
                         .with(loginSessionAndCsrf()))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value(UserErrorCode.USER_NOT_FOUND.getMessage()));
+                .andExpect(jsonPath("$.message").value(UserErrorCode.USER_NOT_FOUND.getMessage()))
+                .andDo(document("users/update-fail-user-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
     }
 
     private RequestPostProcessor loginSessionAndCsrf() {
