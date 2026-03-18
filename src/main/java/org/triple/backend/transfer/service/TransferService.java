@@ -54,7 +54,12 @@ public class TransferService {
 
     @Transactional
     public TransferCreateResponseDto create(final Long userId, final TransferCreateRequestDto dto) {
-        validateCreateMembers(dto.members(), dto.totalAmount());
+        validateMembers(
+                dto.members(),
+                dto.totalAmount(),
+                TransferCreateRequestDto.MemberDto::settled,
+                TransferCreateRequestDto.MemberDto::amount
+        );
 
         Group group = groupJpaRepository.findByIdAndIsDeletedFalse(dto.groupId()).orElseThrow(() -> new BusinessException(GroupErrorCode.GROUP_NOT_FOUND));
 
@@ -125,7 +130,12 @@ public class TransferService {
         validateLeaderAuthorityOrThrow(userId, transfer);
 
         Map<Long, TransferAdjustRequestDto.MemberDto> memberByUserId = toAdjustMemberMap(dto.members());
-        validateAdjustMembers(dto.members(), dto.totalAmount());
+        validateMembers(
+                dto.members(),
+                dto.totalAmount(),
+                TransferAdjustRequestDto.MemberDto::settled,
+                TransferAdjustRequestDto.MemberDto::amount
+        );
         Map<Long, User> userById = loadRecipientUsersOrThrow(transfer.getGroup().getId(), memberByUserId.keySet());
 
         transferUserJpaRepository.deleteAllByTransferIdInBatch(transferId);
@@ -266,35 +276,27 @@ public class TransferService {
         }
     }
 
-    private void validateCreateMembers(
-            final List<TransferCreateRequestDto.MemberDto> members,
-            final BigDecimal totalAmount
+    private <M> void validateMembers(
+            final List<M> members,
+            final BigDecimal totalAmount,
+            final Function<M, Boolean> settledExtractor,
+            final Function<M, BigDecimal> amountExtractor
     ) {
         validateSettledAmountConsistency(
                 members,
-                TransferCreateRequestDto.MemberDto::settled,
-                TransferCreateRequestDto.MemberDto::amount
+                settledExtractor,
+                amountExtractor
         );
-        BigDecimal sum = members.stream()
-                .map(TransferCreateRequestDto.MemberDto::amount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        if (sum.compareTo(totalAmount) != 0) {
-            throw new BusinessException(TransferErrorCode.INVALID_TOTAL_AMOUNT);
-        }
+        validateTotalAmount(members, totalAmount, amountExtractor);
     }
 
-    private void validateAdjustMembers(
-            final List<TransferAdjustRequestDto.MemberDto> members,
-            final BigDecimal totalAmount
+    private <M> void validateTotalAmount(
+            final List<M> members,
+            final BigDecimal totalAmount,
+            final Function<M, BigDecimal> amountExtractor
     ) {
-        validateSettledAmountConsistency(
-                members,
-                TransferAdjustRequestDto.MemberDto::settled,
-                TransferAdjustRequestDto.MemberDto::amount
-        );
         BigDecimal sum = members.stream()
-                .map(TransferAdjustRequestDto.MemberDto::amount)
+                .map(amountExtractor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         if (sum.compareTo(totalAmount) != 0) {
