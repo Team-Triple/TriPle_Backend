@@ -152,7 +152,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("로그인한 여행장(LEADER)은 청구서를 생성할 수 있다.")
+    @DisplayName("로그인한 여행장(LEADER)은 정산서를 생성할 수 있다.")
     void 로그인한_여행장_LEADER은_청구서를_생성할_수_있다() throws Exception {
         // given
         String recipient1PublicUuid = "00000000-0000-0000-0000-000000000002";
@@ -242,7 +242,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 생성을 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 생성을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_생성을_요청하면_401을_반환한다() throws Exception {
         String body = validCreateBody();
 
@@ -264,7 +264,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("청구서 생성 요청이 유효하지 않으면 400을 반환한다.")
+    @DisplayName("정산서 생성 요청이 유효하지 않으면 400을 반환한다.")
     void 청구서_생성_요청이_유효하지_않으면_400을_반환한다() throws Exception {
         // given
         mockCsrfValid();
@@ -290,7 +290,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 생성 요청 시 403을 반환한다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 생성 요청 시 403을 반환한다.")
     void 여행장_LEADER가_아니면_청구서_생성_요청_시_403을_반환한다() throws Exception {
         mockCsrfValid();
         given(transferService.create(eq(1L), any(TransferCreateRequestDto.class)))
@@ -315,7 +315,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("총 금액 불일치 청구서 생성 요청 시 403을 반환한다.")
+    @DisplayName("총 금액 불일치 정산서 생성 요청 시 403을 반환한다.")
     void 총_금액_불일치_청구서_생성_요청_시_403을_반환한다() throws Exception {
         mockCsrfValid();
         given(transferService.create(eq(1L), any(TransferCreateRequestDto.class)))
@@ -379,7 +379,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("로그인한 여행장(LEADER)은 청구서 메타 정보를 수정할 수 있다.")
+    @DisplayName("로그인한 여행장(LEADER)은 정산서 메타 정보를 수정할 수 있다.")
     void 로그인한_여행장_LEADER은_청구서_메타_정보를_수정할_수_있다() throws Exception {
         // given
         Long transferId = 1L;
@@ -442,7 +442,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 메타 정보 수정을 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 메타 정보 수정을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_메타_정보_수정을_요청하면_401을_반환한다() throws Exception {
         String body = """
                 {
@@ -477,7 +477,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("청구서 메타 정보 수정 요청이 유효하지 않으면 400을 반환한다.")
+    @DisplayName("정산서 메타 정보 수정 요청이 유효하지 않으면 400을 반환한다.")
     void 청구서_메타_정보_수정_요청이_유효하지_않으면_400을_반환한다() throws Exception {
         // given
         mockCsrfValid();
@@ -516,7 +516,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 청구서 메타 정보 수정 요청 시 404를 반환한다.")
+    @DisplayName("존재하지 않는 정산서 메타 정보 수정 요청 시 404를 반환한다.")
     void 존재하지_않는_청구서_메타_정보_수정_요청_시_404를_반환한다() throws Exception {
         Long transferId = 999L;
         mockCsrfValid();
@@ -555,7 +555,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 메타 정보 수정 요청 시 403을 반환한다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 메타 정보 수정 요청 시 403을 반환한다.")
     void 여행장_LEADER가_아니면_청구서_메타_정보_수정_요청_시_403을_반환한다() throws Exception {
         Long transferId = 1L;
         mockCsrfValid();
@@ -594,7 +594,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("수정 불가능한 상태의 청구서 메타 정보 수정 요청 시 409를 반환한다.")
+    @DisplayName("수정 불가능한 상태의 정산서 메타 정보 수정 요청 시 409를 반환한다.")
     void 수정_불가능한_상태의_청구서_메타_정보_수정_요청_시_409를_반환한다() throws Exception {
         Long transferId = 1L;
         mockCsrfValid();
@@ -633,7 +633,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("여행 멤버는 청구서를 조회할 수 있다.")
+    @DisplayName("여행 멤버는 정산서를 조회할 수 있다.")
     void 여행_멤버는_청구서를_조회할_수_있다() throws Exception {
         // given
         String creatorPublicUuid = "00000000-0000-0000-0000-000000000001";
@@ -693,7 +693,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 조회를 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 조회를 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_조회를_요청하면_401을_반환한다() throws Exception {
         // when & then
         mockMvc.perform(get("/transfers/travels/{travelItineraryId}", 20L))
@@ -714,7 +714,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("여행 멤버십이 없으면 청구서 조회 요청 시 404를 반환한다.")
+    @DisplayName("여행 멤버십이 없으면 정산서 조회 요청 시 404를 반환한다.")
     void 여행_멤버십이_없으면_청구서_조회_요청_시_404를_반환한다() throws Exception {
         given(transferService.searchTransfer(eq(1L), eq(20L)))
                 .willThrow(new BusinessException(TransferErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
@@ -737,7 +737,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 청구서 조회 요청 시 404를 반환한다.")
+    @DisplayName("존재하지 않는 정산서 조회 요청 시 404를 반환한다.")
     void 존재하지_않는_청구서_조회_요청_시_404를_반환한다() throws Exception {
         given(transferService.searchTransfer(eq(1L), eq(20L)))
                 .willThrow(new BusinessException(TransferErrorCode.NOT_FOUND_INVOICE));
@@ -760,7 +760,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("로그인한 여행장(LEADER)은 청구서 금액/대상 정보를 수정할 수 있다.")
+    @DisplayName("로그인한 여행장(LEADER)은 정산서 금액/대상 정보를 수정할 수 있다.")
     void 로그인한_여행장_LEADER은_청구서_금액_대상_정보를_수정할_수_있다() throws Exception {
         // given
         Long transferId = 1L;
@@ -847,7 +847,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 금액/대상 정보 수정 요청 시 403을 반환한다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 금액/대상 정보 수정 요청 시 403을 반환한다.")
     void 여행장_LEADER가_아니면_청구서_금액_대상_정보_수정_요청_시_403을_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -891,7 +891,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 청구서 금액/대상 정보 수정 요청 시 404를 반환한다.")
+    @DisplayName("존재하지 않는 정산서 금액/대상 정보 수정 요청 시 404를 반환한다.")
     void 존재하지_않는_청구서_금액_대상_정보_수정_요청_시_404를_반환한다() throws Exception {
         // given
         Long transferId = 999L;
@@ -922,7 +922,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("수정 불가능한 상태의 청구서 금액/대상 정보 수정 요청 시 409를 반환한다.")
+    @DisplayName("수정 불가능한 상태의 정산서 금액/대상 정보 수정 요청 시 409를 반환한다.")
     void 수정_불가능한_상태의_청구서_금액_대상_정보_수정_요청_시_409를_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -953,7 +953,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("그룹 멤버가 아닌 사용자의 청구서 금액/대상 정보 수정 요청 시 403을 반환한다.")
+    @DisplayName("그룹 멤버가 아닌 사용자의 정산서 금액/대상 정보 수정 요청 시 403을 반환한다.")
     void 그룹_멤버가_아닌_사용자의_청구서_금액_대상_정보_수정_요청_시_403을_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -984,7 +984,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("여행 멤버십이 없는 사용자의 청구서 금액/대상 정보 수정 요청 시 404를 반환한다.")
+    @DisplayName("여행 멤버십이 없는 사용자의 정산서 금액/대상 정보 수정 요청 시 404를 반환한다.")
     void 여행_멤버십이_없는_사용자의_청구서_금액_대상_정보_수정_요청_시_404를_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -1015,7 +1015,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("수신자 중복이 있는 청구서 금액/대상 정보 수정 요청 시 409를 반환한다.")
+    @DisplayName("수신자 중복이 있는 정산서 금액/대상 정보 수정 요청 시 409를 반환한다.")
     void 수신자_중복이_있는_청구서_금액_대상_정보_수정_요청_시_409를_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -1059,7 +1059,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("총 금액 불일치 청구서 금액/대상 정보 수정 요청 시 403을 반환한다.")
+    @DisplayName("총 금액 불일치 정산서 금액/대상 정보 수정 요청 시 403을 반환한다.")
     void 총_금액_불일치_청구서_금액_대상_정보_수정_요청_시_403을_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -1134,7 +1134,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("청구서 금액/대상 정보 수정 요청이 유효하지 않으면 400을 반환한다.")
+    @DisplayName("정산서 금액/대상 정보 수정 요청이 유효하지 않으면 400을 반환한다.")
     void 청구서_금액_대상_정보_수정_요청이_유효하지_않으면_400을_반환한다() throws Exception {
         // given
         mockCsrfValid();
@@ -1173,7 +1173,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 금액/대상 정보 수정을 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 금액/대상 정보 수정을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_금액_대상_정보_수정을_요청하면_401을_반환한다() throws Exception {
         String body = validUpdateInfoBody();
 
@@ -1198,7 +1198,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("로그인한 여행장(LEADER)은 청구서를 확인(CONFIRM)할 수 있다.")
+    @DisplayName("로그인한 여행장(LEADER)은 정산서를 확인(CONFIRM)할 수 있다.")
     void 로그인한_여행장_LEADER은_청구서를_확인할_수_있다() throws Exception {
         // given
         Long transferId = 1L;
@@ -1220,7 +1220,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 확인을 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 확인을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_확인을_요청하면_401을_반환한다() throws Exception {
         // when & then
         mockMvc.perform(post("/transfers/{transferId}/check", 1L))
@@ -1241,7 +1241,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 확인 요청 시 403을 반환한다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 확인 요청 시 403을 반환한다.")
     void 여행장_LEADER가_아니면_청구서_확인_요청_시_403을_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -1269,7 +1269,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("그룹 멤버가 아니면 청구서 확인 요청 시 403을 반환한다.")
+    @DisplayName("그룹 멤버가 아니면 정산서 확인 요청 시 403을 반환한다.")
     void 그룹_멤버가_아니면_청구서_확인_요청_시_403을_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -1297,7 +1297,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("여행 멤버십이 없으면 청구서 확인 요청 시 404를 반환한다.")
+    @DisplayName("여행 멤버십이 없으면 정산서 확인 요청 시 404를 반환한다.")
     void 여행_멤버십이_없으면_청구서_확인_요청_시_404를_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -1325,7 +1325,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 청구서 확인 요청 시 404를 반환한다.")
+    @DisplayName("존재하지 않는 정산서 확인 요청 시 404를 반환한다.")
     void 존재하지_않는_청구서_확인_요청_시_404를_반환한다() throws Exception {
         // given
         Long transferId = 999L;
@@ -1353,7 +1353,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("확인할 수 없는 상태의 청구서 확인 요청 시 409를 반환한다.")
+    @DisplayName("확인할 수 없는 상태의 정산서 확인 요청 시 409를 반환한다.")
     void 확인할_수_없는_상태의_청구서_확인_요청_시_409를_반환한다() throws Exception {
         // given
         Long transferId = 1L;
@@ -1381,7 +1381,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("청구서 삭제 요청 시 200을 반환한다.")
+    @DisplayName("정산서 삭제 요청 시 200을 반환한다.")
     void 청구서_삭제_요청_성공() throws Exception {
         // given
         Long transferId = 1L;
@@ -1403,7 +1403,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 삭제 요청 시 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 삭제 요청 시 401을 반환한다.")
     void 비로그인_사용자가_청구서_삭제_요청_시_401을_반환한다() throws Exception {
         mockMvc.perform(delete("/transfers/{transferId}", 1L))
                 .andExpect(status().isUnauthorized())
@@ -1423,7 +1423,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("청구서 생성자가 아닌 사용자의 삭제 요청 시 403을 반환한다.")
+    @DisplayName("정산서 생성자가 아닌 사용자의 삭제 요청 시 403을 반환한다.")
     void 청구서_생성자가_아닌_사용자의_삭제_요청_시_403을_반환한다() throws Exception {
         Long transferId = 1L;
         mockCsrfValid();
@@ -1449,7 +1449,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 청구서 삭제 요청 시 404를 반환한다.")
+    @DisplayName("존재하지 않는 정산서 삭제 요청 시 404를 반환한다.")
     void 존재하지_않는_청구서_삭제_요청_시_404를_반환한다() throws Exception {
         Long transferId = 999L;
         mockCsrfValid();
@@ -1475,7 +1475,7 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("삭제할 수 없는 상태의 청구서 삭제 요청 시 409를 반환한다.")
+    @DisplayName("삭제할 수 없는 상태의 정산서 삭제 요청 시 409를 반환한다.")
     void 삭제할_수_없는_상태의_청구서_삭제_요청_시_409를_반환한다() throws Exception {
         Long transferId = 1L;
         mockCsrfValid();

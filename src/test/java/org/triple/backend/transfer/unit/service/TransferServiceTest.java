@@ -86,7 +86,7 @@ class TransferServiceTest {
     private EntityManager entityManager;
 
     @Test
-    @DisplayName("여행장(LEADER)은 청구서를 생성할 수 있다.")
+    @DisplayName("여행장(LEADER)은 정산서를 생성할 수 있다.")
     void 여행장_LEADER은_청구서를_생성할_수_있다() {
         // given
         User leader = saveUser("leader");
@@ -140,7 +140,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("그룹 OWNER가 아니어도 여행장(LEADER)이면 청구서를 생성할 수 있다.")
+    @DisplayName("그룹 OWNER가 아니어도 여행장(LEADER)이면 정산서를 생성할 수 있다.")
     void 그룹_OWNER가_아니어도_여행장_LEADER이면_청구서를_생성할_수_있다() {
         // given
         User owner = saveUser("owner");
@@ -341,7 +341,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("같은 여행 일정으로 중복 청구서를 생성하면 DUPLICATE_INVOICE 예외가 발생한다.")
+    @DisplayName("같은 여행 일정으로 중복 정산서를 생성하면 DUPLICATE_INVOICE 예외가 발생한다.")
     void 같은_여행_일정으로_중복_청구서를_생성하면_DUPLICATE_INVOICE_예외가_발생한다() {
         // given
         User leader = saveUser("leader");
@@ -384,7 +384,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("여행 멤버는 청구서를 조회할 수 있다.")
+    @DisplayName("여행 멤버는 정산서를 조회할 수 있다.")
     void 여행_멤버는_청구서를_조회할_수_있다() {
         // given
         User creator = saveUser("read-creator");
@@ -412,7 +412,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("남은 금액이 0이면 청구서 완료 상태를 참으로 반환한다.")
+    @DisplayName("남은 금액이 0이면 정산서 완료 상태를 참으로 반환한다.")
     void 남은_금액이_0이면_청구서_완료_상태를_참으로_반환한다() {
         // given
         User creator = saveUser("done-creator");
@@ -435,7 +435,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("여행 일정 멤버가 아니면 청구서를 조회할 수 없다.")
+    @DisplayName("여행 일정 멤버가 아니면 정산서를 조회할 수 없다.")
     void 여행_일정_멤버가_아니면_청구서를_조회할_수_없다() {
         // given
         User creator = saveUser("forbidden-creator");
@@ -460,7 +460,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)은 UNCONFIRM 상태 청구서의 메타 정보를 수정할 수 있다.")
+    @DisplayName("여행장(LEADER)은 UNCONFIRM 상태 정산서의 메타 정보를 수정할 수 있다.")
     void 여행장_LEADER은_UNCONFIRM_상태_청구서의_메타_정보를_수정할_수_있다() {
         // given
         User leader = saveUser("leader-update");
@@ -492,7 +492,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("UNCONFIRM 상태가 아닌 청구서는 수정할 수 없다.")
+    @DisplayName("UNCONFIRM 상태가 아닌 정산서는 수정할 수 없다.")
     void UNCONFIRM_상태가_아닌_청구서는_수정할_수_없다() {
         // given
         User leader = saveUser("leader-confirm");
@@ -517,7 +517,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("그룹 멤버가 아니면 청구서 메타 정보를 수정할 수 없다.")
+    @DisplayName("그룹 멤버가 아니면 정산서 메타 정보를 수정할 수 없다.")
     void 그룹_멤버가_아니면_청구서_메타_정보를_수정할_수_없다() {
         // given
         User leader = saveUser("leader-not-member");
@@ -543,7 +543,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 메타 정보를 수정할 수 없다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 메타 정보를 수정할 수 없다.")
     void 여행장_LEADER가_아니면_청구서_메타_정보를_수정할_수_없다() {
         // given
         User leader = saveUser("leader-meta");
@@ -571,7 +571,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)은 청구서 금액/대상 정보를 수정할 수 있다.")
+    @DisplayName("여행장(LEADER)은 정산서 금액/대상 정보를 수정할 수 있다.")
     void 여행장_LEADER은_청구서_금액_대상_정보를_수정할_수_있다() {
         // given
         User leader = saveUser("leader-adjust");
@@ -617,7 +617,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("청구서 금액/대상 정보 수정 시 총 금액 합계가 다르면 INVALID_TOTAL_AMOUNT 예외가 발생한다.")
+    @DisplayName("정산서 금액/대상 정보 수정 시 총 금액 합계가 다르면 INVALID_TOTAL_AMOUNT 예외가 발생한다.")
     void 청구서_금액_대상_정보_수정_시_총_금액_합계가_다르면_INVALID_TOTAL_AMOUNT_예외가_발생한다() {
         // given
         User leader = saveUser("leader-adjust-sum");
@@ -646,7 +646,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("청구서 금액/대상 정보 수정 시 정산 완료 멤버 금액이 양수면 INVALID_SETTLED_AMOUNT 예외가 발생한다.")
+    @DisplayName("정산서 금액/대상 정보 수정 시 정산 완료 멤버 금액이 양수면 INVALID_SETTLED_AMOUNT 예외가 발생한다.")
     void 청구서_금액_대상_정보_수정_시_정산_완료_멤버_금액이_양수면_INVALID_SETTLED_AMOUNT_예외가_발생한다() {
         // given
         User leader = saveUser("leader-adjust-settled");
@@ -685,7 +685,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("청구서 금액/대상 정보 수정 시 수신자 중 그룹 멤버가 아니면 NOT_GROUP_MEMBER 예외가 발생한다.")
+    @DisplayName("정산서 금액/대상 정보 수정 시 수신자 중 그룹 멤버가 아니면 NOT_GROUP_MEMBER 예외가 발생한다.")
     void 청구서_금액_대상_정보_수정_시_수신자_중_그룹_멤버가_아니면_NOT_GROUP_MEMBER_예외가_발생한다() {
         // given
         User leader = saveUser("leader-adjust-outsider");
@@ -712,7 +712,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("청구서 금액/대상 정보 수정 시 수신자에 중복 사용자가 있으면 DUPLICATE_RECIPIENT 예외가 발생한다.")
+    @DisplayName("정산서 금액/대상 정보 수정 시 수신자에 중복 사용자가 있으면 DUPLICATE_RECIPIENT 예외가 발생한다.")
     void 청구서_금액_대상_정보_수정_시_수신자에_중복_사용자가_있으면_DUPLICATE_RECIPIENT_예외가_발생한다() {
         // given
         User leader = saveUser("leader-adjust-dup");
@@ -743,7 +743,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)은 청구서를 확인(CONFIRM)할 수 있다.")
+    @DisplayName("여행장(LEADER)은 정산서를 확인(CONFIRM)할 수 있다.")
     void 여행장_LEADER은_청구서를_확인할_수_있다() {
         // given
         User leader = saveUser("leader-check");
@@ -762,7 +762,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("UNCONFIRM 상태가 아니면 청구서를 확인할 수 없다.")
+    @DisplayName("UNCONFIRM 상태가 아니면 정산서를 확인할 수 없다.")
     void UNCONFIRM_상태가_아니면_청구서를_확인할_수_없다() {
         // given
         User leader = saveUser("leader-check-status");
@@ -782,7 +782,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("그룹 멤버가 아니면 청구서를 확인할 수 없다.")
+    @DisplayName("그룹 멤버가 아니면 정산서를 확인할 수 없다.")
     void 그룹_멤버가_아니면_청구서를_확인할_수_없다() {
         // given
         User leader = saveUser("leader-check-group-member");
@@ -803,7 +803,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("여행 멤버십이 없으면 청구서를 확인할 수 없다.")
+    @DisplayName("여행 멤버십이 없으면 정산서를 확인할 수 없다.")
     void 여행_멤버십이_없으면_청구서를_확인할_수_없다() {
         // given
         User leader = saveUser("leader-check-travel-membership");
@@ -825,7 +825,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서를 확인할 수 없다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서를 확인할 수 없다.")
     void 여행장_LEADER가_아니면_청구서를_확인할_수_없다() {
         // given
         User leader = saveUser("leader-check-not-leader");
@@ -848,7 +848,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 청구서는 확인할 수 없다.")
+    @DisplayName("존재하지 않는 정산서는 확인할 수 없다.")
     void 존재하지_않는_청구서는_확인할_수_없다() {
         // given
         User leader = saveUser("leader-check-not-found");
@@ -864,7 +864,7 @@ class TransferServiceTest {
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    @DisplayName("동일한 청구서 메타 수정 요청이 동시에 들어오면 하나만 성공하고 나머지는 CONCURRENT_INVOICE_UPDATE가 발생한다.")
+    @DisplayName("동일한 정산서 메타 수정 요청이 동시에 들어오면 하나만 성공하고 나머지는 CONCURRENT_INVOICE_UPDATE가 발생한다.")
     void 동일한_청구서_메타_수정_요청이_동시에_들어오면_하나만_성공하고_나머지는_CONCURRENT_INVOICE_UPDATE가_발생한다() throws InterruptedException {
         // given
         User leader = saveUser("leader-update-concurrency");
@@ -949,7 +949,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("청구서 삭제 요청 시 상태를 DELETED로 변경하고 transferUser를 모두 삭제한다.")
+    @DisplayName("정산서 삭제 요청 시 상태를 DELETED로 변경하고 transferUser를 모두 삭제한다.")
     void 청구서_삭제_성공() {
         User creator = saveUser("creator");
         User member = saveUser("member-delete-success");
@@ -968,7 +968,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("청구서 생성자가 아니면 삭제 시 예외를 던진다.")
+    @DisplayName("정산서 생성자가 아니면 삭제 시 예외를 던진다.")
     void 청구서_생성자가_아니면_삭제_불가() {
         User creator = saveUser("creator-not-owner");
         User other = saveUser("other-not-owner");
@@ -985,7 +985,7 @@ class TransferServiceTest {
     }
 
     @Test
-    @DisplayName("청구서 상태가 UNCONFIRM이 아니면 삭제 시 예외를 던진다.")
+    @DisplayName("정산서 상태가 UNCONFIRM이 아니면 삭제 시 예외를 던진다.")
     void 청구서_상태가_UNCONFIRM이_아니면_삭제_불가() {
         User creator = saveUser("creator-status");
         Group group = saveGroup("삭제 상태 테스트 그룹");

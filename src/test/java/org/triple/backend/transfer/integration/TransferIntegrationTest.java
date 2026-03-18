@@ -84,7 +84,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 청구서 생성 API를 호출하면 청구서와 청구 대상이 저장된다.")
+    @DisplayName("여행장(LEADER)이 정산서 생성 API를 호출하면 정산서와 청구 대상이 저장된다.")
     void 여행장_LEADER가_청구서_생성_API를_호출하면_청구서와_청구_대상이_저장된다() throws Exception {
         // given
         User leader = saveUser("leader");
@@ -120,7 +120,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("그룹 OWNER가 아니어도 여행장(LEADER)이면 청구서를 생성할 수 있다.")
+    @DisplayName("그룹 OWNER가 아니어도 여행장(LEADER)이면 정산서를 생성할 수 있다.")
     void 그룹_OWNER가_아니어도_여행장_LEADER이면_청구서를_생성할_수_있다() throws Exception {
         // given
         User owner = saveUser("owner");
@@ -153,7 +153,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 생성을 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 생성을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_생성을_요청하면_401을_반환한다() throws Exception {
         String body = createBody(1L, 1L, "enc-sample-user-id", 30000, 30000);
 
@@ -164,7 +164,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 생성 요청 시 403을 반환한다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 생성 요청 시 403을 반환한다.")
     void 여행장_LEADER가_아니면_청구서_생성_요청_시_403을_반환한다() throws Exception {
         // given
         User leader = saveUser("leader");
@@ -189,7 +189,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("같은 여행 일정으로 청구서를 중복 생성하면 409를 반환한다.")
+    @DisplayName("같은 여행 일정으로 정산서를 중복 생성하면 409를 반환한다.")
     void 같은_여행_일정으로_청구서를_중복_생성하면_409를_반환한다() throws Exception {
         // given
         User leader = saveUser("leader");
@@ -259,7 +259,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)은 청구서 메타 정보를 수정할 수 있다.")
+    @DisplayName("여행장(LEADER)은 정산서 메타 정보를 수정할 수 있다.")
     void 여행장_LEADER은_청구서_메타_정보를_수정할_수_있다() throws Exception {
         // given
         User leader = saveUser("leader-update");
@@ -298,7 +298,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 메타 정보 수정 요청 시 403을 반환한다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 메타 정보 수정 요청 시 403을 반환한다.")
     void 여행장_LEADER가_아니면_청구서_메타_정보_수정_요청_시_403을_반환한다() throws Exception {
         // given
         User leader = saveUser("leader-update-fail");
@@ -331,7 +331,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 메타 정보 수정을 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 메타 정보 수정을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_메타_정보_수정을_요청하면_401을_반환한다() throws Exception {
         String body = """
                 {
@@ -348,7 +348,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행 멤버는 여행 일정 기준으로 청구서를 조회할 수 있다.")
+    @DisplayName("여행 멤버는 여행 일정 기준으로 정산서를 조회할 수 있다.")
     void 여행_멤버는_여행_일정_기준으로_청구서를_조회할_수_있다() throws Exception {
         User 생성자 = saveUser("read-creator");
         User 멤버1 = saveUser("read-member-1");
@@ -374,7 +374,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행 일정 멤버가 아니면 청구서 조회 시 404를 반환한다.")
+    @DisplayName("여행 일정 멤버가 아니면 정산서 조회 시 404를 반환한다.")
     void 여행_일정_멤버가_아니면_청구서_조회_시_404를_반환한다() throws Exception {
         User 생성자 = saveUser("forbidden-creator");
         User 멤버 = saveUser("forbidden-member");
@@ -392,14 +392,14 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 조회를 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 조회를 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_조회를_요청하면_401을_반환한다() throws Exception {
         mockMvc.perform(get("/transfers/travels/{travelItineraryId}", 1L))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("여행장(LEADER)은 청구서 금액/대상 정보를 수정할 수 있다.")
+    @DisplayName("여행장(LEADER)은 정산서 금액/대상 정보를 수정할 수 있다.")
     void 여행장_LEADER은_청구서_금액_대상_정보를_수정할_수_있다() throws Exception {
         // given
         User leader = saveUser("leader-adjust");
@@ -444,7 +444,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 금액/대상 정보 수정 요청 시 403을 반환한다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 금액/대상 정보 수정 요청 시 403을 반환한다.")
     void 여행장_LEADER가_아니면_청구서_금액_대상_정보_수정_요청_시_403을_반환한다() throws Exception {
         // given
         User leader = saveUser("leader-adjust-forbidden");
@@ -512,7 +512,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)은 청구서를 확인(CONFIRM)할 수 있다.")
+    @DisplayName("여행장(LEADER)은 정산서를 확인(CONFIRM)할 수 있다.")
     void 여행장_LEADER은_청구서를_확인할_수_있다() throws Exception {
         // given
         User leader = saveUser("leader-check");
@@ -534,14 +534,14 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 청구서 확인을 요청하면 401을 반환한다.")
+    @DisplayName("비로그인 사용자가 정산서 확인을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_확인을_요청하면_401을_반환한다() throws Exception {
         mockMvc.perform(post("/transfers/{transferId}/check", 1L))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("그룹 멤버가 아니면 청구서 확인 요청 시 403을 반환한다.")
+    @DisplayName("그룹 멤버가 아니면 정산서 확인 요청 시 403을 반환한다.")
     void 그룹_멤버가_아니면_청구서_확인_요청_시_403을_반환한다() throws Exception {
         // given
         User leader = saveUser("leader-check-403-group");
@@ -562,7 +562,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행 멤버십이 없으면 청구서 확인 요청 시 404를 반환한다.")
+    @DisplayName("여행 멤버십이 없으면 정산서 확인 요청 시 404를 반환한다.")
     void 여행_멤버십이_없으면_청구서_확인_요청_시_404를_반환한다() throws Exception {
         // given
         User leader = saveUser("leader-check-404-travel");
@@ -584,7 +584,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행장(LEADER)이 아니면 청구서 확인 요청 시 403을 반환한다.")
+    @DisplayName("여행장(LEADER)이 아니면 정산서 확인 요청 시 403을 반환한다.")
     void 여행장_LEADER가_아니면_청구서_확인_요청_시_403을_반환한다() throws Exception {
         // given
         User leader = saveUser("leader-check-403-leader");
@@ -607,7 +607,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 청구서 확인 요청 시 404를 반환한다.")
+    @DisplayName("존재하지 않는 정산서 확인 요청 시 404를 반환한다.")
     void 존재하지_않는_청구서_확인_요청_시_404를_반환한다() throws Exception {
         // given
         User leader = saveUser("leader-check-404-transfer");
@@ -622,7 +622,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("확인할 수 없는 상태의 청구서 확인 요청 시 409를 반환한다.")
+    @DisplayName("확인할 수 없는 상태의 정산서 확인 요청 시 409를 반환한다.")
     void 확인할_수_없는_상태의_청구서_확인_요청_시_409를_반환한다() throws Exception {
         // given
         User leader = saveUser("leader-check-409-status");
@@ -642,7 +642,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("청구서 생성자가 삭제 요청하면 상태가 DELETED로 변경되고 transfer_user가 삭제된다.")
+    @DisplayName("정산서 생성자가 삭제 요청하면 상태가 DELETED로 변경되고 transfer_user가 삭제된다.")
     void 청구서_삭제_성공() throws Exception {
         User creator = saveUser("delete-creator");
         User member = saveUser("delete-member");
@@ -665,7 +665,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("청구서 생성자가 아니면 삭제 요청 시 403을 반환한다.")
+    @DisplayName("정산서 생성자가 아니면 삭제 요청 시 403을 반환한다.")
     void 청구서_생성자가_아니면_삭제_요청_시_403을_반환한다() throws Exception {
         User creator = saveUser("delete-creator-403");
         User other = saveUser("delete-other-403");
@@ -681,7 +681,7 @@ class TransferIntegrationTest {
     }
 
     @Test
-    @DisplayName("청구서 상태가 UNCONFIRM이 아니면 삭제 요청 시 409를 반환한다.")
+    @DisplayName("정산서 상태가 UNCONFIRM이 아니면 삭제 요청 시 409를 반환한다.")
     void 청구서_상태가_UNCONFIRM이_아니면_삭제_요청_시_409를_반환한다() throws Exception {
         User creator = saveUser("delete-status-409");
         Group group = saveGroup("삭제 상태 그룹");
@@ -817,14 +817,14 @@ class TransferIntegrationTest {
                   "groupId": %d,
                   "travelItineraryId": %d,
                   "members": [
-                    { "id": "%s", "name": "멤버", "avatar": "http://img", "amount": %d, "settled": false }
+                    { "id": "%s", "name": "멤버", "avatar": "http://img", "amount": %d, "settled": %s }
                   ],
                   "title": "제주 렌트비 정산",
                   "description": "렌트비 N빵",
                   "totalAmount": %d,
                   "dueAt": "2030-03-31T18:00:00"
                 }
-                """.formatted(groupId, travelItineraryId, memberId, memberAmount, totalAmount);
+                """.formatted(groupId, travelItineraryId, memberId, memberAmount, settled, totalAmount);
     }
 
     private String updateInfoBody(
@@ -861,7 +861,7 @@ class TransferIntegrationTest {
                   "accountHolder": "김민준",
                   "totalAmount": %d,
                   "members": [
-                    { "id": "%s", "name": "멤버1", "avatar": "http://img", "amount": %d, "settled": false },
+                    { "id": "%s", "name": "멤버1", "avatar": "http://img", "amount": %d, "settled": %s },
                     { "id": "%s", "name": "멤버2", "avatar": "http://img", "amount": %d, "settled": %s }
                   ]
                 }
