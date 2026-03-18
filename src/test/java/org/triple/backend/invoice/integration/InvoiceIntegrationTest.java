@@ -5,7 +5,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.DbCleaner;
@@ -75,9 +74,6 @@ class InvoiceIntegrationTest {
 
     @Autowired
     private InvoiceUserJpaRepository invoiceUserJpaRepository;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private UuidCrypto uuidCrypto;
@@ -513,43 +509,6 @@ class InvoiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("결제 내역이 있는 청구서는 금액/대상 정보 수정 요청 시 409를 반환한다.")
-    void 결제_내역이_있는_청구서는_금액_대상_정보_수정_요청_시_409를_반환한다() throws Exception {
-        // given
-        User leader = saveUser("leader-adjust-payment-409");
-        User member = saveUser("member-adjust-payment-409");
-        Group group = saveGroup("정산 결제 검증 그룹");
-        saveMembership(leader, group, Role.OWNER);
-        saveMembership(member, group, Role.MEMBER);
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 결제 검증 여행");
-        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new java.math.BigDecimal("10000")));
-        jdbcTemplate.update("insert into payment (invoice_id, payment_status) values (?, ?)", invoice.getId(), "READY");
-
-        String body = """
-                {
-                  "totalAmount": 10000,
-                  "recipients": [
-                    { "userId": "%s", "amount": 10000 }
-                  ]
-                }
-                """.formatted(encryptedUserId(member));
-
-        // when & then
-        mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 수정할 수 없습니다."));
-    }
-
-    @Test
     @DisplayName("여행장(LEADER)은 청구서를 확인(CONFIRM)할 수 있다.")
     void 여행장_LEADER은_청구서를_확인할_수_있다() throws Exception {
         // given
@@ -680,27 +639,6 @@ class InvoiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("결제 내역이 있는 청구서 확인 요청 시 409를 반환한다.")
-    void 결제_내역이_있는_청구서_확인_요청_시_409를_반환한다() throws Exception {
-        // given
-        User leader = saveUser("leader-check-409-payment");
-        Group group = saveGroup("확인 결제 검증 그룹");
-        saveMembership(leader, group, Role.OWNER);
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 결제 검증 여행");
-        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
-        jdbcTemplate.update("insert into payment (invoice_id, payment_status) values (?, ?)", invoice.getId(), "READY");
-
-        // when & then
-        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 확인할 수 없습니다."));
-    }
-
-    @Test
     @DisplayName("청구서 생성자가 삭제 요청하면 상태가 DELETED로 변경되고 invoice_user가 삭제된다.")
     void 청구서_삭제_성공() throws Exception {
         User creator = saveUser("delete-creator");
@@ -746,23 +684,6 @@ class InvoiceIntegrationTest {
         Group group = saveGroup("삭제 상태 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 상태 여행");
         Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.CONFIRM);
-
-        mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
-                        .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
-                .andExpect(status().isConflict());
-    }
-
-    @Test
-    @DisplayName("결제 내역이 있으면 삭제 요청 시 409를 반환한다.")
-    void 결제_내역이_있으면_삭제_요청_시_409를_반환한다() throws Exception {
-        User creator = saveUser("delete-payment-409");
-        Group group = saveGroup("삭제 결제 그룹");
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 결제 여행");
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
-
-        jdbcTemplate.update("insert into payment (invoice_id, payment_status) values (?, ?)", invoice.getId(), "READY");
 
         mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
                         .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())

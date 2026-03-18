@@ -661,40 +661,6 @@ class InvoiceServiceTest {
     }
 
     @Test
-    @DisplayName("결제 내역이 있는 청구서는 금액/대상 정보를 수정할 수 없다.")
-    void 결제_내역이_있는_청구서는_금액_대상_정보를_수정할_수_없다() {
-        // given
-        User leader = saveUser("leader-adjust-payment");
-        User member = saveUser("member-adjust-payment");
-        Group group = saveGroup("정산 결제 검증 그룹");
-        saveUserGroup(leader, group, Role.OWNER);
-        saveUserGroup(member, group, Role.MEMBER);
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 결제 검증 여행");
-        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
-
-        entityManager.createNativeQuery("insert into payment (invoice_id, payment_status) values (?, ?)")
-                .setParameter(1, invoice.getId())
-                .setParameter(2, "READY")
-                .executeUpdate();
-        entityManager.flush();
-
-        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
-                new BigDecimal("10000"),
-                List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")))
-        );
-
-        // when & then
-        assertThatThrownBy(() -> invoiceService.updateInfo(leader.getId(), invoice.getId(), request))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> {
-                    BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS);
-                });
-    }
-
-    @Test
     @DisplayName("여행장(LEADER)은 청구서를 확인(CONFIRM)할 수 있다.")
     void 여행장_LEADER은_청구서를_확인할_수_있다() {
         // given
@@ -730,32 +696,6 @@ class InvoiceServiceTest {
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS);
-                });
-    }
-
-    @Test
-    @DisplayName("결제 내역이 있는 청구서는 확인할 수 없다.")
-    void 결제_내역이_있는_청구서는_확인할_수_없다() {
-        // given
-        User leader = saveUser("leader-check-payment");
-        Group group = saveGroup("확인 결제 그룹");
-        saveUserGroup(leader, group, Role.OWNER);
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 결제 여행");
-        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "결제 존재 청구서");
-
-        entityManager.createNativeQuery("insert into payment (invoice_id, payment_status) values (?, ?)")
-                .setParameter(1, invoice.getId())
-                .setParameter(2, "READY")
-                .executeUpdate();
-        entityManager.flush();
-
-        // when & then
-        assertThatThrownBy(() -> invoiceService.check(leader.getId(), invoice.getId()))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> {
-                    BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.CHECK_FORBIDDEN_PAYMENT_EXISTS);
                 });
     }
 
@@ -975,28 +915,6 @@ class InvoiceServiceTest {
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
                     assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DELETE_FORBIDDEN_STATUS);
-                });
-    }
-
-    @Test
-    @DisplayName("결제 내역이 존재하면 삭제 시 예외를 던진다.")
-    void 결제_내역이_존재하면_삭제_불가() {
-        User creator = saveUser("creator-payment");
-        Group group = saveGroup("삭제 결제 테스트 그룹");
-        TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 결제 테스트 여행");
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
-
-        entityManager.createNativeQuery("insert into payment (invoice_id, payment_status) values (?, ?)")
-                .setParameter(1, invoice.getId())
-                .setParameter(2, "READY")
-                .executeUpdate();
-        entityManager.flush();
-
-        assertThatThrownBy(() -> invoiceService.delete(creator.getId(), invoice.getId()))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(ex -> {
-                    BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DELETE_FORBIDDEN_PAYMENT_EXISTS);
                 });
     }
 

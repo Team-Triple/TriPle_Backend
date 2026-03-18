@@ -902,52 +902,6 @@ class InvoiceControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("결제 내역이 있는 청구서는 금액/대상 정보 수정 요청 시 409를 반환한다.")
-    void 결제_내역이_있는_청구서는_금액_대상_정보_수정_요청_시_409를_반환한다() throws Exception {
-        // given
-        Long invoiceId = 1L;
-        mockCsrfValid();
-        given(invoiceService.updateInfo(eq(1L), eq(invoiceId), any(InvoiceAdjustRequestDto.class)))
-                .willThrow(new BusinessException(InvoiceErrorCode.UPDATE_FORBIDDEN_PAYMENT_EXISTS));
-
-        String body = """
-                {
-                  "totalAmount": 30000,
-                  "recipients": [
-                    { "userId": "2", "amount": 10000 },
-                    { "userId": "3", "amount": 20000 }
-                  ]
-                }
-                """;
-
-        // when & then
-        mockMvc.perform(put("/invoices/{invoiceId}", invoiceId)
-                        .with(loginSessionAndCsrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 수정할 수 없습니다."))
-                .andDo(document("invoices/update-info-fail-payment-exists",
-                        preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint()),
-                        pathParameters(
-                                parameterWithName("invoiceId").description("수정할 청구서 ID")
-                        ),
-                        requestFields(
-                                fieldWithPath("totalAmount").description("변경할 총 청구 금액"),
-                                fieldWithPath("recipients").description("변경할 청구 대상 목록(전체 교체)"),
-                                fieldWithPath("recipients[].userId").description("청구 대상 사용자 ID"),
-                                fieldWithPath("recipients[].amount").description("청구 대상 금액")
-                        ),
-                        responseFields(
-                                fieldWithPath("message").description("에러 메시지")
-                        )
-                ));
-
-        verify(invoiceService, times(1)).updateInfo(eq(1L), eq(invoiceId), any(InvoiceAdjustRequestDto.class));
-    }
-
-    @Test
     @DisplayName("존재하지 않는 청구서 금액/대상 정보 수정 요청 시 404를 반환한다.")
     void 존재하지_않는_청구서_금액_대상_정보_수정_요청_시_404를_반환한다() throws Exception {
         // given
@@ -1441,34 +1395,6 @@ class InvoiceControllerTest extends ControllerTest {
     }
 
     @Test
-    @DisplayName("결제 내역이 있는 청구서 확인 요청 시 409를 반환한다.")
-    void 결제_내역이_있는_청구서_확인_요청_시_409를_반환한다() throws Exception {
-        // given
-        Long invoiceId = 1L;
-        mockCsrfValid();
-        willThrow(new BusinessException(InvoiceErrorCode.CHECK_FORBIDDEN_PAYMENT_EXISTS))
-                .given(invoiceService).check(eq(1L), eq(invoiceId));
-
-        // when & then
-        mockMvc.perform(post("/invoices/{invoiceId}/check", invoiceId)
-                        .with(loginSessionAndCsrf()))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 확인할 수 없습니다."))
-                .andDo(document("invoices/check-fail-payment-exists",
-                        preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint()),
-                        pathParameters(
-                                parameterWithName("invoiceId").description("확인할 청구서 ID")
-                        ),
-                        responseFields(
-                                fieldWithPath("message").description("에러 메시지")
-                        )
-                ));
-
-        verify(invoiceService, times(1)).check(eq(1L), eq(invoiceId));
-    }
-
-    @Test
     @DisplayName("청구서 삭제 요청 시 200을 반환한다.")
     void 청구서_삭제_요청_성공() throws Exception {
         // given
@@ -1575,32 +1501,6 @@ class InvoiceControllerTest extends ControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("현재 상태에서는 청구서를 삭제할 수 없습니다."))
                 .andDo(document("invoices/delete-fail-forbidden-status",
-                        preprocessRequest(prettyPrint()),
-                        preprocessResponse(prettyPrint()),
-                        pathParameters(
-                                parameterWithName("invoiceId").description("삭제할 청구서 ID")
-                        ),
-                        responseFields(
-                                fieldWithPath("message").description("에러 메시지")
-                        )
-                ));
-
-        verify(invoiceService, times(1)).delete(1L, invoiceId);
-    }
-
-    @Test
-    @DisplayName("결제 내역이 있는 청구서 삭제 요청 시 409를 반환한다.")
-    void 결제_내역이_있는_청구서_삭제_요청_시_409를_반환한다() throws Exception {
-        Long invoiceId = 1L;
-        mockCsrfValid();
-        willThrow(new BusinessException(InvoiceErrorCode.DELETE_FORBIDDEN_PAYMENT_EXISTS))
-                .given(invoiceService).delete(eq(1L), eq(invoiceId));
-
-        mockMvc.perform(delete("/invoices/{invoiceId}", invoiceId)
-                        .with(loginSessionAndCsrf()))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("결제 내역이 있는 청구서는 삭제할 수 없습니다."))
-                .andDo(document("invoices/delete-fail-payment-exists",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         pathParameters(

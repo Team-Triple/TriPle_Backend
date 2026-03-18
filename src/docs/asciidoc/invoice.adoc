@@ -40,9 +40,6 @@ include::{snippets}/invoices/delete-fail-not-found-invoice/http-response.adoc[]
 === 실패: 삭제 불가능 상태 (409)
 include::{snippets}/invoices/delete-fail-forbidden-status/http-response.adoc[]
 
-=== 실패: 결제 내역 존재 (409)
-include::{snippets}/invoices/delete-fail-payment-exists/http-response.adoc[]
-
 == 청구서 메타 정보 수정
 include::{snippets}/invoices/update-meta/path-parameters.adoc[]
 include::{snippets}/invoices/update-meta/http-request.adoc[]
@@ -96,9 +93,6 @@ include::{snippets}/invoices/update-info-fail-bad-request/http-response.adoc[]
 === 실패: 여행장 권한 없음 (403)
 include::{snippets}/invoices/update-info-fail-not-travel-leader/http-response.adoc[]
 
-=== 실패: 결제 내역 존재 (409)
-include::{snippets}/invoices/update-info-fail-payment-exists/http-response.adoc[]
-
 === 실패: 청구서 없음 (404)
 include::{snippets}/invoices/update-info-fail-not-found-invoice/http-response.adoc[]
 
@@ -139,6 +133,3 @@ include::{snippets}/invoices/check-fail-not-found-invoice/http-response.adoc[]
 
 === 실패: 확인 불가능 상태 (409)
 include::{snippets}/invoices/check-fail-not-allowed-status/http-response.adoc[]
-
-=== 실패: 결제 내역 존재 (409)
-include::{snippets}/invoices/check-fail-payment-exists/http-response.adoc[]
