@@ -226,6 +226,39 @@ class TransferIntegrationTest {
     }
 
     @Test
+    @DisplayName("정산 완료 멤버 금액이 양수인 정산서 생성 요청 시 400을 반환한다.")
+    void 정산_완료_멤버_금액이_양수인_청구서_생성_요청_시_400을_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-invalid-settled-create");
+        User member = saveUser("member-invalid-settled-create");
+        Group group = saveGroup("정산 검증 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+
+        String body = createBody(
+                group.getId(),
+                travelItinerary.getId(),
+                encryptedUserId(member),
+                30000,
+                30000,
+                true
+        );
+
+        // when & then
+        mockMvc.perform(post("/transfers")
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("정산 완료 멤버의 금액은 0이어야 합니다."));
+    }
+
+    @Test
     @DisplayName("여행장(LEADER)은 청구서 메타 정보를 수정할 수 있다.")
     void 여행장_LEADER은_청구서_메타_정보를_수정할_수_있다() throws Exception {
         // given
@@ -436,6 +469,46 @@ class TransferIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("정산 완료 멤버 금액이 양수인 정산서 금액/대상 정보 수정 요청 시 400을 반환한다.")
+    void 정산_완료_멤버_금액이_양수인_청구서_금액_대상_정보_수정_요청_시_400을_반환한다() throws Exception {
+        // given
+        User leader = saveUser("leader-adjust-invalid-settled");
+        User member1 = saveUser("member-adjust-invalid-settled-1");
+        User member2 = saveUser("member-adjust-invalid-settled-2");
+        Group group = saveGroup("정산 수정 검증 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member1, group, Role.MEMBER);
+        saveMembership(member2, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 수정 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
+        saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
+
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
+        transferUserJpaRepository.save(TransferUser.create(transfer, member1, new java.math.BigDecimal("70000")));
+
+        String body = updateInfoBody(
+                encryptedUserId(member1),
+                encryptedUserId(member2),
+                10000,
+                20000,
+                30000,
+                true,
+                false
+        );
+
+        // when & then
+        mockMvc.perform(put("/transfers/{transferId}", transfer.getId())
+                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("정산 완료 멤버의 금액은 0이어야 합니다."));
     }
 
     @Test
@@ -725,6 +798,17 @@ class TransferIntegrationTest {
             final int memberAmount,
             final int totalAmount
     ) {
+        return createBody(groupId, travelItineraryId, memberId, memberAmount, totalAmount, false);
+    }
+
+    private String createBody(
+            final Long groupId,
+            final Long travelItineraryId,
+            final String memberId,
+            final int memberAmount,
+            final int totalAmount,
+            final boolean settled
+    ) {
         return """
                 {
                   "accountNumber": "999999-00-999999",
@@ -750,6 +834,26 @@ class TransferIntegrationTest {
             final int secondAmount,
             final int totalAmount
     ) {
+        return updateInfoBody(
+                firstMemberId,
+                secondMemberId,
+                firstAmount,
+                secondAmount,
+                totalAmount,
+                false,
+                secondAmount == 0
+        );
+    }
+
+    private String updateInfoBody(
+            final String firstMemberId,
+            final String secondMemberId,
+            final int firstAmount,
+            final int secondAmount,
+            final int totalAmount,
+            final boolean firstSettled,
+            final boolean secondSettled
+    ) {
         return """
                 {
                   "accountNumber": "999999-00-999999",
@@ -765,9 +869,10 @@ class TransferIntegrationTest {
                 totalAmount,
                 firstMemberId,
                 firstAmount,
+                firstSettled,
                 secondMemberId,
                 secondAmount,
-                secondAmount == 0
+                secondSettled
         );
     }
 }

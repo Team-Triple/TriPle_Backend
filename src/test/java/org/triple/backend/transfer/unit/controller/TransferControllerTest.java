@@ -356,6 +356,29 @@ class TransferControllerTest extends ControllerTest {
     }
 
     @Test
+    @DisplayName("정산 완료 멤버 금액이 양수인 정산서 생성 요청 시 400을 반환한다.")
+    void 정산_완료_멤버_금액이_양수인_청구서_생성_요청_시_400을_반환한다() throws Exception {
+        mockCsrfValid();
+        given(transferService.create(eq(1L), any(TransferCreateRequestDto.class)))
+                .willThrow(new BusinessException(TransferErrorCode.INVALID_SETTLED_AMOUNT));
+
+        mockMvc.perform(post("/transfers")
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validCreateBody()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("정산 완료 멤버의 금액은 0이어야 합니다."))
+                .andDo(document("transfers/create-fail-invalid-settled-amount",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(createRequestFields()),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
+    @Test
     @DisplayName("로그인한 여행장(LEADER)은 청구서 메타 정보를 수정할 수 있다.")
     void 로그인한_여행장_LEADER은_청구서_메타_정보를_수정할_수_있다() throws Exception {
         // given
@@ -1065,6 +1088,37 @@ class TransferControllerTest extends ControllerTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("총 금액과 대상 금액 합계가 일치하지 않습니다."))
                 .andDo(document("transfers/update-info-fail-invalid-total-amount",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("transferId").description("수정할 청구서 ID")
+                        ),
+                        requestFields(updateInfoRequestFields()),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(transferService, times(1)).updateInfo(eq(1L), eq(transferId), any(TransferAdjustRequestDto.class));
+    }
+
+    @Test
+    @DisplayName("정산 완료 멤버 금액이 양수인 정산서 금액/대상 정보 수정 요청 시 400을 반환한다.")
+    void 정산_완료_멤버_금액이_양수인_청구서_금액_대상_정보_수정_요청_시_400을_반환한다() throws Exception {
+        // given
+        Long transferId = 1L;
+        mockCsrfValid();
+        given(transferService.updateInfo(eq(1L), eq(transferId), any(TransferAdjustRequestDto.class)))
+                .willThrow(new BusinessException(TransferErrorCode.INVALID_SETTLED_AMOUNT));
+
+        // when & then
+        mockMvc.perform(put("/transfers/{transferId}", transferId)
+                        .with(loginSessionAndCsrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validUpdateInfoBody()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("정산 완료 멤버의 금액은 0이어야 합니다."))
+                .andDo(document("transfers/update-info-fail-invalid-settled-amount",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         pathParameters(
