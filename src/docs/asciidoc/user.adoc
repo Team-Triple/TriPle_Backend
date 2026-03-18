@@ -15,3 +15,11 @@ include::{snippets}/users/me-fail-unauthorized/http-response.adoc[]
 
 === 실패: 사용자 없음(404)
 include::{snippets}/users/me-fail-user-not-found/http-response.adoc[]
+
+== 사용자 정보 수정
+include::{snippets}/users/update/http-request.adoc[]
+include::{snippets}/users/update/request-fields.adoc[]
+include::{snippets}/users/update/http-response.adoc[]
+
+=== 실패: 사용자 없음(404)
+include::{snippets}/users/update-fail-user-not-found/http-response.adoc[]
