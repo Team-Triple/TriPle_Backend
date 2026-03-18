@@ -5,4 +5,4 @@
 * xref:group.adoc[Group API]
 * xref:file.adoc[File API]
 * xref:travel.adoc[Travel API]
-* xref:invoice.adoc[Invoice API]
+* xref:transfer.adoc[Transfer API]

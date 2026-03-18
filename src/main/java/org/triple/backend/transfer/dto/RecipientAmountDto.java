@@ -1,4 +1,4 @@
-package org.triple.backend.invoice.dto;
+package org.triple.backend.transfer.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

@@ -1,9 +1,9 @@
-package org.triple.backend.invoice.exception;
+package org.triple.backend.transfer.exception;
 
 import org.springframework.http.HttpStatus;
 import org.triple.backend.global.error.ErrorCode;
 
-public enum InvoiceErrorCode implements ErrorCode {
+public enum TransferErrorCode implements ErrorCode {
 
     NOT_FOUND_INVOICE(HttpStatus.NOT_FOUND, "존재하지 않는 청구서 입니다."),
     DUPLICATE_RECIPIENT(HttpStatus.CONFLICT, "청구 대상에 중복된 사용자가 포함되어 있습니다."),
@@ -21,7 +21,7 @@ public enum InvoiceErrorCode implements ErrorCode {
     private final HttpStatus status;
     private final String message;
 
-    InvoiceErrorCode(final HttpStatus status, final String message) {
+    TransferErrorCode(final HttpStatus status, final String message) {
         this.status = status;
         this.message = message;
     }

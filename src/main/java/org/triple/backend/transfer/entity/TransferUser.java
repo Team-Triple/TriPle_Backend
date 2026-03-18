@@ -1,4 +1,4 @@
-package org.triple.backend.invoice.entity;
+package org.triple.backend.transfer.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -15,24 +15,24 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(
-        name = "invoice_user",
+        name = "transfer_user",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_invoice_user_invoice_user",
-                        columnNames = {"invoice_id", "user_id"}
+                        name = "uk_transfer_user_transfer_user",
+                        columnNames = {"transfer_id", "user_id"}
                 )
         }
 )
-public class InvoiceUser {
+public class TransferUser {
 
     @Id
-    @Column(name = "invoice_user_id")
+    @Column(name = "transfer_user_id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invoice_id")
-    private Invoice invoice;
+    @JoinColumn(name = "transfer_id")
+    private Transfer transfer;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
@@ -42,9 +42,9 @@ public class InvoiceUser {
     private BigDecimal remainAmount;
 
 
-    public static InvoiceUser create(final Invoice invoice, final User user, final BigDecimal remainAmount) {
-        return InvoiceUser.builder()
-                .invoice(invoice)
+    public static TransferUser create(final Transfer transfer, final User user, final BigDecimal remainAmount) {
+        return TransferUser.builder()
+                .transfer(transfer)
                 .user(user)
                 .remainAmount(remainAmount)
                 .build();
