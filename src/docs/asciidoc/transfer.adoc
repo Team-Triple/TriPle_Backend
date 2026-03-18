@@ -1,0 +1,135 @@
+= Transfer API Document
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 3
+
+== 청구서 생성
+include::{snippets}/transfers/create/http-request.adoc[]
+include::{snippets}/transfers/create/request-fields.adoc[]
+include::{snippets}/transfers/create/http-response.adoc[]
+include::{snippets}/transfers/create/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/transfers/create-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 잘못된 요청 값 (400)
+include::{snippets}/transfers/create-fail-bad-request/http-response.adoc[]
+
+=== 실패: 여행장 권한 없음 (403)
+include::{snippets}/transfers/create-fail-not-travel-leader/http-response.adoc[]
+
+=== 실패: 총 금액 불일치 (403)
+include::{snippets}/transfers/create-fail-invalid-total-amount/http-response.adoc[]
+
+== 청구서 삭제
+include::{snippets}/transfers/delete/path-parameters.adoc[]
+include::{snippets}/transfers/delete/http-request.adoc[]
+include::{snippets}/transfers/delete/http-response.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/transfers/delete-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 청구서 생성자 아님 (403)
+include::{snippets}/transfers/delete-fail-delete-unauthorized/http-response.adoc[]
+
+=== 실패: 청구서 없음 (404)
+include::{snippets}/transfers/delete-fail-not-found-transfer/http-response.adoc[]
+
+=== 실패: 삭제 불가능 상태 (409)
+include::{snippets}/transfers/delete-fail-forbidden-status/http-response.adoc[]
+
+== 청구서 메타 정보 수정
+include::{snippets}/transfers/update-meta/path-parameters.adoc[]
+include::{snippets}/transfers/update-meta/http-request.adoc[]
+include::{snippets}/transfers/update-meta/request-fields.adoc[]
+include::{snippets}/transfers/update-meta/http-response.adoc[]
+include::{snippets}/transfers/update-meta/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/transfers/update-meta-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 잘못된 요청 값 (400)
+include::{snippets}/transfers/update-meta-fail-bad-request/http-response.adoc[]
+
+=== 실패: 청구서 없음 (404)
+include::{snippets}/transfers/update-meta-fail-not-found-transfer/http-response.adoc[]
+
+=== 실패: 여행장 권한 없음 (403)
+include::{snippets}/transfers/update-meta-fail-not-travel-leader/http-response.adoc[]
+
+=== 실패: 수정 불가능 상태 (409)
+include::{snippets}/transfers/update-meta-fail-not-allowed-status/http-response.adoc[]
+
+== 청구서 조회
+include::{snippets}/transfers/search/path-parameters.adoc[]
+include::{snippets}/transfers/search/http-request.adoc[]
+include::{snippets}/transfers/search/http-response.adoc[]
+include::{snippets}/transfers/search/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/transfers/search-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 여행 멤버십 없음 (404)
+include::{snippets}/transfers/search-fail-user-travel-itinerary-not-found/http-response.adoc[]
+
+=== 실패: 청구서 없음 (404)
+include::{snippets}/transfers/search-fail-not-found-transfer/http-response.adoc[]
+
+== 청구서 정산 정보 수정
+include::{snippets}/transfers/update-info/path-parameters.adoc[]
+include::{snippets}/transfers/update-info/http-request.adoc[]
+include::{snippets}/transfers/update-info/request-fields.adoc[]
+include::{snippets}/transfers/update-info/http-response.adoc[]
+include::{snippets}/transfers/update-info/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/transfers/update-info-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 잘못된 요청 값 (400)
+include::{snippets}/transfers/update-info-fail-bad-request/http-response.adoc[]
+
+=== 실패: 여행장 권한 없음 (403)
+include::{snippets}/transfers/update-info-fail-not-travel-leader/http-response.adoc[]
+
+=== 실패: 청구서 없음 (404)
+include::{snippets}/transfers/update-info-fail-not-found-transfer/http-response.adoc[]
+
+=== 실패: 수정 불가능 상태 (409)
+include::{snippets}/transfers/update-info-fail-not-allowed-status/http-response.adoc[]
+
+=== 실패: 그룹 멤버 아님 (403)
+include::{snippets}/transfers/update-info-fail-not-group-member/http-response.adoc[]
+
+=== 실패: 여행 멤버십 없음 (404)
+include::{snippets}/transfers/update-info-fail-user-travel-not-found/http-response.adoc[]
+
+=== 실패: 정산 멤버 중복 (409)
+include::{snippets}/transfers/update-info-fail-duplicate-recipient/http-response.adoc[]
+
+=== 실패: 총 금액 불일치 (403)
+include::{snippets}/transfers/update-info-fail-invalid-total-amount/http-response.adoc[]
+
+== 청구서 확인
+include::{snippets}/transfers/check/path-parameters.adoc[]
+include::{snippets}/transfers/check/http-request.adoc[]
+include::{snippets}/transfers/check/http-response.adoc[]
+
+=== 실패: 비로그인 사용자 (401)
+include::{snippets}/transfers/check-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 여행장 권한 없음 (403)
+include::{snippets}/transfers/check-fail-not-travel-leader/http-response.adoc[]
+
+=== 실패: 그룹 멤버 아님 (403)
+include::{snippets}/transfers/check-fail-not-group-member/http-response.adoc[]
+
+=== 실패: 여행 멤버십 없음 (404)
+include::{snippets}/transfers/check-fail-user-travel-not-found/http-response.adoc[]
+
+=== 실패: 청구서 없음 (404)
+include::{snippets}/transfers/check-fail-not-found-transfer/http-response.adoc[]
+
+=== 실패: 확인 불가능 상태 (409)
+include::{snippets}/transfers/check-fail-not-allowed-status/http-response.adoc[]

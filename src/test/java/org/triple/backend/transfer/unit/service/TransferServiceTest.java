@@ -1,4 +1,4 @@
-package org.triple.backend.invoice.unit.service;
+package org.triple.backend.transfer.unit.service;
 
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
@@ -16,21 +16,21 @@ import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
-import org.triple.backend.invoice.dto.RecipientAmountDto;
-import org.triple.backend.invoice.dto.request.InvoiceAdjustRequestDto;
-import org.triple.backend.invoice.dto.request.InvoiceCreateRequestDto;
-import org.triple.backend.invoice.dto.request.InvoiceUpdateRequestDto;
-import org.triple.backend.invoice.dto.response.InvoiceAdjustResponseDto;
-import org.triple.backend.invoice.dto.response.InvoiceCreateResponseDto;
-import org.triple.backend.invoice.dto.response.InvoiceDetailResponseDto;
-import org.triple.backend.invoice.dto.response.InvoiceUpdateResponseDto;
-import org.triple.backend.invoice.entity.Invoice;
-import org.triple.backend.invoice.entity.InvoiceStatus;
-import org.triple.backend.invoice.entity.InvoiceUser;
-import org.triple.backend.invoice.exception.InvoiceErrorCode;
-import org.triple.backend.invoice.repository.InvoiceJpaRepository;
-import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
-import org.triple.backend.invoice.service.InvoiceService;
+import org.triple.backend.transfer.dto.RecipientAmountDto;
+import org.triple.backend.transfer.dto.request.TransferAdjustRequestDto;
+import org.triple.backend.transfer.dto.request.TransferCreateRequestDto;
+import org.triple.backend.transfer.dto.request.TransferUpdateRequestDto;
+import org.triple.backend.transfer.dto.response.TransferAdjustResponseDto;
+import org.triple.backend.transfer.dto.response.TransferCreateResponseDto;
+import org.triple.backend.transfer.dto.response.TransferDetailResponseDto;
+import org.triple.backend.transfer.dto.response.TransferUpdateResponseDto;
+import org.triple.backend.transfer.entity.Transfer;
+import org.triple.backend.transfer.entity.TransferStatus;
+import org.triple.backend.transfer.entity.TransferUser;
+import org.triple.backend.transfer.exception.TransferErrorCode;
+import org.triple.backend.transfer.repository.TransferJpaRepository;
+import org.triple.backend.transfer.repository.TransferUserJpaRepository;
+import org.triple.backend.transfer.service.TransferService;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
@@ -55,17 +55,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ServiceTest
-@Import({InvoiceService.class, UserFinder.class})
-class InvoiceServiceTest {
+@Import({TransferService.class, UserFinder.class})
+class TransferServiceTest {
 
     @Autowired
-    private InvoiceService invoiceService;
+    private TransferService transferService;
 
     @Autowired
-    private InvoiceJpaRepository invoiceRepository;
+    private TransferJpaRepository transferRepository;
 
     @Autowired
-    private InvoiceUserJpaRepository invoiceUserJpaRepository;
+    private TransferUserJpaRepository transferUserJpaRepository;
 
     @Autowired
     private GroupJpaRepository groupJpaRepository;
@@ -101,7 +101,7 @@ class InvoiceServiceTest {
         saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
         saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
 
-        InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
+        TransferCreateRequestDto request = createRequest(
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(
@@ -115,26 +115,27 @@ class InvoiceServiceTest {
         );
 
         // when
-        InvoiceCreateResponseDto response = invoiceService.create(leader.getId(), request);
+        TransferCreateResponseDto response = transferService.create(leader.getId(), request);
 
         // then
-        assertThat(response.invoiceId()).isNotNull();
-        assertThat(response.groupId()).isEqualTo(group.getId());
-        assertThat(response.travelItineraryId()).isEqualTo(travelItinerary.getId());
+        assertThat(response.transferId()).isNotNull();
+        assertThat(response.accountNumber()).isEqualTo("999999-00-999999");
+        assertThat(response.bankName()).isEqualTo("KB국민");
+        assertThat(response.accountHolder()).isEqualTo("김민준");
         assertThat(response.totalAmount()).isEqualByComparingTo("70000");
-        assertThat(response.recipients()).hasSize(2);
+        assertThat(response.members()).hasSize(2);
 
-        assertThat(invoiceRepository.count()).isEqualTo(1L);
-        assertThat(invoiceUserJpaRepository.count()).isEqualTo(2L);
+        assertThat(transferRepository.count()).isEqualTo(1L);
+        assertThat(transferUserJpaRepository.count()).isEqualTo(2L);
 
-        Invoice savedInvoice = invoiceRepository.findById(response.invoiceId()).orElseThrow();
-        assertThat(savedInvoice.getCreator().getId()).isEqualTo(leader.getId());
-        assertThat(savedInvoice.getGroup().getId()).isEqualTo(group.getId());
-        assertThat(savedInvoice.getTravelItinerary().getId()).isEqualTo(travelItinerary.getId());
-        assertThat(savedInvoice.getTitle()).isEqualTo("제주 렌트비 정산");
+        Transfer savedTransfer = transferRepository.findById(response.transferId()).orElseThrow();
+        assertThat(savedTransfer.getCreator().getId()).isEqualTo(leader.getId());
+        assertThat(savedTransfer.getGroup().getId()).isEqualTo(group.getId());
+        assertThat(savedTransfer.getTravelItinerary().getId()).isEqualTo(travelItinerary.getId());
+        assertThat(savedTransfer.getTitle()).isEqualTo("제주 렌트비 정산");
 
-        List<InvoiceUser> invoiceUsers = invoiceUserJpaRepository.findAll();
-        assertThat(invoiceUsers).extracting(iu -> iu.getUser().getId())
+        List<TransferUser> transferUsers = transferUserJpaRepository.findAll();
+        assertThat(transferUsers).extracting(iu -> iu.getUser().getId())
                 .containsExactlyInAnyOrder(member1.getId(), member2.getId());
     }
 
@@ -153,7 +154,7 @@ class InvoiceServiceTest {
         saveTravelMembership(leaderMember, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
+        TransferCreateRequestDto request = createRequest(
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
@@ -164,21 +165,21 @@ class InvoiceServiceTest {
         );
 
         // when
-        InvoiceCreateResponseDto response = invoiceService.create(leaderMember.getId(), request);
+        TransferCreateResponseDto response = transferService.create(leaderMember.getId(), request);
 
         // then
-        assertThat(response.invoiceId()).isNotNull();
-        Invoice savedInvoice = invoiceRepository.findById(response.invoiceId()).orElseThrow();
-        assertThat(savedInvoice.getCreator().getId()).isEqualTo(leaderMember.getId());
-        assertThat(invoiceRepository.count()).isEqualTo(1L);
-        assertThat(invoiceUserJpaRepository.count()).isEqualTo(1L);
+        assertThat(response.transferId()).isNotNull();
+        Transfer savedTransfer = transferRepository.findById(response.transferId()).orElseThrow();
+        assertThat(savedTransfer.getCreator().getId()).isEqualTo(leaderMember.getId());
+        assertThat(transferRepository.count()).isEqualTo(1L);
+        assertThat(transferUserJpaRepository.count()).isEqualTo(1L);
     }
 
     @Test
     @DisplayName("총 금액과 대상 금액 합계가 다르면 INVALID_TOTAL_AMOUNT 예외가 발생한다.")
     void 총_금액과_대상_금액_합계가_다르면_INVALID_TOTAL_AMOUNT_예외가_발생한다() {
         // given
-        InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
+        TransferCreateRequestDto request = createRequest(
                 1L,
                 1L,
                 List.of(
@@ -191,11 +192,11 @@ class InvoiceServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.create(1L, request))
+        assertThatThrownBy(() -> transferService.create(1L, request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVALID_TOTAL_AMOUNT);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.INVALID_TOTAL_AMOUNT);
                 });
     }
 
@@ -212,7 +213,7 @@ class InvoiceServiceTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
+        TransferCreateRequestDto request = createRequest(
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
@@ -223,11 +224,11 @@ class InvoiceServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.create(member.getId(), request))
+        assertThatThrownBy(() -> transferService.create(member.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.NOT_TRAVEL_LEADER);
                 });
     }
 
@@ -244,7 +245,7 @@ class InvoiceServiceTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
+        TransferCreateRequestDto request = createRequest(
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(
@@ -258,11 +259,11 @@ class InvoiceServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.create(leader.getId(), request))
+        assertThatThrownBy(() -> transferService.create(leader.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DUPLICATE_RECIPIENT);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.DUPLICATE_RECIPIENT);
                 });
     }
 
@@ -277,7 +278,7 @@ class InvoiceServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "제주 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
 
-        InvoiceCreateRequestDto request = new InvoiceCreateRequestDto(
+        TransferCreateRequestDto request = createRequest(
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(new RecipientAmountDto(outsider.getPublicUuid().toString(), new BigDecimal("30000"))),
@@ -288,7 +289,7 @@ class InvoiceServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.create(leader.getId(), request))
+        assertThatThrownBy(() -> transferService.create(leader.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -309,7 +310,7 @@ class InvoiceServiceTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        InvoiceCreateRequestDto firstRequest = new InvoiceCreateRequestDto(
+        TransferCreateRequestDto firstRequest = createRequest(
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
@@ -318,7 +319,7 @@ class InvoiceServiceTest {
                 new BigDecimal("30000"),
                 LocalDateTime.of(2030, 3, 31, 18, 0)
         );
-        InvoiceCreateRequestDto secondRequest = new InvoiceCreateRequestDto(
+        TransferCreateRequestDto secondRequest = createRequest(
                 group.getId(),
                 travelItinerary.getId(),
                 List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000"))),
@@ -328,14 +329,14 @@ class InvoiceServiceTest {
                 LocalDateTime.of(2030, 4, 1, 18, 0)
         );
 
-        invoiceService.create(leader.getId(), firstRequest);
+        transferService.create(leader.getId(), firstRequest);
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.create(leader.getId(), secondRequest))
+        assertThatThrownBy(() -> transferService.create(leader.getId(), secondRequest))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DUPLICATE_INVOICE);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.DUPLICATE_INVOICE);
                 });
     }
 
@@ -351,19 +352,18 @@ class InvoiceServiceTest {
         saveTravelMembership(creator, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
         saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member1, new BigDecimal("7000")));
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member2, new BigDecimal("3000")));
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.UNCONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(transfer, member1, new BigDecimal("7000")));
+        transferUserJpaRepository.save(TransferUser.create(transfer, member2, new BigDecimal("3000")));
         entityManager.flush();
         entityManager.clear();
 
         // when
-        InvoiceDetailResponseDto response = invoiceService.searchInvoice(member1.getId(), travelItinerary.getId());
+        TransferDetailResponseDto response = transferService.searchTransfer(member1.getId(), travelItinerary.getId());
 
         // then
-        assertThat(response.title()).isEqualTo(invoice.getTitle());
-        assertThat(response.creator().userId()).isEqualTo(creator.getPublicUuid().toString());
-        assertThat(response.invoiceMembers()).hasSize(2);
+        assertThat(response.accountNumber()).isNotBlank();
+        assertThat(response.members()).hasSize(2);
         assertThat(response.remainingAmount()).isEqualByComparingTo("10000");
         assertThat(response.isDone()).isFalse();
     }
@@ -378,13 +378,13 @@ class InvoiceServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "완료 여행");
         saveTravelMembership(creator, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, BigDecimal.ZERO));
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.UNCONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, BigDecimal.ZERO));
         entityManager.flush();
         entityManager.clear();
 
         // when
-        InvoiceDetailResponseDto response = invoiceService.searchInvoice(member.getId(), travelItinerary.getId());
+        TransferDetailResponseDto response = transferService.searchTransfer(member.getId(), travelItinerary.getId());
 
         // then
         assertThat(response.remainingAmount()).isEqualByComparingTo("0");
@@ -402,17 +402,17 @@ class InvoiceServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "권한 검증 여행");
         saveTravelMembership(creator, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new BigDecimal("10000")));
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.UNCONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, new BigDecimal("10000")));
         entityManager.flush();
         entityManager.clear();
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.searchInvoice(outsider.getId(), travelItinerary.getId()))
+        assertThatThrownBy(() -> transferService.searchTransfer(outsider.getId(), travelItinerary.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
                 });
     }
 
@@ -425,27 +425,27 @@ class InvoiceServiceTest {
         saveUserGroup(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "수정 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
-        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
+        TransferUpdateRequestDto request = new TransferUpdateRequestDto(
                 "수정된 제목",
                 "수정된 설명",
                 LocalDateTime.of(2030, 4, 1, 18, 0)
         );
 
         // when
-        InvoiceUpdateResponseDto response = invoiceService.updateMetaInfo(leader.getId(), invoice.getId(), request);
+        TransferUpdateResponseDto response = transferService.updateMetaInfo(leader.getId(), transfer.getId(), request);
 
         // then
-        assertThat(response.invoiceId()).isEqualTo(invoice.getId());
+        assertThat(response.transferId()).isEqualTo(transfer.getId());
         assertThat(response.title()).isEqualTo("수정된 제목");
         assertThat(response.description()).isEqualTo("수정된 설명");
         assertThat(response.dueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
-        assertThat(response.invoiceStatus()).isEqualTo(InvoiceStatus.UNCONFIRM);
+        assertThat(response.transferStatus()).isEqualTo(TransferStatus.UNCONFIRM);
 
-        Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
-        assertThat(updatedInvoice.getTitle()).isEqualTo("수정된 제목");
-        assertThat(updatedInvoice.getDescription()).isEqualTo("수정된 설명");
-        assertThat(updatedInvoice.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
+        Transfer updatedTransfer = transferRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(updatedTransfer.getTitle()).isEqualTo("수정된 제목");
+        assertThat(updatedTransfer.getDescription()).isEqualTo("수정된 설명");
+        assertThat(updatedTransfer.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
     }
 
     @Test
@@ -457,19 +457,19 @@ class InvoiceServiceTest {
         saveUserGroup(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확정 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.CONFIRM, "확정 제목");
-        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.CONFIRM, "확정 제목");
+        TransferUpdateRequestDto request = new TransferUpdateRequestDto(
                 "수정 시도",
                 "수정 시도 설명",
                 LocalDateTime.of(2030, 4, 2, 18, 0)
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.updateMetaInfo(leader.getId(), invoice.getId(), request))
+        assertThatThrownBy(() -> transferService.updateMetaInfo(leader.getId(), transfer.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.INVOICE_UPDATE_NOT_ALLOWED_STATUS);
                 });
     }
 
@@ -483,15 +483,15 @@ class InvoiceServiceTest {
         saveUserGroup(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "멤버 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
-        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
+        TransferUpdateRequestDto request = new TransferUpdateRequestDto(
                 "수정 시도",
                 "수정 시도 설명",
                 LocalDateTime.of(2030, 4, 3, 18, 0)
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.updateMetaInfo(outsider.getId(), invoice.getId(), request))
+        assertThatThrownBy(() -> transferService.updateMetaInfo(outsider.getId(), transfer.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -511,19 +511,19 @@ class InvoiceServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "리더 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
-        InvoiceUpdateRequestDto request = new InvoiceUpdateRequestDto(
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
+        TransferUpdateRequestDto request = new TransferUpdateRequestDto(
                 "수정 시도",
                 "수정 시도 설명",
                 LocalDateTime.of(2030, 4, 4, 18, 0)
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.updateMetaInfo(member.getId(), invoice.getId(), request))
+        assertThatThrownBy(() -> transferService.updateMetaInfo(member.getId(), transfer.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.NOT_TRAVEL_LEADER);
                 });
     }
 
@@ -543,10 +543,10 @@ class InvoiceServiceTest {
         saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
         saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
 
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member1, new BigDecimal("70000")));
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
+        transferUserJpaRepository.save(TransferUser.create(transfer, member1, new BigDecimal("70000")));
 
-        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
                 new BigDecimal("30000"),
                 List.of(
                         new RecipientAmountDto(member1.getPublicUuid().toString(), new BigDecimal("10000")),
@@ -555,18 +555,18 @@ class InvoiceServiceTest {
         );
 
         // when
-        InvoiceAdjustResponseDto response = invoiceService.updateInfo(leader.getId(), invoice.getId(), request);
+        TransferAdjustResponseDto response = transferService.updateInfo(leader.getId(), transfer.getId(), request);
 
         // then
-        assertThat(response.invoiceId()).isEqualTo(invoice.getId());
+        assertThat(response.transferId()).isEqualTo(transfer.getId());
         assertThat(response.totalAmount()).isEqualByComparingTo("30000");
-        assertThat(response.recipients()).hasSize(2);
+        assertThat(response.members()).hasSize(2);
 
-        Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
-        assertThat(updatedInvoice.getTotalAmount()).isEqualByComparingTo("30000");
+        Transfer updatedTransfer = transferRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(updatedTransfer.getTotalAmount()).isEqualByComparingTo("30000");
 
-        List<InvoiceUser> updatedUsers = invoiceUserJpaRepository.findAll().stream()
-                .filter(iu -> iu.getInvoice().getId().equals(invoice.getId()))
+        List<TransferUser> updatedUsers = transferUserJpaRepository.findAll().stream()
+                .filter(iu -> iu.getTransfer().getId().equals(transfer.getId()))
                 .toList();
         assertThat(updatedUsers).hasSize(2);
         assertThat(updatedUsers).extracting(iu -> iu.getUser().getId())
@@ -586,19 +586,19 @@ class InvoiceServiceTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
 
-        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
                 new BigDecimal("50000"),
                 List.of(new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("30000")))
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.updateInfo(leader.getId(), invoice.getId(), request))
+        assertThatThrownBy(() -> transferService.updateInfo(leader.getId(), transfer.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVALID_TOTAL_AMOUNT);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.INVALID_TOTAL_AMOUNT);
                 });
     }
 
@@ -613,15 +613,15 @@ class InvoiceServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 멤버 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
 
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
 
-        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
                 new BigDecimal("10000"),
                 List.of(new RecipientAmountDto(outsider.getPublicUuid().toString(), new BigDecimal("10000")))
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.updateInfo(leader.getId(), invoice.getId(), request))
+        assertThatThrownBy(() -> transferService.updateInfo(leader.getId(), transfer.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -641,9 +641,9 @@ class InvoiceServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "정산 중복 수신자 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 청구서");
 
-        InvoiceAdjustRequestDto request = new InvoiceAdjustRequestDto(
+        TransferAdjustRequestDto request = new TransferAdjustRequestDto(
                 new BigDecimal("20000"),
                 List.of(
                         new RecipientAmountDto(member.getPublicUuid().toString(), new BigDecimal("10000")),
@@ -652,11 +652,11 @@ class InvoiceServiceTest {
         );
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.updateInfo(leader.getId(), invoice.getId(), request))
+        assertThatThrownBy(() -> transferService.updateInfo(leader.getId(), transfer.getId(), request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DUPLICATE_RECIPIENT);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.DUPLICATE_RECIPIENT);
                 });
     }
 
@@ -669,14 +669,14 @@ class InvoiceServiceTest {
         saveUserGroup(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "확인 대상 청구서");
 
         // when
-        invoiceService.check(leader.getId(), invoice.getId());
+        transferService.check(leader.getId(), transfer.getId());
 
         // then
-        Invoice confirmedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
-        assertThat(confirmedInvoice.getInvoiceStatus()).isEqualTo(InvoiceStatus.CONFIRM);
+        Transfer confirmedTransfer = transferRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(confirmedTransfer.getTransferStatus()).isEqualTo(TransferStatus.CONFIRM);
     }
 
     @Test
@@ -688,14 +688,14 @@ class InvoiceServiceTest {
         saveUserGroup(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 상태 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.CONFIRM, "이미 확정된 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.CONFIRM, "이미 확정된 청구서");
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.check(leader.getId(), invoice.getId()))
+        assertThatThrownBy(() -> transferService.check(leader.getId(), transfer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS);
                 });
     }
 
@@ -709,10 +709,10 @@ class InvoiceServiceTest {
         saveUserGroup(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 그룹 멤버 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "확인 대상 청구서");
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.check(outsider.getId(), invoice.getId()))
+        assertThatThrownBy(() -> transferService.check(outsider.getId(), transfer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -731,10 +731,10 @@ class InvoiceServiceTest {
         saveUserGroup(groupMemberWithoutTravelMembership, group, Role.MEMBER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 여행 멤버십 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "확인 대상 청구서");
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.check(groupMemberWithoutTravelMembership.getId(), invoice.getId()))
+        assertThatThrownBy(() -> transferService.check(groupMemberWithoutTravelMembership.getId(), transfer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
@@ -754,14 +754,14 @@ class InvoiceServiceTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 리더 권한 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "확인 대상 청구서");
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.check(member.getId(), invoice.getId()))
+        assertThatThrownBy(() -> transferService.check(member.getId(), transfer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_TRAVEL_LEADER);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.NOT_TRAVEL_LEADER);
                 });
     }
 
@@ -772,11 +772,11 @@ class InvoiceServiceTest {
         User leader = saveUser("leader-check-not-found");
 
         // when & then
-        assertThatThrownBy(() -> invoiceService.check(leader.getId(), 999L))
+        assertThatThrownBy(() -> transferService.check(leader.getId(), 999L))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.NOT_FOUND_INVOICE);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.NOT_FOUND_INVOICE);
                 });
     }
 
@@ -790,7 +790,7 @@ class InvoiceServiceTest {
         saveUserGroup(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "동시 수정 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
 
         ExecutorService executorService = Executors.newFixedThreadPool(2);
         CountDownLatch ready = new CountDownLatch(2);
@@ -803,10 +803,10 @@ class InvoiceServiceTest {
             ready.countDown();
             try {
                 start.await();
-                invoiceService.updateMetaInfo(
+                transferService.updateMetaInfo(
                         leader.getId(),
-                        invoice.getId(),
-                        new InvoiceUpdateRequestDto("수정 제목 A", "수정 설명 A", LocalDateTime.of(2030, 4, 10, 18, 0))
+                        transfer.getId(),
+                        new TransferUpdateRequestDto("수정 제목 A", "수정 설명 A", LocalDateTime.of(2030, 4, 10, 18, 0))
                 );
                 successCount.incrementAndGet();
             } catch (Throwable throwable) {
@@ -820,10 +820,10 @@ class InvoiceServiceTest {
             ready.countDown();
             try {
                 start.await();
-                invoiceService.updateMetaInfo(
+                transferService.updateMetaInfo(
                         leader.getId(),
-                        invoice.getId(),
-                        new InvoiceUpdateRequestDto("수정 제목 B", "수정 설명 B", LocalDateTime.of(2030, 4, 11, 18, 0))
+                        transfer.getId(),
+                        new TransferUpdateRequestDto("수정 제목 B", "수정 설명 B", LocalDateTime.of(2030, 4, 11, 18, 0))
                 );
                 successCount.incrementAndGet();
             } catch (Throwable throwable) {
@@ -844,20 +844,20 @@ class InvoiceServiceTest {
             long concurrentConflictCount = failures.stream()
                     .filter(BusinessException.class::isInstance)
                     .map(BusinessException.class::cast)
-                    .filter(e -> e.getErrorCode() == InvoiceErrorCode.CONCURRENT_INVOICE_UPDATE)
+                    .filter(e -> e.getErrorCode() == TransferErrorCode.CONCURRENT_INVOICE_UPDATE)
                     .count();
 
-            Invoice updatedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
+            Transfer updatedTransfer = transferRepository.findById(transfer.getId()).orElseThrow();
 
             assertThat(successCount.get()).isBetween(1, 2);
             assertThat(failures.size()).isBetween(0, 1);
             assertThat(successCount.get() + failures.size()).isEqualTo(2);
             assertThat(concurrentConflictCount).isEqualTo(failures.size());
-            assertThat(List.of("수정 제목 A", "수정 제목 B")).contains(updatedInvoice.getTitle());
+            assertThat(List.of("수정 제목 A", "수정 제목 B")).contains(updatedTransfer.getTitle());
         } finally {
             executorService.shutdownNow();
-            invoiceUserJpaRepository.deleteAllInBatch();
-            invoiceRepository.deleteAllInBatch();
+            transferUserJpaRepository.deleteAllInBatch();
+            transferRepository.deleteAllInBatch();
             userTravelItineraryJpaRepository.deleteAllInBatch();
             travelItineraryJpaRepository.deleteAllInBatch();
             userGroupJpaRepository.deleteAllInBatch();
@@ -867,21 +867,21 @@ class InvoiceServiceTest {
     }
 
     @Test
-    @DisplayName("청구서 삭제 요청 시 상태를 DELETED로 변경하고 invoiceUser를 모두 삭제한다.")
+    @DisplayName("청구서 삭제 요청 시 상태를 DELETED로 변경하고 transferUser를 모두 삭제한다.")
     void 청구서_삭제_성공() {
         User creator = saveUser("creator");
         User member = saveUser("member-delete-success");
         Group group = saveGroup("삭제 테스트 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 테스트 여행");
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new BigDecimal("10000")));
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.UNCONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, new BigDecimal("10000")));
 
-        invoiceService.delete(creator.getId(), invoice.getId());
+        transferService.delete(creator.getId(), transfer.getId());
 
-        Invoice deletedInvoice = invoiceRepository.findById(invoice.getId()).orElseThrow();
-        assertThat(deletedInvoice.getInvoiceStatus()).isEqualTo(InvoiceStatus.DELETED);
-        assertThat(invoiceUserJpaRepository.findAll().stream()
-                .filter(invoiceUser -> invoiceUser.getInvoice().getId().equals(invoice.getId()))
+        Transfer deletedTransfer = transferRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(deletedTransfer.getTransferStatus()).isEqualTo(TransferStatus.DELETED);
+        assertThat(transferUserJpaRepository.findAll().stream()
+                .filter(transferUser -> transferUser.getTransfer().getId().equals(transfer.getId()))
                 .toList()).isEmpty();
     }
 
@@ -892,13 +892,13 @@ class InvoiceServiceTest {
         User other = saveUser("other-not-owner");
         Group group = saveGroup("삭제 권한 테스트 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 권한 테스트 여행");
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.UNCONFIRM);
 
-        assertThatThrownBy(() -> invoiceService.delete(other.getId(), invoice.getId()))
+        assertThatThrownBy(() -> transferService.delete(other.getId(), transfer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DELETE_UNAUTHORIZED);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.DELETE_UNAUTHORIZED);
                 });
     }
 
@@ -908,13 +908,13 @@ class InvoiceServiceTest {
         User creator = saveUser("creator-status");
         Group group = saveGroup("삭제 상태 테스트 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 상태 테스트 여행");
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.CONFIRM);
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.CONFIRM);
 
-        assertThatThrownBy(() -> invoiceService.delete(creator.getId(), invoice.getId()))
+        assertThatThrownBy(() -> transferService.delete(creator.getId(), transfer.getId()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException be = (BusinessException) ex;
-                    assertThat(be.getErrorCode()).isEqualTo(InvoiceErrorCode.DELETE_FORBIDDEN_STATUS);
+                    assertThat(be.getErrorCode()).isEqualTo(TransferErrorCode.DELETE_FORBIDDEN_STATUS);
                 });
     }
 
@@ -963,41 +963,80 @@ class InvoiceServiceTest {
         );
     }
 
-    private Invoice saveInvoice(
+    private TransferCreateRequestDto createRequest(
+            final Long groupId,
+            final Long travelItineraryId,
+            final List<RecipientAmountDto> recipients,
+            final String title,
+            final String description,
+            final BigDecimal totalAmount,
+            final LocalDateTime dueAt
+    ) {
+        List<TransferCreateRequestDto.MemberDto> members = recipients.stream()
+                .map(recipient -> new TransferCreateRequestDto.MemberDto(
+                        recipient.userId(),
+                        "멤버",
+                        "http://img",
+                        recipient.amount(),
+                        recipient.amount().compareTo(BigDecimal.ZERO) == 0
+                ))
+                .toList();
+
+        return new TransferCreateRequestDto(
+                "999999-00-999999",
+                "KB국민",
+                "김민준",
+                totalAmount,
+                members,
+                groupId,
+                travelItineraryId,
+                title,
+                description,
+                dueAt
+        );
+    }
+
+    private Transfer saveTransfer(
             final Group group,
             final User creator,
             final TravelItinerary travelItinerary,
-            final InvoiceStatus invoiceStatus,
+            final TransferStatus transferStatus,
             final String title
     ) {
-        return invoiceRepository.save(
-                Invoice.builder()
+        return transferRepository.save(
+                Transfer.builder()
                         .group(group)
                         .creator(creator)
                         .travelItinerary(travelItinerary)
-                        .invoiceStatus(invoiceStatus)
+                        .transferStatus(transferStatus)
                         .title(title)
                         .description("기존 설명")
+                        .accountNumber("999999-00-999999")
+                        .bankName("KB국민")
+                        .accountHolder("김민준")
                         .totalAmount(new BigDecimal("70000"))
                         .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
                         .build()
         );
     }
 
-    private Invoice saveInvoice(
+    private Transfer saveTransfer(
             final User creator,
             final Group group,
             final TravelItinerary travelItinerary,
-            final InvoiceStatus invoiceStatus
+            final TransferStatus transferStatus
     ) {
-        return invoiceRepository.save(
-                Invoice.builder()
+        return transferRepository.save(
+                Transfer.builder()
                         .group(group)
                         .creator(creator)
                         .travelItinerary(travelItinerary)
-                        .invoiceStatus(invoiceStatus)
+                        .transferStatus(transferStatus)
                         .title("청구서")
                         .description("청구서 설명")
+                        .accountNumber("999999-00-999999")
+                        .bankName("KB국민")
+                        .accountHolder("김민준")
                         .totalAmount(new BigDecimal("10000"))
                         .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
                         .build()

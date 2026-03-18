@@ -1,4 +1,4 @@
-package org.triple.backend.invoice.integration;
+package org.triple.backend.transfer.integration;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,11 +15,11 @@ import org.triple.backend.group.entity.userGroup.Role;
 import org.triple.backend.group.entity.userGroup.UserGroup;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
-import org.triple.backend.invoice.entity.Invoice;
-import org.triple.backend.invoice.entity.InvoiceStatus;
-import org.triple.backend.invoice.entity.InvoiceUser;
-import org.triple.backend.invoice.repository.InvoiceJpaRepository;
-import org.triple.backend.invoice.repository.InvoiceUserJpaRepository;
+import org.triple.backend.transfer.entity.Transfer;
+import org.triple.backend.transfer.entity.TransferStatus;
+import org.triple.backend.transfer.entity.TransferUser;
+import org.triple.backend.transfer.repository.TransferJpaRepository;
+import org.triple.backend.transfer.repository.TransferUserJpaRepository;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
@@ -43,7 +43,7 @@ import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_HEADER;
 import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_TOKEN_KEY;
 
 @IntegrationTest
-class InvoiceIntegrationTest {
+class TransferIntegrationTest {
 
     private static final String USER_SESSION_KEY = "USER_ID";
     private static final String CSRF_TOKEN = "test-token";
@@ -70,10 +70,10 @@ class InvoiceIntegrationTest {
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
     @Autowired
-    private InvoiceJpaRepository invoiceJpaRepository;
+    private TransferJpaRepository transferJpaRepository;
 
     @Autowired
-    private InvoiceUserJpaRepository invoiceUserJpaRepository;
+    private TransferUserJpaRepository transferUserJpaRepository;
 
     @Autowired
     private UuidCrypto uuidCrypto;
@@ -96,38 +96,27 @@ class InvoiceIntegrationTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        String body = """
-                {
-                  "groupId": %d,
-                  "travelItineraryId": %d,
-                  "recipients": [
-                    { "userId": "%s", "amount": 30000 }
-                  ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
-                  "totalAmount": 30000,
-                  "dueAt": "2030-03-31T18:00:00"
-                }
-                """.formatted(group.getId(), travelItinerary.getId(), encryptedUserId(member));
+        String body = createBody(group.getId(), travelItinerary.getId(), encryptedUserId(member), 30000, 30000);
 
         // when & then
-        mockMvc.perform(post("/invoices")
+        mockMvc.perform(post("/transfers")
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.invoiceId").isNumber())
-                .andExpect(jsonPath("$.groupId").value(group.getId()))
-                .andExpect(jsonPath("$.travelItineraryId").value(travelItinerary.getId()))
-                .andExpect(jsonPath("$.title").value("제주 렌트비 정산"))
-                .andExpect(jsonPath("$.recipients.length()").value(1))
-                .andExpect(jsonPath("$.recipients[0].userId").isString())
-                .andExpect(jsonPath("$.recipients[0].amount").value(30000));
+                .andExpect(jsonPath("$.transferId").isNumber())
+                .andExpect(jsonPath("$.accountNumber").value("999999-00-999999"))
+                .andExpect(jsonPath("$.bankName").value("KB국민"))
+                .andExpect(jsonPath("$.accountHolder").value("김민준"))
+                .andExpect(jsonPath("$.totalAmount").value(30000))
+                .andExpect(jsonPath("$.members.length()").value(1))
+                .andExpect(jsonPath("$.members[0].id").isString())
+                .andExpect(jsonPath("$.members[0].amount").value(30000));
 
-        assertThat(invoiceJpaRepository.count()).isEqualTo(1L);
-        assertThat(invoiceUserJpaRepository.count()).isEqualTo(1L);
+        assertThat(transferJpaRepository.count()).isEqualTo(1L);
+        assertThat(transferUserJpaRepository.count()).isEqualTo(1L);
     }
 
     @Test
@@ -145,54 +134,30 @@ class InvoiceIntegrationTest {
         saveTravelMembership(leaderMember, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        String body = """
-                {
-                  "groupId": %d,
-                  "travelItineraryId": %d,
-                  "recipients": [
-                    { "userId": "%s", "amount": 30000 }
-                  ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
-                  "totalAmount": 30000,
-                  "dueAt": "2030-03-31T18:00:00"
-                }
-                """.formatted(group.getId(), travelItinerary.getId(), encryptedUserId(member));
+        String body = createBody(group.getId(), travelItinerary.getId(), encryptedUserId(member), 30000, 30000);
 
         // when & then
-        mockMvc.perform(post("/invoices")
+        mockMvc.perform(post("/transfers")
                         .sessionAttr(USER_SESSION_KEY, leaderMember.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.invoiceId").isNumber())
-                .andExpect(jsonPath("$.groupId").value(group.getId()))
-                .andExpect(jsonPath("$.travelItineraryId").value(travelItinerary.getId()));
+                .andExpect(jsonPath("$.transferId").isNumber())
+                .andExpect(jsonPath("$.accountNumber").value("999999-00-999999"))
+                .andExpect(jsonPath("$.members.length()").value(1));
 
-        assertThat(invoiceJpaRepository.count()).isEqualTo(1L);
-        assertThat(invoiceUserJpaRepository.count()).isEqualTo(1L);
+        assertThat(transferJpaRepository.count()).isEqualTo(1L);
+        assertThat(transferUserJpaRepository.count()).isEqualTo(1L);
     }
 
     @Test
     @DisplayName("비로그인 사용자가 청구서 생성을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_생성을_요청하면_401을_반환한다() throws Exception {
-        String body = """
-                {
-                  "groupId": 1,
-                  "travelItineraryId": 1,
-                  "recipients": [
-                    { "userId": "enc-sample-user-id", "amount": 30000 }
-                  ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
-                  "totalAmount": 30000,
-                  "dueAt": "2030-03-31T18:00:00"
-                }
-                """;
+        String body = createBody(1L, 1L, "enc-sample-user-id", 30000, 30000);
 
-        mockMvc.perform(post("/invoices")
+        mockMvc.perform(post("/transfers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
@@ -211,22 +176,10 @@ class InvoiceIntegrationTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        String body = """
-                {
-                  "groupId": %d,
-                  "travelItineraryId": %d,
-                  "recipients": [
-                    { "userId": "%s", "amount": 30000 }
-                  ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
-                  "totalAmount": 30000,
-                  "dueAt": "2030-03-31T18:00:00"
-                }
-                """.formatted(group.getId(), travelItinerary.getId(), encryptedUserId(member));
+        String body = createBody(group.getId(), travelItinerary.getId(), encryptedUserId(member), 30000, 30000);
 
         // when & then
-        mockMvc.perform(post("/invoices")
+        mockMvc.perform(post("/transfers")
                         .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
@@ -248,21 +201,9 @@ class InvoiceIntegrationTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        String body = """
-                {
-                  "groupId": %d,
-                  "travelItineraryId": %d,
-                  "recipients": [
-                    { "userId": "%s", "amount": 30000 }
-                  ],
-                  "title": "제주 렌트비 정산",
-                  "description": "렌트비 N빵",
-                  "totalAmount": 30000,
-                  "dueAt": "2030-03-31T18:00:00"
-                }
-                """.formatted(group.getId(), travelItinerary.getId(), encryptedUserId(member));
+        String body = createBody(group.getId(), travelItinerary.getId(), encryptedUserId(member), 30000, 30000);
 
-        mockMvc.perform(post("/invoices")
+        mockMvc.perform(post("/transfers")
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
@@ -271,7 +212,7 @@ class InvoiceIntegrationTest {
                 .andExpect(status().isOk());
 
         // when & then
-        mockMvc.perform(post("/invoices")
+        mockMvc.perform(post("/transfers")
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
@@ -280,8 +221,8 @@ class InvoiceIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("중복된 청구서 생성입니다."));
 
-        assertThat(invoiceJpaRepository.count()).isEqualTo(1L);
-        assertThat(invoiceUserJpaRepository.count()).isEqualTo(1L);
+        assertThat(transferJpaRepository.count()).isEqualTo(1L);
+        assertThat(transferUserJpaRepository.count()).isEqualTo(1L);
     }
 
     @Test
@@ -293,7 +234,7 @@ class InvoiceIntegrationTest {
         saveMembership(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "수정 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
 
         String body = """
                 {
@@ -304,23 +245,23 @@ class InvoiceIntegrationTest {
                 """;
 
         // when & then
-        mockMvc.perform(patch("/invoices/{invoiceId}", invoice.getId())
+        mockMvc.perform(patch("/transfers/{transferId}", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.invoiceId").value(invoice.getId()))
+                .andExpect(jsonPath("$.transferId").value(transfer.getId()))
                 .andExpect(jsonPath("$.title").value("수정된 제목"))
                 .andExpect(jsonPath("$.description").value("수정된 설명"))
                 .andExpect(jsonPath("$.dueAt").value("2030-04-01T18:00:00"))
-                .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"));
+                .andExpect(jsonPath("$.transferStatus").value("UNCONFIRM"));
 
-        Invoice updatedInvoice = invoiceJpaRepository.findById(invoice.getId()).orElseThrow();
-        assertThat(updatedInvoice.getTitle()).isEqualTo("수정된 제목");
-        assertThat(updatedInvoice.getDescription()).isEqualTo("수정된 설명");
-        assertThat(updatedInvoice.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
+        Transfer updatedTransfer = transferJpaRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(updatedTransfer.getTitle()).isEqualTo("수정된 제목");
+        assertThat(updatedTransfer.getDescription()).isEqualTo("수정된 설명");
+        assertThat(updatedTransfer.getDueAt()).isEqualTo(LocalDateTime.of(2030, 4, 1, 18, 0));
     }
 
     @Test
@@ -335,7 +276,7 @@ class InvoiceIntegrationTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "리더 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
 
         String body = """
                 {
@@ -346,7 +287,7 @@ class InvoiceIntegrationTest {
                 """;
 
         // when & then
-        mockMvc.perform(patch("/invoices/{invoiceId}", invoice.getId())
+        mockMvc.perform(patch("/transfers/{transferId}", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
@@ -367,7 +308,7 @@ class InvoiceIntegrationTest {
                 }
                 """;
 
-        mockMvc.perform(patch("/invoices/{invoiceId}", 1L)
+        mockMvc.perform(patch("/transfers/{transferId}", 1L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
@@ -384,16 +325,17 @@ class InvoiceIntegrationTest {
         saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
         saveTravelMembership(멤버1, 여행일정, UserRole.MEMBER);
         saveTravelMembership(멤버2, 여행일정, UserRole.MEMBER);
-        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버1, new BigDecimal("7000")));
-        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버2, new BigDecimal("3000")));
+        Transfer 청구서 = saveTransfer(생성자, 그룹, 여행일정, TransferStatus.UNCONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(청구서, 멤버1, new BigDecimal("7000")));
+        transferUserJpaRepository.save(TransferUser.create(청구서, 멤버2, new BigDecimal("3000")));
 
-        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 여행일정.getId())
+        mockMvc.perform(get("/transfers/travels/{travelItineraryId}", 여행일정.getId())
                         .sessionAttr(USER_SESSION_KEY, 멤버1.getPublicUuid()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("청구서"))
-                .andExpect(jsonPath("$.creator.userId").isString())
-                .andExpect(jsonPath("$.invoiceMembers.length()").value(2))
+                .andExpect(jsonPath("$.accountNumber").value("999999-00-999999"))
+                .andExpect(jsonPath("$.bankName").value("KB국민"))
+                .andExpect(jsonPath("$.accountHolder").value("김민준"))
+                .andExpect(jsonPath("$.members.length()").value(2))
                 .andExpect(jsonPath("$.remainingAmount").value(10000))
                 .andExpect(jsonPath("$.isDone").value(false));
     }
@@ -408,10 +350,10 @@ class InvoiceIntegrationTest {
         TravelItinerary 여행일정 = saveTravelItinerary(그룹, "권한 여행");
         saveTravelMembership(생성자, 여행일정, UserRole.LEADER);
         saveTravelMembership(멤버, 여행일정, UserRole.MEMBER);
-        Invoice 청구서 = saveInvoice(생성자, 그룹, 여행일정, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(청구서, 멤버, new BigDecimal("10000")));
+        Transfer 청구서 = saveTransfer(생성자, 그룹, 여행일정, TransferStatus.UNCONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(청구서, 멤버, new BigDecimal("10000")));
 
-        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 여행일정.getId())
+        mockMvc.perform(get("/transfers/travels/{travelItineraryId}", 여행일정.getId())
                         .sessionAttr(USER_SESSION_KEY, 외부인.getPublicUuid()))
                 .andExpect(status().isNotFound());
     }
@@ -419,7 +361,7 @@ class InvoiceIntegrationTest {
     @Test
     @DisplayName("비로그인 사용자가 청구서 조회를 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_조회를_요청하면_401을_반환한다() throws Exception {
-        mockMvc.perform(get("/invoices/travels/{travelItineraryId}", 1L))
+        mockMvc.perform(get("/transfers/travels/{travelItineraryId}", 1L))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -439,36 +381,31 @@ class InvoiceIntegrationTest {
         saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
         saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
 
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member1, new java.math.BigDecimal("70000")));
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
+        transferUserJpaRepository.save(TransferUser.create(transfer, member1, new java.math.BigDecimal("70000")));
 
-        String body = """
-                {
-                  "totalAmount": 30000,
-                  "recipients": [
-                    { "userId": "%s", "amount": 10000 },
-                    { "userId": "%s", "amount": 20000 }
-                  ]
-                }
-                """.formatted(encryptedUserId(member1), encryptedUserId(member2));
+        String body = updateInfoBody(encryptedUserId(member1), encryptedUserId(member2), 10000, 20000, 30000);
 
         // when & then
-        mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
+        mockMvc.perform(put("/transfers/{transferId}", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.invoiceId").value(invoice.getId()))
+                .andExpect(jsonPath("$.transferId").value(transfer.getId()))
+                .andExpect(jsonPath("$.accountNumber").value("999999-00-999999"))
+                .andExpect(jsonPath("$.bankName").value("KB국민"))
+                .andExpect(jsonPath("$.accountHolder").value("김민준"))
                 .andExpect(jsonPath("$.totalAmount").value(30000))
-                .andExpect(jsonPath("$.recipients.length()").value(2))
-                .andExpect(jsonPath("$.invoiceStatus").value("UNCONFIRM"));
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.transferStatus").value("UNCONFIRM"));
 
-        Invoice updatedInvoice = invoiceJpaRepository.findById(invoice.getId()).orElseThrow();
-        assertThat(updatedInvoice.getTotalAmount()).isEqualByComparingTo("30000");
-        assertThat(invoiceUserJpaRepository.findAll().stream()
-                .filter(iu -> iu.getInvoice().getId().equals(invoice.getId()))
+        Transfer updatedTransfer = transferJpaRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(updatedTransfer.getTotalAmount()).isEqualByComparingTo("30000");
+        assertThat(transferUserJpaRepository.findAll().stream()
+                .filter(iu -> iu.getTransfer().getId().equals(transfer.getId()))
                 .toList())
                 .hasSize(2);
     }
@@ -486,20 +423,13 @@ class InvoiceIntegrationTest {
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
 
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "기존 제목");
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new java.math.BigDecimal("10000")));
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "기존 제목");
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, new java.math.BigDecimal("10000")));
 
-        String body = """
-                {
-                  "totalAmount": 10000,
-                  "recipients": [
-                    { "userId": "%s", "amount": 10000 }
-                  ]
-                }
-                """.formatted(encryptedUserId(member));
+        String body = updateInfoBody(encryptedUserId(member), encryptedUserId(member), 10000, 0, 10000);
 
         // when & then
-        mockMvc.perform(put("/invoices/{invoiceId}", invoice.getId())
+        mockMvc.perform(put("/transfers/{transferId}", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN)
@@ -517,23 +447,23 @@ class InvoiceIntegrationTest {
         saveMembership(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "확인 대상 청구서");
 
         // when & then
-        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+        mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk());
 
-        Invoice confirmedInvoice = invoiceJpaRepository.findById(invoice.getId()).orElseThrow();
-        assertThat(confirmedInvoice.getInvoiceStatus()).isEqualTo(InvoiceStatus.CONFIRM);
+        Transfer confirmedTransfer = transferJpaRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(confirmedTransfer.getTransferStatus()).isEqualTo(TransferStatus.CONFIRM);
     }
 
     @Test
     @DisplayName("비로그인 사용자가 청구서 확인을 요청하면 401을 반환한다.")
     void 비로그인_사용자가_청구서_확인을_요청하면_401을_반환한다() throws Exception {
-        mockMvc.perform(post("/invoices/{invoiceId}/check", 1L))
+        mockMvc.perform(post("/transfers/{transferId}/check", 1L))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -547,10 +477,10 @@ class InvoiceIntegrationTest {
         saveMembership(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 권한 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "확인 대상 청구서");
 
         // when & then
-        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+        mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
@@ -569,10 +499,10 @@ class InvoiceIntegrationTest {
         saveMembership(groupMemberWithoutTravel, group, Role.MEMBER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 여행 멤버십 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "확인 대상 청구서");
 
         // when & then
-        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+        mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, groupMemberWithoutTravel.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
@@ -592,10 +522,10 @@ class InvoiceIntegrationTest {
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 리더 권한 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
         saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.UNCONFIRM, "확인 대상 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "확인 대상 청구서");
 
         // when & then
-        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+        mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
@@ -607,10 +537,10 @@ class InvoiceIntegrationTest {
     @DisplayName("존재하지 않는 청구서 확인 요청 시 404를 반환한다.")
     void 존재하지_않는_청구서_확인_요청_시_404를_반환한다() throws Exception {
         // given
-        User leader = saveUser("leader-check-404-invoice");
+        User leader = saveUser("leader-check-404-transfer");
 
         // when & then
-        mockMvc.perform(post("/invoices/{invoiceId}/check", 999L)
+        mockMvc.perform(post("/transfers/{transferId}/check", 999L)
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
@@ -627,10 +557,10 @@ class InvoiceIntegrationTest {
         saveMembership(leader, group, Role.OWNER);
         TravelItinerary travelItinerary = saveTravelItinerary(group, "확인 상태 검증 여행");
         saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
-        Invoice invoice = saveInvoice(group, leader, travelItinerary, InvoiceStatus.CONFIRM, "이미 확정된 청구서");
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.CONFIRM, "이미 확정된 청구서");
 
         // when & then
-        mockMvc.perform(post("/invoices/{invoiceId}/check", invoice.getId())
+        mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
@@ -639,25 +569,25 @@ class InvoiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("청구서 생성자가 삭제 요청하면 상태가 DELETED로 변경되고 invoice_user가 삭제된다.")
+    @DisplayName("청구서 생성자가 삭제 요청하면 상태가 DELETED로 변경되고 transfer_user가 삭제된다.")
     void 청구서_삭제_성공() throws Exception {
         User creator = saveUser("delete-creator");
         User member = saveUser("delete-member");
         Group group = saveGroup("삭제 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 여행");
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
-        invoiceUserJpaRepository.save(InvoiceUser.create(invoice, member, new java.math.BigDecimal("10000")));
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.UNCONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, new java.math.BigDecimal("10000")));
 
-        mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
+        mockMvc.perform(delete("/transfers/{transferId}", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
                 .andExpect(status().isOk());
 
-        Invoice deletedInvoice = invoiceJpaRepository.findById(invoice.getId()).orElseThrow();
-        assertThat(deletedInvoice.getInvoiceStatus()).isEqualTo(InvoiceStatus.DELETED);
-        assertThat(invoiceUserJpaRepository.findAll().stream()
-                .filter(invoiceUser -> invoiceUser.getInvoice().getId().equals(invoice.getId()))
+        Transfer deletedTransfer = transferJpaRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(deletedTransfer.getTransferStatus()).isEqualTo(TransferStatus.DELETED);
+        assertThat(transferUserJpaRepository.findAll().stream()
+                .filter(transferUser -> transferUser.getTransfer().getId().equals(transfer.getId()))
                 .toList()).isEmpty();
     }
 
@@ -668,9 +598,9 @@ class InvoiceIntegrationTest {
         User other = saveUser("delete-other-403");
         Group group = saveGroup("삭제 권한 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 권한 여행");
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.UNCONFIRM);
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.UNCONFIRM);
 
-        mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
+        mockMvc.perform(delete("/transfers/{transferId}", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, other.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
@@ -683,9 +613,9 @@ class InvoiceIntegrationTest {
         User creator = saveUser("delete-status-409");
         Group group = saveGroup("삭제 상태 그룹");
         TravelItinerary travelItinerary = saveTravelItinerary(group, "삭제 상태 여행");
-        Invoice invoice = saveInvoice(creator, group, travelItinerary, InvoiceStatus.CONFIRM);
+        Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.CONFIRM);
 
-        mockMvc.perform(delete("/invoices/{invoiceId}", invoice.getId())
+        mockMvc.perform(delete("/transfers/{transferId}", transfer.getId())
                         .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
                         .header(CSRF_HEADER, CSRF_TOKEN))
@@ -737,41 +667,47 @@ class InvoiceIntegrationTest {
         );
     }
 
-    private Invoice saveInvoice(
+    private Transfer saveTransfer(
             final Group group,
             final User creator,
             final TravelItinerary travelItinerary,
-            final InvoiceStatus invoiceStatus,
+            final TransferStatus transferStatus,
             final String title
     ) {
-        return invoiceJpaRepository.save(
-                Invoice.builder()
+        return transferJpaRepository.save(
+                Transfer.builder()
                         .group(group)
                         .creator(creator)
                         .travelItinerary(travelItinerary)
-                        .invoiceStatus(invoiceStatus)
+                        .transferStatus(transferStatus)
                         .title(title)
                         .description("기존 설명")
+                        .accountNumber("999999-00-999999")
+                        .bankName("KB국민")
+                        .accountHolder("김민준")
                         .totalAmount(new java.math.BigDecimal("70000"))
                         .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
                         .build()
         );
     }
 
-    private Invoice saveInvoice(
+    private Transfer saveTransfer(
             final User creator,
             final Group group,
             final TravelItinerary travelItinerary,
-            final InvoiceStatus invoiceStatus
+            final TransferStatus transferStatus
     ) {
-        return invoiceJpaRepository.save(
-                Invoice.builder()
+        return transferJpaRepository.save(
+                Transfer.builder()
                         .group(group)
                         .creator(creator)
                         .travelItinerary(travelItinerary)
-                        .invoiceStatus(invoiceStatus)
+                        .transferStatus(transferStatus)
                         .title("청구서")
                         .description("청구서 설명")
+                        .accountNumber("999999-00-999999")
+                        .bankName("KB국민")
+                        .accountHolder("김민준")
                         .totalAmount(new java.math.BigDecimal("10000"))
                         .dueAt(LocalDateTime.of(2030, 3, 31, 18, 0))
                         .build()
@@ -780,5 +716,58 @@ class InvoiceIntegrationTest {
 
     private String encryptedUserId(final User user) {
         return uuidCrypto.encrypt(user.getPublicUuid());
+    }
+
+    private String createBody(
+            final Long groupId,
+            final Long travelItineraryId,
+            final String memberId,
+            final int memberAmount,
+            final int totalAmount
+    ) {
+        return """
+                {
+                  "accountNumber": "999999-00-999999",
+                  "bankName": "KB국민",
+                  "accountHolder": "김민준",
+                  "groupId": %d,
+                  "travelItineraryId": %d,
+                  "members": [
+                    { "id": "%s", "name": "멤버", "avatar": "http://img", "amount": %d, "settled": false }
+                  ],
+                  "title": "제주 렌트비 정산",
+                  "description": "렌트비 N빵",
+                  "totalAmount": %d,
+                  "dueAt": "2030-03-31T18:00:00"
+                }
+                """.formatted(groupId, travelItineraryId, memberId, memberAmount, totalAmount);
+    }
+
+    private String updateInfoBody(
+            final String firstMemberId,
+            final String secondMemberId,
+            final int firstAmount,
+            final int secondAmount,
+            final int totalAmount
+    ) {
+        return """
+                {
+                  "accountNumber": "999999-00-999999",
+                  "bankName": "KB국민",
+                  "accountHolder": "김민준",
+                  "totalAmount": %d,
+                  "members": [
+                    { "id": "%s", "name": "멤버1", "avatar": "http://img", "amount": %d, "settled": false },
+                    { "id": "%s", "name": "멤버2", "avatar": "http://img", "amount": %d, "settled": %s }
+                  ]
+                }
+                """.formatted(
+                totalAmount,
+                firstMemberId,
+                firstAmount,
+                secondMemberId,
+                secondAmount,
+                secondAmount == 0
+        );
     }
 }
