@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.global.error.BusinessException;
+import org.triple.backend.user.dto.request.UpdateUserInfoReq;
 import org.triple.backend.user.dto.response.UserInfoResponseDto;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
@@ -38,4 +39,11 @@ public class UserService {
                 .build();
     }
 
+    @Transactional
+    public void updateUserInfo(Long userId, UpdateUserInfoReq updateUserInfoReq) {
+        User user = userJpaRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        user.patchUserInfo(updateUserInfoReq);
+    }
 }
