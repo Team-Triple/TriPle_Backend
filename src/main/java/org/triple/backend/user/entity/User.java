@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.triple.backend.user.dto.request.UpdateUserInfoReq;
 
 @Getter
 @Entity
@@ -84,5 +85,58 @@ public class User extends BaseEntity {
         if (publicUuid == null) {
             publicUuid = UUID.randomUUID();
         }
+    }
+
+    public void patchUserInfo(UpdateUserInfoReq req) {
+        if (req.nickname() != null) {
+            this.nickname = validateNickname(req.nickname());
+        }
+
+        if (req.gender() != null) {
+            this.gender = req.gender();
+        }
+
+        if (req.birth() != null) {
+            this.birth = validateBirth(req.birth());
+        }
+
+        if (req.description() != null) {
+            this.description = validateDescription(req.description());
+        }
+
+        if (req.profileUrl() != null) {
+            this.profileUrl = validateProfileUrl(req.profileUrl());
+        }
+    }
+
+    private String validateNickname(String nickname) {
+        String trimmedNickname = nickname.trim();
+        if (trimmedNickname.isEmpty()) {
+            throw new IllegalArgumentException("닉네임은 공백일 수 없습니다.");
+        }
+        return trimmedNickname;
+    }
+
+    private LocalDate validateBirth(LocalDate birth) {
+        if (birth.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("생년월일은 미래일 수 없습니다.");
+        }
+        return birth;
+    }
+
+    private String validateDescription(String description) {
+        String trimmedDescription = description.trim();
+        if (trimmedDescription.isEmpty()) {
+            throw new IllegalArgumentException("소개글은 공백일 수 없습니다.");
+        }
+        return trimmedDescription;
+    }
+
+    private String validateProfileUrl(String profileUrl) {
+        String trimmedProfileUrl = profileUrl.trim();
+        if (trimmedProfileUrl.isEmpty()) {
+            throw new IllegalArgumentException("프로필 URL은 공백일 수 없습니다.");
+        }
+        return trimmedProfileUrl;
     }
 }
