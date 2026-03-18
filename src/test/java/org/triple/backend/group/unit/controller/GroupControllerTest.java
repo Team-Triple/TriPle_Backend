@@ -640,6 +640,7 @@ public class GroupControllerTest extends ControllerTest {
                 10,
                 Role.GUEST,
                 List.of(new GroupDetailResponseDto.RecentPhotoDto(100L, "https://example.com/review-image-1.png")),
+                1,
                 List.of(new GroupDetailResponseDto.RecentTravelDto(
                         200L,
                         "벚꽃여행",
@@ -696,7 +697,7 @@ public class GroupControllerTest extends ControllerTest {
                         pathParameters(
                                 parameterWithName("groupId").description("조회할 그룹 ID")
                         ),
-                        relaxedResponseFields(
+                        responseFields(
                                 fieldWithPath("users").description("그룹 멤버 목록"),
                                 fieldWithPath("users[].name").description("멤버 이름"),
                                 fieldWithPath("users[].description").description("멤버 소개").optional(),
@@ -712,6 +713,7 @@ public class GroupControllerTest extends ControllerTest {
                                 fieldWithPath("recentPhotos").description("최근 사진 최대 4개"),
                                 fieldWithPath("recentPhotos[].imageId").description("사진 ID"),
                                 fieldWithPath("recentPhotos[].imageUrl").description("사진 URL"),
+                                fieldWithPath("travelCount").description("여행 수"),
                                 fieldWithPath("recentTravels").description("최근 여행 일정 최대 4개"),
                                 fieldWithPath("recentTravels[].travelItineraryId").description("여행 일정 ID"),
                                 fieldWithPath("recentTravels[].title").description("여행 일정 제목"),

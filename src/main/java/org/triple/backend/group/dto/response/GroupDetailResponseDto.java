@@ -54,42 +54,6 @@ public record GroupDetailResponseDto(
             LocalDateTime createdAt
     ) {}
 
-    public GroupDetailResponseDto(
-            final List<UserDto> users,
-            final String name,
-            final String description,
-            final GroupKind groupKind,
-            final String thumbNailUrl,
-            final int currentMemberCount,
-            final int memberLimit,
-            final Role role,
-            final List<RecentPhotoDto> recentPhotos,
-            final List<RecentTravelDto> recentTravels,
-            final List<RecentReviewDto> recentReviews
-    ) {
-        this(
-                users,
-                name,
-                description,
-                groupKind,
-                thumbNailUrl,
-                currentMemberCount,
-                memberLimit,
-                role,
-                recentPhotos,
-                resolveTravelCount(recentTravels),
-                recentTravels,
-                recentReviews
-        );
-    }
-
-    private static int resolveTravelCount(final List<RecentTravelDto> recentTravels) {
-        if (recentTravels == null) {
-            return 0;
-        }
-        return recentTravels.size();
-    }
-
     public static GroupDetailResponseDto from(
             final List<UserGroup> userGroups,
             final Group group,
