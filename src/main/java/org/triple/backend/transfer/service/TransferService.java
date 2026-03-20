@@ -339,4 +339,29 @@ public class TransferService {
         validateStatusOrThrow(transfer, TransferErrorCode.INVOICE_CHECK_NOT_ALLOWED_STATUS);
         transfer.confirm();
     }
+
+    @Transactional
+    public void completeMyTransfer(final Long userId, final Long transferId) {
+        Transfer transfer = transferJpaRepository.findByIdForUpdateWithTransferUsers(transferId)
+                .orElseThrow(() -> new BusinessException(TransferErrorCode.NOT_FOUND_INVOICE));
+
+        if (transfer.getTransferStatus() != TransferStatus.CONFIRM) {
+            throw new BusinessException(TransferErrorCode.INVOICE_DONE_NOT_ALLOWED_STATUS);
+        }
+
+        TransferUser transferUser = transfer.getTransferUsers().stream()
+                .filter(tu -> tu.getUser().getId().equals(userId))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(TransferErrorCode.TRANSFER_USER_NOT_FOUND));
+
+        if (transferUser.isSettled()) {
+            throw new BusinessException(TransferErrorCode.ALREADY_TRANSFERRED);
+        }
+
+        transferUser.settle();
+
+        if (transfer.isAllPaid()) {
+            transfer.markDone();
+        }
+    }
 }
