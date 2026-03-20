@@ -75,3 +75,4 @@ app:
       upload-policy:
         allowed-extensions: [jpg, jpeg, png]
         allowed-content-types: [image/jpeg, image/png]
+

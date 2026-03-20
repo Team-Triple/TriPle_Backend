@@ -1,22 +1,27 @@
 package org.triple.backend.user.unit.controller;
 
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.auth.exception.AuthErrorCode;
-import org.triple.backend.auth.session.SessionManager;
-import org.triple.backend.global.error.BusinessException;
-import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.auth.session.CsrfTokenManager;
+import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.common.ControllerTest;
+import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.controller.UserController;
+import org.triple.backend.user.dto.request.UpdateUserInfoReq;
 import org.triple.backend.user.dto.response.UserInfoResponseDto;
+import org.triple.backend.user.entity.Gender;
+import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.service.UserService;
 
-import java.time.LocalDate;
-
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,14 +30,18 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
+import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN_KEY;
 import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 @WebMvcTest(UserController.class)
-public class UserControllerTest extends ControllerTest{
+class UserControllerTest extends ControllerTest {
 
     @MockitoBean
     private UserService userService;
@@ -45,26 +54,22 @@ public class UserControllerTest extends ControllerTest{
 
     @Test
     @DisplayName("사용자 정보 조회를 하면 사용자 정보와 상태코드 200을 반환한다.")
-    void 사용자_정보_조회를_하면_사용자_정보와_상태코드_200을_반환한다() throws Exception {
-        // given
+    void userInfoReturnsUserInfo() throws Exception {
         Long userId = 1L;
         String encryptedPublicUuid = "encrypted-public-uuid-3";
 
-        // when
         when(userService.userInfo(userId))
                 .thenReturn(UserInfoResponseDto.builder()
                         .publicUuid(encryptedPublicUuid)
                         .nickname("sangyun")
                         .gender("MALE")
-                        .birth(LocalDate.of(1999,1,16))
+                        .birth(LocalDate.of(1999, 1, 16))
                         .description("hi")
                         .profileUrl("https://example.com/profile.png")
                         .build());
-
         when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
         when(csrfTokenManager.isValid(any(), any())).thenReturn(true);
 
-        // then
         mockMvc.perform(get("/users/me")
                         .sessionAttr(USER_SESSION_KEY, userId))
                 .andDo(document("users/me",
@@ -83,8 +88,8 @@ public class UserControllerTest extends ControllerTest{
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 내 정보 조회 요청 시 401을 반환한다.")
-    void 비로그인_사용자가_내_정보_조회_요청_시_401을_반환한다() throws Exception {
+    @DisplayName("비로그인 사용자가 사용자 정보 조회 요청 시 401을 반환한다.")
+    void userInfoReturnsUnauthorizedWithoutLogin() throws Exception {
         when(sessionManager.getUserIdOrThrow(any()))
                 .thenThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
 
@@ -102,8 +107,8 @@ public class UserControllerTest extends ControllerTest{
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자의 내 정보 조회 요청 시 404를 반환한다.")
-    void 존재하지_않는_사용자의_내_정보_조회_요청_시_404를_반환한다() throws Exception {
+    @DisplayName("존재하지 않는 사용자 유저정보 조회 요청 시 404를 반환한다.")
+    void userInfoReturnsNotFoundWhenUserMissing() throws Exception {
         Long userId = 1L;
         when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
         when(userService.userInfo(userId))
@@ -112,12 +117,91 @@ public class UserControllerTest extends ControllerTest{
         mockMvc.perform(get("/users/me")
                         .sessionAttr(USER_SESSION_KEY, userId))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("존재하지 않는 사용자 입니다."))
+                .andExpect(jsonPath("$.message").value(UserErrorCode.USER_NOT_FOUND.getMessage()))
                 .andDo(document("users/me-fail-user-not-found",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         responseFields(
                                 fieldWithPath("message").description("오류 메시지")
                         )));
+    }
+
+    @Test
+    @DisplayName("사용자 정보 수정 요청 시 200을 반환한다.")
+    void updateUserInfoReturnsOk() throws Exception {
+        Long userId = 1L;
+        UpdateUserInfoReq request = new UpdateUserInfoReq(
+                "sangyun",
+                Gender.MALE,
+                LocalDate.of(1999, 1, 16),
+                "hi",
+                "https://example.com/profile.png"
+        );
+
+        when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
+        when(csrfTokenManager.isValid(any(), any())).thenReturn(true);
+
+        mockMvc.perform(patch("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nickname": "sangyun",
+                                  "gender": "MALE",
+                                  "birth": "1999-01-16",
+                                  "description": "hi",
+                                  "profileUrl": "https://example.com/profile.png"
+                                }
+                                """)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("users/update",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        requestFields(
+                                fieldWithPath("nickname").description("닉네임").optional(),
+                                fieldWithPath("gender").description("성별").optional(),
+                                fieldWithPath("birth").description("생일").optional(),
+                                fieldWithPath("description").description("소개").optional(),
+                                fieldWithPath("profileUrl").description("프로필 이미지 URL").optional()
+                        )));
+
+        verify(userService).updateUserInfo(eq(userId), eq(request));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 사용자 정보 수정 요청 시 404를 반환한다.")
+    void updateUserInfoReturnsNotFoundWhenUserMissing() throws Exception {
+        Long userId = 1L;
+        when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
+        when(csrfTokenManager.isValid(any(), any())).thenReturn(true);
+        doThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND))
+                .when(userService)
+                .updateUserInfo(eq(userId), any(UpdateUserInfoReq.class));
+
+        mockMvc.perform(patch("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nickname": "sangyun"
+                                }
+                                """)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(UserErrorCode.USER_NOT_FOUND.getMessage()))
+                .andDo(document("users/update-fail-user-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )));
+    }
+
+    private RequestPostProcessor loginSessionAndCsrf() {
+        return request -> {
+            request.getSession(true).setAttribute(USER_SESSION_KEY, 1L);
+            request.getSession().setAttribute(CSRF_TOKEN_KEY, CSRF_TOKEN);
+            request.addHeader(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN);
+            return request;
+        };
     }
 }

@@ -140,12 +140,24 @@ public class GroupService {
         }
 
         List<UserGroup> userGroups = userGroupJpaRepository.findAllByGroupIdAndJoinStatus(groupId, JoinStatus.JOINED);
+        Role myRole;
+        if (myUserGroup == null) {
+            myRole = Role.GUEST;
+        } else {
+            myRole = myUserGroup.getRole();
+        }
 
         Pageable detailRecentPage = PageRequest.of(0, DETAIL_RECENT_SIZE);
-        List<RecentTravelDto> recentTravels = travelItineraryJpaRepository.findRecentByGroupId(groupId, detailRecentPage)
-                .stream()
-                .map(this::toRecentTravelDto)
-                .toList();
+        int travelCount = Math.toIntExact(travelItineraryJpaRepository.countByGroupIdAndIsDeletedFalse(groupId));
+        List<RecentTravelDto> recentTravels;
+        if (myRole == Role.GUEST) {
+            recentTravels = List.of();
+        } else {
+            recentTravels = travelItineraryJpaRepository.findRecentByGroupId(groupId, detailRecentPage)
+                    .stream()
+                    .map(this::toRecentTravelDto)
+                    .toList();
+        }
 
         List<TravelReview> recentReviewEntities = travelReviewJpaRepository.findRecentByGroupId(groupId, detailRecentPage);
         Map<Long, String> reviewImageUrlByReviewId = findFirstReviewImageUrlByReviewId(recentReviewEntities);
@@ -160,9 +172,7 @@ public class GroupService {
                 .map(this::toRecentPhotoDto)
                 .toList();
 
-        Role myRole = myUserGroup == null ? Role.GUEST : myUserGroup.getRole();
-
-        return from(userGroups, group, myRole, recentPhotos, recentTravels, recentReviews);
+        return from(userGroups, group, myRole, recentPhotos, travelCount, recentTravels, recentReviews);
     }
 
     private RecentPhotoDto toRecentPhotoDto(final TravelReviewImage reviewImage) {
@@ -176,10 +186,8 @@ public class GroupService {
         return new RecentTravelDto(
                 itinerary.getId(),
                 itinerary.getTitle(),
-                itinerary.getThumbnailUrl(),
                 itinerary.getDescription(),
                 itinerary.getMemberCount(),
-                itinerary.getMemberLimit(),
                 itinerary.getStartAt(),
                 itinerary.getEndAt()
         );

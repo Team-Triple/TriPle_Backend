@@ -17,6 +17,7 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -37,8 +38,7 @@ class UserTravelItineraryJpaRepositoryTest {
 
     @Test
     @DisplayName("유저와 여행 일정 매핑을 저장한다.")
-    void 유저와_여행_일정_매핑을_저장한다() {
-        // given
+    void 유저와_여행_일정_매핑_저장() {
         User user = userJpaRepository.save(User.builder().build());
         Group group = groupJpaRepository.save(createGroup());
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
@@ -47,18 +47,15 @@ class UserTravelItineraryJpaRepositoryTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
                 "설명",
-                "test-url",
-                5
+                List.of()
         );
         TravelItinerary travel = travelItineraryJpaRepository.save(TravelItinerary.of(request, group));
 
-        // when
         UserTravelItinerary saved = userTravelItineraryJpaRepository.save(
                 UserTravelItinerary.of(user, travel, UserRole.LEADER)
         );
         UserTravelItinerary found = userTravelItineraryJpaRepository.findById(saved.getId()).orElseThrow();
 
-        // then
         assertThat(found)
                 .extracting("user", "travelItinerary", "userRole")
                 .containsExactly(user, travel, UserRole.LEADER);

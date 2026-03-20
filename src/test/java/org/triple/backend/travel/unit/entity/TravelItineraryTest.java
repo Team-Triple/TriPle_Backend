@@ -12,6 +12,7 @@ import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
 import org.triple.backend.travel.entity.TravelItinerary;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,8 +32,7 @@ class TravelItineraryTest {
                 END,
                 1L,
                 "desc",
-                "test-url",
-                5
+                List.of()
         );
 
         TravelItinerary itinerary = TravelItinerary.of(req, createGroup());
@@ -41,21 +41,19 @@ class TravelItineraryTest {
     }
 
     @Test
-    @DisplayName("멤버 제한이 1이면 예외가 발생하지 않는다.")
-    void 멤버제한_1_유효() {
+    @DisplayName("멤버 수는 생성 시 1명으로 시작한다.")
+    void 멤버수_초기값_검증() {
         TravelItinerary itinerary = new TravelItinerary(
                 "title",
                 START,
                 END,
                 createGroup(),
                 "desc",
-                "test-url",
-                1,
                 1,
                 false
         );
 
-        assertThat(itinerary.getMemberLimit()).isEqualTo(1);
+        assertThat(itinerary.getMemberCount()).isEqualTo(1);
     }
 
     @ParameterizedTest
@@ -65,8 +63,7 @@ class TravelItineraryTest {
             String title,
             LocalDateTime startAt,
             LocalDateTime endAt,
-            Group group,
-            int memberLimit
+            Group group
     ) {
         assertThatThrownBy(() -> new TravelItinerary(
                 title,
@@ -74,8 +71,6 @@ class TravelItineraryTest {
                 endAt,
                 group,
                 "desc",
-                "test-url",
-                memberLimit,
                 1,
                 false
         )).isInstanceOf(IllegalArgumentException.class);
@@ -104,30 +99,27 @@ class TravelItineraryTest {
 
     private static Stream<Arguments> invalidArguments() {
         return Stream.of(
-                Arguments.of(null, START, END, createGroup(), 5),
-                Arguments.of("   ", START, END, createGroup(), 5),
-                Arguments.of("title", null, END, createGroup(), 5),
-                Arguments.of("title", START, null, createGroup(), 5),
-                Arguments.of("title", START, END, null, 5),
-                Arguments.of("title", START, END, createGroup(), 0),
-                Arguments.of("title", START, END, createGroup(), 21),
-                Arguments.of("title", END, START, createGroup(), 5),
-                Arguments.of("title", START, START, createGroup(), 5)
+                Arguments.of(null, START, END, createGroup()),
+                Arguments.of("   ", START, END, createGroup()),
+                Arguments.of("title", null, END, createGroup()),
+                Arguments.of("title", START, null, createGroup()),
+                Arguments.of("title", START, END, null),
+                Arguments.of("title", END, START, createGroup()),
+                Arguments.of("title", START, START, createGroup())
         );
     }
 
     private static Stream<Arguments> invalidTravelSaveRequestDto() {
         return Stream.of(
-                Arguments.of(new TravelItineraryUpdateRequestDto(null, null, null, null, null, 21)),
-                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, START, null, null, 20)),
-                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, null, null, null, 20)),
-                Arguments.of(new TravelItineraryUpdateRequestDto(null, null, START, null, null, 20))
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, START, null)),
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, END, null, null)),
+                Arguments.of(new TravelItineraryUpdateRequestDto(null, null, START, null))
         );
     }
 
     private TravelItinerary createTravelItinerary() {
         return new TravelItinerary(
-                "test", START, END, createGroup(), "test-description", "url", 20, 1, false);
+                "test", START, END, createGroup(), "test-description", 1, false);
     }
 
     private static Group createGroup() {

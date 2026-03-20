@@ -5,8 +5,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
@@ -36,12 +38,15 @@ import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.mockito.BDDMockito.given;
 
 @ServiceTest
 @Import({TravelItineraryService.class})
@@ -64,6 +69,9 @@ class TravelItineraryServiceTest {
     @Autowired
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
+    @MockitoBean
+    private SessionManager sessionManager;
+
     @Test
     @DisplayName("여행 저장 시 유저를 찾을 수 없으면 예외를 던진다.")
     void 여행_저장_유저_없음_예외() {
@@ -74,9 +82,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 1L,
-                "설명",
-                "test-url",
-                5
+                "설명"
         );
 
         // when & then
@@ -96,9 +102,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 1L,
-                "설명",
-                "test-url",
-                5
+                "설명"
         );
 
         // when & then
@@ -119,9 +123,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "설명",
-                "test-url",
-                5
+                "설명"
         );
 
         // when & then
@@ -144,9 +146,7 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 14, 0, 0),
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group.getId(),
-                "설명",
-                "test-url",
-                5
+                "설명"
         );
 
         // when
@@ -157,14 +157,12 @@ class TravelItineraryServiceTest {
         Assertions.assertThat(response).isNotNull();
         Assertions.assertThat(saved).isNotNull();
         Assertions.assertThat(saved)
-                .extracting("title", "startAt", "endAt", "description", "thumbnailUrl", "memberLimit")
+                .extracting("title", "startAt", "endAt", "description")
                 .containsExactly(
                         "제목",
                         LocalDateTime.of(2026, 2, 14, 0, 0),
                         LocalDateTime.of(2026, 2, 16, 0, 0),
-                        "설명",
-                        "test-url",
-                        5
+                        "설명"
                 );
     }
 
@@ -192,8 +190,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                20,
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -217,8 +213,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                20,
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -244,8 +238,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                20,
                 1,
                 false);
         TravelItinerary savedTravelItinerary = travelItineraryJpaRepository.save(travelItinerary);
@@ -255,13 +247,13 @@ class TravelItineraryServiceTest {
 
         //when
         travelItineraryService.updateTravel(new TravelItineraryUpdateRequestDto(
-                "test", null,null,null,null,null), savedTravelItinerary.getId(), savedUser.getId());
+                "test", null, null, null), savedTravelItinerary.getId(), savedUser.getId());
         TravelItinerary searchedTravelItinerary = travelItineraryJpaRepository.findById(savedTravelItinerary.getId()).get();
 
         //then
         Assertions.assertThat(searchedTravelItinerary).isNotNull()
-                .extracting("title", "startAt", "endAt", "description", "thumbnailUrl", "memberLimit")
-        .containsExactly("test", savedTravelItinerary.getStartAt(), savedTravelItinerary.getEndAt(), savedTravelItinerary.getDescription(), savedTravelItinerary.getThumbnailUrl(), savedTravelItinerary.getMemberLimit());
+                .extracting("title", "startAt", "endAt", "description")
+                .containsExactly("test", savedTravelItinerary.getStartAt(), savedTravelItinerary.getEndAt(), savedTravelItinerary.getDescription());
     }
 
     @Test
@@ -283,8 +275,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                20,
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -305,8 +295,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                20,
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -328,8 +316,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                20,
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -351,8 +337,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                20,
                 2,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -374,8 +358,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                20,
                 1,
                 false));
         User user = userJpaRepository.save(createUser());
@@ -388,35 +370,50 @@ class TravelItineraryServiceTest {
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 유저를 찾을 수 없으면 예외를 던진다.")
-    void 여행_목록_조회_유저_없음_예외() {
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, 1L))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+    @DisplayName("여행 목록 조회 시 유저가 그룹 멤버가 아니면 count만 반환한다.")
+    void 여행_목록_조회_유저_비멤버_count만_반환() {
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(1L, null, 10, 1L);
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(0);
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 그룹을 찾을 수 없으면 예외를 던진다.")
-    void 여행_목록_조회_그룹_없음_예외() {
+    @DisplayName("여행 목록 조회 시 그룹에 여행이 없어도 count만 반환한다.")
+    void 여행_목록_조회_그룹_여행_없음_count만_반환() {
         User user = userJpaRepository.save(createUser());
 
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(1L, null, 10, user.getId()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(1L, null, 10, user.getId());
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(0);
     }
 
     @Test
-    @DisplayName("여행 목록 조회 시 그룹 멤버가 아니면 예외를 던진다.")
-    void 여행_목록_조회_그룹_멤버_아님_예외() {
+    @DisplayName("여행 목록 조회 시 그룹 멤버가 아니면 count만 반환한다.")
+    void 여행_목록_조회_그룹_멤버_아님_count만_반환() {
         User user = userJpaRepository.save(createUser());
         Group group = groupJpaRepository.save(createGroup());
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                1,
+                false
+        ));
 
-        Assertions.assertThatThrownBy(() -> travelItineraryService.browseTravels(group.getId(), null, 10, user.getId()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(GroupErrorCode.NOT_GROUP_MEMBER);
+        TravelItineraryCursorResponseDto result = travelItineraryService.browseTravels(group.getId(), null, 10, user.getId());
+
+        Assertions.assertThat(result.items()).isEmpty();
+        Assertions.assertThat(result.hasNext()).isFalse();
+        Assertions.assertThat(result.nextCursor()).isNull();
+        Assertions.assertThat(result.count()).isEqualTo(1);
     }
 
     @Test
@@ -434,8 +431,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 2, 0, 0),
                 group,
                 "설명1",
-                "thumb-1",
-                5,
                 1,
                 false
         ));
@@ -446,8 +441,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 4, 0, 0),
                 group,
                 "설명2",
-                "thumb-2",
-                6,
                 2,
                 false
         ));
@@ -458,8 +451,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 6, 0, 0),
                 group,
                 "설명3",
-                "thumb-3",
-                7,
                 3,
                 false
         ));
@@ -470,8 +461,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 8, 0, 0),
                 anotherGroup,
                 "설명4",
-                "thumb-4",
-                8,
                 1,
                 false
         ));
@@ -482,8 +471,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 3, 10, 0, 0),
                 group,
                 "설명5",
-                "thumb-5",
-                9,
                 1,
                 true
         ));
@@ -496,14 +483,16 @@ class TravelItineraryServiceTest {
                 .extracting(item -> item.title())
                 .containsExactly(thirdTravel.getTitle(), secondTravel.getTitle());
         Assertions.assertThat(firstPage.items().get(0))
-                .extracting("description", "thumbnailUrl", "memberCount", "memberLimit")
-                .containsExactly("설명3", "thumb-3", 3, 7);
+                .extracting("description", "memberCount")
+                .containsExactly("설명3", 3);
+        Assertions.assertThat(firstPage.count()).isEqualTo(3);
 
         TravelItineraryCursorResponseDto secondPage = travelItineraryService.browseTravels(group.getId(), firstPage.nextCursor(), 2, user.getId());
         Assertions.assertThat(secondPage.items()).hasSize(1);
         Assertions.assertThat(secondPage.hasNext()).isFalse();
         Assertions.assertThat(secondPage.nextCursor()).isNull();
         Assertions.assertThat(secondPage.items().get(0).title()).isEqualTo(firstTravel.getTitle());
+        Assertions.assertThat(secondPage.count()).isEqualTo(3);
     }
 
     @Test
@@ -521,8 +510,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                3,
                 1,
                 false
         ));
@@ -551,8 +538,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                3,
                 2,
                 false
         ));
@@ -579,8 +564,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                3,
                 1,
                 false
         ));
@@ -593,8 +576,8 @@ class TravelItineraryServiceTest {
     }
 
     @Test
-    @DisplayName("여행 정원이 가득 차면 참가 시 예외를 던진다.")
-    void 여행_정원이_가득_차면_참가_시_예외를_던진다() {
+    @DisplayName("여행 참가 시 정원 제한 없이 참가 인원이 증가한다.")
+    void 여행_참가_시_인원_증가() {
         User leader = userJpaRepository.save(createUser());
         User joiner = userJpaRepository.save(createUserWithProviderId("kakao-5"));
         Group group = groupJpaRepository.save(createGroup());
@@ -607,23 +590,21 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                1,
                 1,
                 false
         ));
         userTravelItineraryJpaRepository.save(new UserTravelItinerary(leader, travelItinerary, UserRole.LEADER));
 
-        Assertions.assertThatThrownBy(() -> travelItineraryService.joinTravel(travelItinerary.getId(), joiner.getId()))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(TravelItineraryErrorCode.TRAVEL_MEMBER_LIMIT_EXCEEDED);
+        travelItineraryService.joinTravel(travelItinerary.getId(), joiner.getId());
+
+        TravelItinerary updated = travelItineraryJpaRepository.findById(travelItinerary.getId()).orElseThrow();
+        Assertions.assertThat(updated.getMemberCount()).isEqualTo(2);
     }
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    @DisplayName("여행 참가 요청이 동시에 들어오면 정원을 초과하지 않고 하나만 성공한다.")
-    void 여행_참가_요청이_동시에_들어오면_정원을_초과하지_않고_하나만_성공한다() throws InterruptedException {
+    @DisplayName("여행 참가 요청이 동시에 들어오면 둘 다 성공하고 인원이 증가한다.")
+    void 여행_참가_요청이_동시에_들어오면_둘다_성공하고_인원이_증가한다() throws InterruptedException {
         User leader = userJpaRepository.save(createUser());
         User firstJoiner = userJpaRepository.save(createUserWithProviderId("kakao-6"));
         User secondJoiner = userJpaRepository.save(createUserWithProviderId("kakao-7"));
@@ -638,8 +619,6 @@ class TravelItineraryServiceTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-thumbnailUrl",
-                2,
                 1,
                 false
         ));
@@ -685,26 +664,132 @@ class TravelItineraryServiceTest {
         start.countDown();
         Assertions.assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
 
-        long limitedOrConcurrentCount = failures.stream()
-                .filter(BusinessException.class::isInstance)
-                .map(BusinessException.class::cast)
-                .map(BusinessException::getErrorCode)
-                .filter(errorCode -> errorCode == TravelItineraryErrorCode.TRAVEL_MEMBER_LIMIT_EXCEEDED
-                        || errorCode == TravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_JOIN)
-                .count();
-
         TravelItinerary updated = travelItineraryJpaRepository.findById(travelItinerary.getId()).orElseThrow();
         long joinedCount = userTravelItineraryJpaRepository.findAll().stream()
                 .filter(mapping -> mapping.getTravelItinerary().getId().equals(travelItinerary.getId()))
                 .count();
 
-        Assertions.assertThat(successCount.get()).isEqualTo(1);
-        Assertions.assertThat(failures).hasSize(1);
-        Assertions.assertThat(limitedOrConcurrentCount).isEqualTo(1);
-        Assertions.assertThat(updated.getMemberCount()).isEqualTo(2);
-        Assertions.assertThat(joinedCount).isEqualTo(2);
+        Assertions.assertThat(successCount.get()).isEqualTo(2);
+        Assertions.assertThat(failures).isEmpty();
+        Assertions.assertThat(updated.getMemberCount()).isEqualTo(3);
+        Assertions.assertThat(joinedCount).isEqualTo(3);
 
         executorService.shutdownNow();
+    }
+
+    @Test
+    @DisplayName("여행 저장 시 멤버 UUID 목록을 함께 저장한다.")
+    void saveTravel_withMembers_success() {
+        User leader = userJpaRepository.save(createUser());
+        User member = userJpaRepository.save(createUserWithProviderId("kakao-member"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+        userGroupJpaRepository.save(createUserGroup(member, group));
+
+        UUID memberUuid = member.getPublicUuid();
+        given(sessionManager.resolveUserId(memberUuid.toString())).willReturn(member.getId());
+
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "description",
+                List.of(memberUuid.toString())
+        );
+
+        TravelItinerarySaveResponseDto response = travelItineraryService.saveTravels(request, leader.getId());
+        TravelItinerary saved = travelItineraryJpaRepository.findById(response.itineraryId()).orElseThrow();
+
+        Assertions.assertThat(saved.getMemberCount()).isEqualTo(2);
+        Assertions.assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(leader.getId(), saved.getId()))
+                .isPresent();
+        Assertions.assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(member.getId(), saved.getId()))
+                .isPresent();
+    }
+
+    @Test
+    @DisplayName("멤버 UUID 매핑 실패 시 예외를 던진다.")
+    void saveTravel_memberUuidMappingFail_throws() {
+        User leader = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+
+        UUID unknownMemberUuid = UUID.randomUUID();
+        given(sessionManager.resolveUserId(unknownMemberUuid.toString())).willReturn(null);
+
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "description",
+                List.of(unknownMemberUuid.toString())
+        );
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.saveTravels(request, leader.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("그룹 비멤버 UUID가 포함되면 저장을 거부한다.")
+    void saveTravel_nonGroupMemberUuid_forbidden() {
+        User leader = userJpaRepository.save(createUser());
+        User outsider = userJpaRepository.save(createUserWithProviderId("kakao-outsider"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+
+        UUID outsiderUuid = outsider.getPublicUuid();
+        given(sessionManager.resolveUserId(outsiderUuid.toString())).willReturn(outsider.getId());
+
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "description",
+                List.of(outsiderUuid.toString())
+        );
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.saveTravels(request, leader.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(TravelItineraryErrorCode.SAVE_FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("리더/중복 UUID는 멤버로 중복 저장하지 않는다.")
+    void saveTravel_duplicateAndLeaderUuid_skipped() {
+        User leader = userJpaRepository.save(createUser());
+        User member = userJpaRepository.save(createUserWithProviderId("kakao-dup"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+        userGroupJpaRepository.save(createUserGroup(member, group));
+
+        UUID leaderUuid = leader.getPublicUuid();
+        UUID memberUuid = member.getPublicUuid();
+        given(sessionManager.resolveUserId(leaderUuid.toString())).willReturn(leader.getId());
+        given(sessionManager.resolveUserId(memberUuid.toString())).willReturn(member.getId());
+
+        TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group.getId(),
+                "description",
+                List.of(leaderUuid.toString(), memberUuid.toString(), memberUuid.toString())
+        );
+
+        TravelItinerarySaveResponseDto response = travelItineraryService.saveTravels(request, leader.getId());
+        TravelItinerary saved = travelItineraryJpaRepository.findById(response.itineraryId()).orElseThrow();
+        long mappedCount = userTravelItineraryJpaRepository.findAll().stream()
+                .filter(mapping -> mapping.getTravelItinerary().getId().equals(saved.getId()))
+                .count();
+
+        Assertions.assertThat(saved.getMemberCount()).isEqualTo(2);
+        Assertions.assertThat(mappedCount).isEqualTo(2);
     }
 
     private static Group createGroup() {
@@ -741,3 +826,4 @@ class TravelItineraryServiceTest {
                 .build();
     }
 }
+

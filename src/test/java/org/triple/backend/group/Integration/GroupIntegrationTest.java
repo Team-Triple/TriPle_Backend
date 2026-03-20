@@ -551,6 +551,7 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.users[0].name").value("상윤"))
                 .andExpect(jsonPath("$.users[0].isOwner").value(true))
                 .andExpect(jsonPath("$.recentPhotos", hasSize(0)))
+                .andExpect(jsonPath("$.travelCount").value(0))
                 .andExpect(jsonPath("$.recentTravels", hasSize(0)))
                 .andExpect(jsonPath("$.recentReviews", hasSize(0)));
     }
@@ -636,6 +637,7 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.users[*].name", containsInAnyOrder("상윤", "민규")))
                 .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)))
                 .andExpect(jsonPath("$.recentPhotos", hasSize(0)))
+                .andExpect(jsonPath("$.travelCount").value(0))
                 .andExpect(jsonPath("$.recentTravels", hasSize(0)))
                 .andExpect(jsonPath("$.recentReviews", hasSize(0)));
     }
@@ -673,8 +675,6 @@ public class GroupIntegrationTest {
                         LocalDateTime.of(2026, 4, 12, 18, 0),
                         savedGroup,
                         "일정 설명",
-                        "https://img/travel.png",
-                        5,
                         1,
                         false
                 )
@@ -691,8 +691,6 @@ public class GroupIntegrationTest {
                         LocalDateTime.of(2026, 5, 2, 18, 0),
                         savedOtherGroup,
                         "다른 그룹 일정",
-                        "https://img/other-travel.png",
-                        6,
                         1,
                         false
                 )
@@ -725,15 +723,15 @@ public class GroupIntegrationTest {
         );
 
         // when & then
-        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.travelCount").value(1))
                 .andExpect(jsonPath("$.recentTravels", hasSize(1)))
                 .andExpect(jsonPath("$.recentTravels[0].travelItineraryId").value(itinerary.getId().intValue()))
                 .andExpect(jsonPath("$.recentTravels[0].title").value("봄 제주 여행"))
-                .andExpect(jsonPath("$.recentTravels[0].thumbnailUrl").value("https://img/travel.png"))
                 .andExpect(jsonPath("$.recentTravels[0].description").value("일정 설명"))
                 .andExpect(jsonPath("$.recentTravels[0].memberCount").value(1))
-                .andExpect(jsonPath("$.recentTravels[0].memberLimit").value(5))
                 .andExpect(jsonPath("$.recentTravels[0].startAt").value("2026-04-10T10:00:00"))
                 .andExpect(jsonPath("$.recentTravels[0].endAt").value("2026-04-12T18:00:00"))
                 .andExpect(jsonPath("$.recentReviews", hasSize(2)))
@@ -752,6 +750,13 @@ public class GroupIntegrationTest {
                 .andExpect(jsonPath("$.recentPhotos[*].imageUrl", not(hasItem("https://img/other-group.png"))))
                 .andExpect(jsonPath("$.recentPhotos[*].imageUrl", not(hasItem("https://img/deleted.png"))))
                 .andExpect(jsonPath("$.users[?(@.isOwner == true)]", hasSize(1)));
+
+        mockMvc.perform(get("/groups/{groupId}", savedGroup.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value(Role.GUEST.toString()))
+                .andExpect(jsonPath("$.travelCount").value(1))
+                .andExpect(jsonPath("$.recentTravels", hasSize(0)))
+                .andExpect(jsonPath("$.recentReviews", hasSize(2)));
     }
 
     @Test

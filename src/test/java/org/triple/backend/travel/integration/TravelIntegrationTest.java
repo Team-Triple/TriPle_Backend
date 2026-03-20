@@ -78,9 +78,7 @@ class TravelIntegrationTest {
                   "startAt": "2026-02-14T00:00:00",
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": %d,
-                  "description": "설명",
-                  "thumbnailUrl": "test-url",
-                  "memberLimit": 5
+                  "description": "설명"
                 }
                 """.formatted(group.getId());
 
@@ -106,9 +104,7 @@ class TravelIntegrationTest {
                   "startAt": "2026-02-14T00:00:00",
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": 1,
-                  "description": "설명",
-                  "thumbnailUrl": "test-url",
-                  "memberLimit": 5
+                  "description": "설명"
                 }
                 """;
 
@@ -130,9 +126,7 @@ class TravelIntegrationTest {
                   "startAt": "2026-02-14T00:00:00",
                   "endAt": "2026-02-16T00:00:00",
                   "groupId": %d,
-                  "description": "설명",
-                  "thumbnailUrl": "test-url",
-                  "memberLimit": 5
+                  "description": "설명"
                 }
                 """.formatted(group.getId());
 
@@ -155,8 +149,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
-                5,
                 1,
                 false
         ));
@@ -185,8 +177,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
-                5,
                 1,
                 false
         ));
@@ -199,8 +189,58 @@ class TravelIntegrationTest {
                 .andExpect(jsonPath("$.items[0].title").value("title"))
                 .andExpect(jsonPath("$.items[0].description").value("description"))
                 .andExpect(jsonPath("$.items[0].memberCount").value(1))
-                .andExpect(jsonPath("$.items[0].memberLimit").value(5))
-                .andExpect(jsonPath("$.hasNext").value(false));
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.count").value(1));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자는 여행 목록 조회 시 count만 반환받는다.")
+    void 비로그인_여행_목록_조회_count만_반환() throws Exception {
+        Group group = groupJpaRepository.save(createGroup());
+
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                1,
+                false
+        ));
+
+        mockMvc.perform(get("/travels/{groupId}", group.getId())
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.count").value(1));
+    }
+
+    @Test
+    @DisplayName("로그인 비멤버 사용자는 여행 목록 조회 시 count만 반환받는다.")
+    void 로그인_비멤버_여행_목록_조회_count만_반환() throws Exception {
+        User leader = userJpaRepository.save(createUser());
+        User outsider = userJpaRepository.save(createUserWithProviderId("kakao-outsider"));
+        Group group = groupJpaRepository.save(createGroup());
+        userGroupJpaRepository.save(createUserGroup(leader, group));
+
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "title",
+                LocalDateTime.of(2026, 2, 14, 0, 0),
+                LocalDateTime.of(2026, 2, 16, 0, 0),
+                group,
+                "description",
+                1,
+                false
+        ));
+
+        mockMvc.perform(get("/travels/{groupId}", group.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.count").value(1));
     }
 
     @Test
@@ -215,8 +255,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
-                5,
                 2,
                 false
         ));
@@ -244,8 +282,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
-                5,
                 1,
                 false
         ));
@@ -276,8 +312,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
-                3,
                 1,
                 false
         ));
@@ -310,8 +344,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
-                3,
                 2,
                 false
         ));
@@ -339,8 +371,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
-                3,
                 1,
                 false
         ));
@@ -354,8 +384,8 @@ class TravelIntegrationTest {
     }
 
     @Test
-    @DisplayName("여행 정원이 가득 차면 참가 요청 시 409를 반환한다.")
-    void 여행_정원이_가득_차면_참가_요청_시_409를_반환한다() throws Exception {
+    @DisplayName("여행 참가 요청 시 정원 제한 없이 성공한다.")
+    void 여행_참가_요청_정원제한없음_성공() throws Exception {
         User leader = userJpaRepository.save(createUser());
         User joiner = userJpaRepository.save(createUserWithProviderId("kakao-5"));
         Group group = groupJpaRepository.save(createGroup());
@@ -368,8 +398,6 @@ class TravelIntegrationTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 group,
                 "description",
-                "test-url",
-                1,
                 1,
                 false
         ));
@@ -379,7 +407,7 @@ class TravelIntegrationTest {
                         .sessionAttr(USER_SESSION_KEY, joiner.getPublicUuid())
                         .sessionAttr(CSRF_TOKEN_KEY, "test-token")
                         .header(CSRF_HEADER, "test-token"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isOk());
     }
 
     private User createUser() {
@@ -422,3 +450,4 @@ class TravelIntegrationTest {
                 .build();
     }
 }
+

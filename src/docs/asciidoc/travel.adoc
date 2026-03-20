@@ -80,8 +80,10 @@ include::{snippets}/travels/list/http-request.adoc[]
 include::{snippets}/travels/list/http-response.adoc[]
 include::{snippets}/travels/list/response-fields.adoc[]
 
-=== 실패: 비로그인 사용자(401)
-include::{snippets}/travels/list-fail-unauthorized/http-response.adoc[]
+=== 비로그인 사용자 count 응답
+include::{snippets}/travels/list-anonymous/http-response.adoc[]
+include::{snippets}/travels/list-anonymous/response-fields.adoc[]
 
-=== 실패: 그룹 멤버 아님(403)
-include::{snippets}/travels/list-fail-not-group-member/http-response.adoc[]
+=== 로그인 비멤버 사용자 count 응답
+include::{snippets}/travels/list-non-member/http-response.adoc[]
+include::{snippets}/travels/list-non-member/response-fields.adoc[]

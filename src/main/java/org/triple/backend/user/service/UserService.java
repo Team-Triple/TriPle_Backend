@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.global.error.BusinessException;
+import org.triple.backend.user.dto.response.UpdateUserInfoRes;
+import org.triple.backend.user.dto.request.UpdateUserInfoReq;
 import org.triple.backend.user.dto.response.UserInfoResponseDto;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
@@ -38,4 +40,20 @@ public class UserService {
                 .build();
     }
 
+    @Transactional
+    public UpdateUserInfoRes updateUserInfo(Long userId, UpdateUserInfoReq updateUserInfoReq) {
+        User user = userJpaRepository.findById(userId)
+            .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        user.patchUserInfo(updateUserInfoReq);
+
+        return UpdateUserInfoRes.builder()
+            .userId(uuidCrypto.encrypt(user.getPublicUuid()))
+            .nickname(user.getNickname())
+            .gender(user.getGender() != null ? user.getGender().toString() : null)
+            .birth(user.getBirth())
+            .description(user.getDescription())
+            .profileUrl(user.getProfileUrl())
+            .build();
+    }
 }

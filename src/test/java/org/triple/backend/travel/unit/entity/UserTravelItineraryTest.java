@@ -31,8 +31,6 @@ class UserTravelItineraryTest {
                         LocalDateTime.of(2026, 2, 16, 0, 0),
                         createGroup(),
                         "desc",
-                        "test-url",
-                        5,
                         1,
                         false
                 ),
@@ -63,8 +61,6 @@ class UserTravelItineraryTest {
                 LocalDateTime.of(2026, 2, 16, 0, 0),
                 createGroup(),
                 "desc",
-                "test-url",
-                5,
                 1,
                 false
         );

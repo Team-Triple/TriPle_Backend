@@ -6,6 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
@@ -27,7 +28,11 @@ import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +45,7 @@ public class TravelItineraryService {
     private final TravelItineraryJpaRepository travelItineraryJpaRepository;
     private final GroupJpaRepository groupJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
+    private final SessionManager sessionManager;
 
     @Transactional
     public TravelItinerarySaveResponseDto saveTravels(final TravelItinerarySaveRequestDto travelsRequestDto, final Long userId) {
@@ -59,8 +65,67 @@ public class TravelItineraryService {
         UserTravelItinerary userTravelItinerary = UserTravelItinerary.of(user, savedTravelItinerary,
                 UserRole.LEADER);
         userTravelItineraryJpaRepository.save(userTravelItinerary);
+        addTravelMembers(
+                travelsRequestDto.memberUuids(),
+                savedTravelItinerary,
+                group.getId(),
+                userId
+        );
 
         return TravelItinerarySaveResponseDto.from(savedTravelItinerary.getId());
+    }
+
+    private void addTravelMembers(
+            final List<String> memberUuids,
+            final TravelItinerary travelItinerary,
+            final Long groupId,
+            final Long leaderUserId
+    ) {
+        if (memberUuids == null || memberUuids.isEmpty()) {
+            return;
+        }
+
+        Set<Long> addedUserIds = new HashSet<>();
+        List<Long> memberUserIds = new ArrayList<>();
+
+        for (String memberUuid : memberUuids) {
+            Long memberUserId = sessionManager.resolveUserId(memberUuid);
+            if (memberUserId == null) {
+                throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+            }
+
+            if (leaderUserId.equals(memberUserId) || !addedUserIds.add(memberUserId)) {
+                continue;
+            }
+            memberUserIds.add(memberUserId);
+        }
+
+        if (memberUserIds.isEmpty()) {
+            return;
+        }
+
+        List<User> members = userJpaRepository.findAllById(memberUserIds);
+        if (members.size() != memberUserIds.size()) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+
+        long joinedMemberCount = userGroupJpaRepository.countByGroupIdAndUserIdInAndJoinStatus(
+                groupId,
+                memberUserIds,
+                JoinStatus.JOINED
+        );
+        if (joinedMemberCount != memberUserIds.size()) {
+            throw new BusinessException(TravelItineraryErrorCode.SAVE_FORBIDDEN);
+        }
+
+        List<UserTravelItinerary> memberMappings = members.stream()
+                .map(member -> UserTravelItinerary.of(member, travelItinerary, UserRole.MEMBER))
+                .toList();
+        userTravelItineraryJpaRepository.saveAll(memberMappings);
+
+        for (int i = 0; i < memberMappings.size(); i++) {
+            travelItinerary.increaseMemberCount();
+        }
     }
 
     @Transactional
@@ -84,8 +149,6 @@ public class TravelItineraryService {
             travelItinerary.increaseMemberCount();
             userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.MEMBER));
             travelItineraryJpaRepository.flush();
-        } catch (IllegalStateException e) {
-            throw new BusinessException(TravelItineraryErrorCode.TRAVEL_MEMBER_LIMIT_EXCEEDED);
         } catch (OptimisticLockingFailureException e) {
             throw new BusinessException(TravelItineraryErrorCode.CONCURRENT_TRAVEL_ITINERARY_JOIN);
         }
@@ -138,8 +201,14 @@ public class TravelItineraryService {
             final int size,
             final Long userId
     ) {
+        long count = travelItineraryJpaRepository.countByGroupIdAndIsDeletedFalse(groupId);
+
+        if (userId == null) {
+            return TravelItineraryCursorResponseDto.countOnly(count);
+        }
+
         if (!userGroupJpaRepository.existsByGroupIdAndUserIdAndJoinStatus(groupId, userId, JoinStatus.JOINED)) {
-            throw new BusinessException(GroupErrorCode.NOT_GROUP_MEMBER);
+            return TravelItineraryCursorResponseDto.countOnly(count);
         }
 
         int pageSize = normalizePageSize(size);
@@ -155,7 +224,7 @@ public class TravelItineraryService {
         }
 
         Long nextCursor = hasNext ? rows.get(rows.size() - 1).getId() : null;
-        return TravelItineraryCursorResponseDto.of(rows, nextCursor, hasNext);
+        return TravelItineraryCursorResponseDto.of(rows, nextCursor, hasNext, count);
     }
 
     private int normalizePageSize(int size) {

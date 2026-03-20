@@ -54,7 +54,6 @@ public class TravelItineraryController {
         travelItineraryService.deleteTravel(travelId, userId);
     }
 
-    @LoginRequired
     @GetMapping("/{groupId}")
     public TravelItineraryCursorResponseDto browseTravels(
             @PathVariable Long groupId,

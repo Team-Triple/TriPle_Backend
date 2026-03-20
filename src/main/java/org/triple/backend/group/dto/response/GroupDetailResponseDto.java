@@ -18,6 +18,7 @@ public record GroupDetailResponseDto(
         int memberLimit,
         Role role,
         List<RecentPhotoDto> recentPhotos,
+        int travelCount,
         List<RecentTravelDto> recentTravels,
         List<RecentReviewDto> recentReviews
 ) {
@@ -37,10 +38,8 @@ public record GroupDetailResponseDto(
     public record RecentTravelDto(
             Long travelItineraryId,
             String title,
-            String thumbnailUrl,
             String description,
             int memberCount,
-            int memberLimit,
             LocalDateTime startAt,
             LocalDateTime endAt
     ) {}
@@ -60,6 +59,7 @@ public record GroupDetailResponseDto(
             final Group group,
             final Role role,
             final List<RecentPhotoDto> recentPhotos,
+            final int travelCount,
             final List<RecentTravelDto> recentTravels,
             final List<RecentReviewDto> recentReviews
     ) {
@@ -80,6 +80,7 @@ public record GroupDetailResponseDto(
                 group.getMemberLimit(),
                 role,
                 recentPhotos,
+                travelCount,
                 recentTravels,
                 recentReviews
         );

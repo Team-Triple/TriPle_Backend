@@ -34,10 +34,6 @@ public class TravelItinerary extends BaseEntity {
 
     private String description;
 
-    private String thumbnailUrl;
-
-    private int memberLimit;
-
     private int memberCount = 1;
 
     private boolean isDeleted;
@@ -55,8 +51,6 @@ public class TravelItinerary extends BaseEntity {
             LocalDateTime endAt,
             Group group,
             String description,
-            String thumbnailUrl,
-            int memberLimit,
             int memberCount,
             boolean isDeleted
     ) {
@@ -66,10 +60,7 @@ public class TravelItinerary extends BaseEntity {
         validateDateOrder(this.startAt, this.endAt);
         this.group = validateGroup(group);
         this.description = description;
-        this.thumbnailUrl = thumbnailUrl;
-        this.memberLimit = validateMemberLimit(memberLimit);
         this.memberCount = memberCount;
-        validateMemberCountInLimit(memberCount, memberLimit);
         this.isDeleted = isDeleted;
     }
 
@@ -86,9 +77,6 @@ public class TravelItinerary extends BaseEntity {
         updateEndAt(travelItineraryUpdateRequestDto.endAt());
         validateDateOrder(this.startAt, this.endAt);
         updateDescription(travelItineraryUpdateRequestDto.description());
-        updateThumbnailUrl(travelItineraryUpdateRequestDto.thumbnailUrl());
-        updateMemberLimit(travelItineraryUpdateRequestDto.memberLimit());
-        validateMemberCountInLimit(memberCount, memberLimit);
     }
 
     public void deleteTravelItinerary() {
@@ -96,9 +84,6 @@ public class TravelItinerary extends BaseEntity {
     }
 
     public void increaseMemberCount() {
-        if (this.memberCount >= this.memberLimit) {
-            throw new IllegalStateException("여행 정원이 가득 찼습니다.");
-        }
         this.memberCount++;
     }
 
@@ -122,16 +107,6 @@ public class TravelItinerary extends BaseEntity {
         this.description = description;
     }
 
-    private void updateThumbnailUrl(String thumbnailUrl) {
-        if (thumbnailUrl == null) return;
-        this.thumbnailUrl = thumbnailUrl;
-    }
-
-    private void updateMemberLimit(Integer memberLimit) {
-        if (memberLimit == null) return;
-        this.memberLimit = validateMemberLimit(memberLimit);
-    }
-
     //첫 생성 정적 팩터리 메서드
     public static TravelItinerary of(final TravelItinerarySaveRequestDto travelsRequestDto, final Group group) {
         return TravelItinerary.builder()
@@ -140,8 +115,6 @@ public class TravelItinerary extends BaseEntity {
                 .endAt(travelsRequestDto.endAt())
                 .group(group)
                 .description(travelsRequestDto.description())
-                .thumbnailUrl(travelsRequestDto.thumbnailUrl())
-                .memberLimit(travelsRequestDto.memberLimit())
                 .memberCount(1)
                 .isDeleted(false)
                 .build();
@@ -169,14 +142,5 @@ public class TravelItinerary extends BaseEntity {
     private static Group validateGroup(Group group) {
         if (group == null) throw new IllegalArgumentException("group이 Null일 수 없습니다.");
         return group;
-    }
-
-    private static int validateMemberLimit(int memberLimit) {
-        if (memberLimit < 1 || memberLimit > 20) throw new IllegalArgumentException("멤버 제한은 0보다 크거나, 21보다 작아야 합니다.");
-        return memberLimit;
-    }
-
-    private static void validateMemberCountInLimit(int memberCount, int memberLimit) {
-        if (memberLimit < memberCount) throw new IllegalArgumentException("멤버 제한 수보다 멤버 수가 많을 수 없습니다.");
     }
 }

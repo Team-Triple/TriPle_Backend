@@ -26,11 +26,14 @@ import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.JoinApplyJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.group.service.GroupService;
+import org.triple.backend.travel.entity.TravelItinerary;
+import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 import org.triple.backend.user.service.UserFinder;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,6 +61,9 @@ public class GroupServiceTest {
 
     @Autowired
     private JoinApplyJpaRepository joinApplyJpaRepository;
+
+    @Autowired
+    private TravelItineraryJpaRepository travelItineraryJpaRepository;
 
     @Test
     @DisplayName("새로운 그룹 생성 시 그룹 정보가 올바르게 저장되고 생성자가 방장으로 등록된다")
@@ -333,8 +339,47 @@ public class GroupServiceTest {
         assertThat(response.users().get(0).name()).isEqualTo("상윤");
         assertThat(response.users().get(0).isOwner()).isTrue();
         assertThat(response.recentPhotos()).isEmpty();
+        assertThat(response.travelCount()).isZero();
         assertThat(response.recentTravels()).isEmpty();
         assertThat(response.recentReviews()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("public group detail for non-member returns travel count only")
+    void public_group_detail_for_non_member_returns_travel_count_only() {
+        User owner = userJpaRepository.save(User.builder()
+                .providerId("kakao-owner-public-count-only")
+                .nickname("owner")
+                .email("owner-public-count-only@test.com")
+                .profileUrl("http://img")
+                .build());
+
+        User outsider = userJpaRepository.save(User.builder()
+                .providerId("kakao-outsider-public-count-only")
+                .nickname("outsider")
+                .email("outsider-public-count-only@test.com")
+                .profileUrl("http://img2")
+                .build());
+
+        Group group = Group.create(GroupKind.PUBLIC, "public-group", "desc", "thumb", 10);
+        group.addMember(owner, Role.OWNER);
+        Group savedGroup = groupJpaRepository.save(group);
+
+        travelItineraryJpaRepository.save(new TravelItinerary(
+                "spring trip",
+                LocalDateTime.of(2026, 4, 10, 10, 0),
+                LocalDateTime.of(2026, 4, 12, 18, 0),
+                savedGroup,
+                "travel desc",
+                1,
+                false
+        ));
+
+        GroupDetailResponseDto response = groupService.detail(savedGroup.getId(), outsider.getId());
+
+        assertThat(response.role()).isEqualTo(Role.GUEST);
+        assertThat(response.travelCount()).isEqualTo(1);
+        assertThat(response.recentTravels()).isEmpty();
     }
 
     @Test
@@ -402,6 +447,7 @@ public class GroupServiceTest {
         assertThat(response.users().stream().filter(GroupDetailResponseDto.UserDto::isOwner).count()).isEqualTo(1);
         assertThat(response.role()).isEqualTo(Role.MEMBER);
         assertThat(response.recentPhotos()).isEmpty();
+        assertThat(response.travelCount()).isZero();
         assertThat(response.recentTravels()).isEmpty();
         assertThat(response.recentReviews()).isEmpty();
     }
