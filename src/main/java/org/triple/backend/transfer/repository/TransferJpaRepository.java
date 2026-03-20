@@ -43,4 +43,15 @@ public interface TransferJpaRepository extends JpaRepository<Transfer, Long> {
            WHERE i.id = :transferId
            """)
     Optional<Transfer> findByIdWithTravelItinerary(Long transferId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "1000"))
+    @Query("""
+           SELECT i
+           FROM Transfer i
+           LEFT JOIN FETCH i.transferUsers tu
+           LEFT JOIN FETCH tu.user
+           WHERE i.id = :transferId
+           """)
+    Optional<Transfer> findByIdForUpdateWithTransferUsers(Long transferId);
 }
