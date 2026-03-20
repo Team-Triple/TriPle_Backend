@@ -87,3 +87,18 @@ include::{snippets}/travels/list-anonymous/response-fields.adoc[]
 === 로그인 비멤버 사용자 count 응답
 include::{snippets}/travels/list-non-member/http-response.adoc[]
 include::{snippets}/travels/list-non-member/response-fields.adoc[]
+
+== 여행 메타 정보 조회
+include::{snippets}/travels/info/path-parameters.adoc[]
+include::{snippets}/travels/info/http-request.adoc[]
+include::{snippets}/travels/info/http-response.adoc[]
+include::{snippets}/travels/info/response-fields.adoc[]
+
+=== 실패: 비로그인 사용자(401)
+include::{snippets}/travels/info-fail-unauthorized/http-response.adoc[]
+
+=== 실패: 여행 없음(404)
+include::{snippets}/travels/info-fail-not-found/http-response.adoc[]
+
+=== 실패: 여행 멤버 아님(404)
+include::{snippets}/travels/info-fail-member-not-found/http-response.adoc[]

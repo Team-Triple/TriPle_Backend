@@ -13,7 +13,9 @@ import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.travel.controller.TravelItineraryController;
 import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
 import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
+import org.triple.backend.travel.dto.response.TravelItineraryInfoResponseDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
+import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
 import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
 import org.triple.backend.travel.service.TravelItineraryService;
@@ -745,6 +747,118 @@ class TravelControllerTest extends ControllerTest {
                 ));
 
         verify(travelItineraryService, times(1)).browseTravels(eq(10L), eq(null), eq(10), eq(1L));
+    }
+
+    @Test
+    @DisplayName("여행 메타 정보 조회 성공 시 200을 반환한다.")
+    void 여행_메타_정보_조회_성공() throws Exception {
+        Long travelId = 1L;
+        given(sessionManager.getUserId(any())).willReturn(1L);
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(travelItineraryService.getTravelInfo(travelId, 1L)).willReturn(
+                new TravelItineraryInfoResponseDto(
+                        "제주도 뚜벅코 탐험",
+                        LocalDateTime.of(2026, 3, 1, 0, 0),
+                        LocalDateTime.of(2026, 3, 5, 0, 0),
+                        List.of(
+                                new TravelItineraryInfoResponseDto.TravelMemberDto("철수", "http://img1", UserRole.LEADER),
+                                new TravelItineraryInfoResponseDto.TravelMemberDto("영희", "http://img2", UserRole.MEMBER)
+                        )
+                )
+        );
+
+        mockMvc.perform(get("/travels/{travelId}/info", travelId)
+                        .requestAttr("LOGIN_USER_ID", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("제주도 뚜벅코 탐험"))
+                .andExpect(jsonPath("$.startAt").value("2026-03-01T00:00:00"))
+                .andExpect(jsonPath("$.endAt").value("2026-03-05T00:00:00"))
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[0].nickname").value("철수"))
+                .andExpect(jsonPath("$.members[0].userRole").value("LEADER"))
+                .andExpect(jsonPath("$.members[1].nickname").value("영희"))
+                .andExpect(jsonPath("$.members[1].userRole").value("MEMBER"))
+                .andDo(document("travels/info",
+                        pathParameters(
+                                parameterWithName("travelId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("title").description("여행 제목"),
+                                fieldWithPath("startAt").description("시작 일시"),
+                                fieldWithPath("endAt").description("종료 일시"),
+                                fieldWithPath("members").description("여행 멤버 목록"),
+                                fieldWithPath("members[].nickname").description("멤버 닉네임"),
+                                fieldWithPath("members[].profileUrl").description("멤버 프로필 이미지 URL").optional(),
+                                fieldWithPath("members[].userRole").description("멤버 역할 (LEADER / MEMBER)")
+                        )
+                ));
+
+        verify(travelItineraryService, times(1)).getTravelInfo(travelId, 1L);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 여행 메타 정보 조회 시 401을 반환한다.")
+    void 비로그인_사용자가_여행_메타_정보_조회_시_401을_반환한다() throws Exception {
+        given(sessionManager.getUserIdOrThrow(any()))
+                .willThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
+
+        mockMvc.perform(get("/travels/{travelId}/info", 1L))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("travels/info-fail-unauthorized",
+                        pathParameters(
+                                parameterWithName("travelId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(travelItineraryService, never()).getTravelInfo(any(), any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 여행 메타 정보 조회 시 404를 반환한다.")
+    void 존재하지_않는_여행_메타_정보_조회_시_404를_반환한다() throws Exception {
+        Long travelId = 999L;
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(travelItineraryService.getTravelInfo(travelId, 1L))
+                .willThrow(new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
+
+        mockMvc.perform(get("/travels/{travelId}/info", travelId)
+                        .requestAttr("LOGIN_USER_ID", 1L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("해당 여행이 존재하지 않습니다."))
+                .andDo(document("travels/info-fail-not-found",
+                        pathParameters(
+                                parameterWithName("travelId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("여행 멤버가 아닌 사용자가 여행 메타 정보 조회 시 404를 반환한다.")
+    void 여행_멤버가_아닌_사용자가_여행_메타_정보_조회_시_404를_반환한다() throws Exception {
+        Long travelId = 1L;
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(travelItineraryService.getTravelInfo(travelId, 1L))
+                .willThrow(new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
+
+        mockMvc.perform(get("/travels/{travelId}/info", travelId)
+                        .requestAttr("LOGIN_USER_ID", 1L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("여행 내 해당 유저를 찾을 수 없습니다."))
+                .andDo(document("travels/info-fail-member-not-found",
+                        pathParameters(
+                                parameterWithName("travelId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
     }
 
     private String buildTravelSaveRequestBody(

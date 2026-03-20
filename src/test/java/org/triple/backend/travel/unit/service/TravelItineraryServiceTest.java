@@ -22,6 +22,7 @@ import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
 import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
+import org.triple.backend.travel.dto.response.TravelItineraryInfoResponseDto;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
@@ -790,6 +791,66 @@ class TravelItineraryServiceTest {
 
         Assertions.assertThat(saved.getMemberCount()).isEqualTo(2);
         Assertions.assertThat(mappedCount).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("여행 메타 정보 조회 성공 시 title, startAt, endAt, 멤버 목록을 반환한다.")
+    void 여행_메타_정보_조회_성공() {
+        // given
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "제주도 여행",
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                group, "설명", 1, false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
+
+        // when
+        TravelItineraryInfoResponseDto response = travelItineraryService.getTravelInfo(travelItinerary.getId(), user.getId());
+
+        // then
+        Assertions.assertThat(response.title()).isEqualTo("제주도 여행");
+        Assertions.assertThat(response.startAt()).isEqualTo(LocalDateTime.of(2026, 3, 1, 0, 0));
+        Assertions.assertThat(response.endAt()).isEqualTo(LocalDateTime.of(2026, 3, 5, 0, 0));
+        Assertions.assertThat(response.members()).hasSize(1);
+        Assertions.assertThat(response.members().get(0).nickname()).isEqualTo("tester");
+        Assertions.assertThat(response.members().get(0).userRole()).isEqualTo(UserRole.LEADER);
+    }
+
+    @Test
+    @DisplayName("여행 메타 정보 조회 시 여행이 존재하지 않으면 예외를 던진다.")
+    void 여행_메타_정보_조회_시_여행이_없으면_예외() {
+        // given
+        Long invalidTravelId = 999L;
+        Long userId = 1L;
+
+        // when & then
+        Assertions.assertThatThrownBy(() -> travelItineraryService.getTravelInfo(invalidTravelId, userId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(TravelItineraryErrorCode.TRAVEL_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("여행 메타 정보 조회 시 여행 멤버가 아니면 예외를 던진다.")
+    void 여행_메타_정보_조회_시_멤버가_아니면_예외() {
+        // given
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "제주도 여행",
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                group, "설명", 1, false
+        ));
+
+        // when & then
+        Assertions.assertThatThrownBy(() -> travelItineraryService.getTravelInfo(travelItinerary.getId(), user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
     }
 
     private static Group createGroup() {

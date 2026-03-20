@@ -410,6 +410,58 @@ class TravelIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    @DisplayName("여행 메타 정보 조회에 성공한다.")
+    void 여행_메타_정보_조회_성공() throws Exception {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "제주도 여행",
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                group, "설명", 1, false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
+
+        mockMvc.perform(get("/travels/{travelId}/info", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, user.getPublicUuid()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("제주도 여행"))
+                .andExpect(jsonPath("$.startAt").value("2026-03-01T00:00:00"))
+                .andExpect(jsonPath("$.endAt").value("2026-03-05T00:00:00"))
+                .andExpect(jsonPath("$.members.length()").value(1))
+                .andExpect(jsonPath("$.members[0].nickname").value("nick"))
+                .andExpect(jsonPath("$.members[0].userRole").value("LEADER"));
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 여행 메타 정보 조회 시 401을 반환한다.")
+    void 비로그인_사용자_여행_메타_정보_조회_401() throws Exception {
+        mockMvc.perform(get("/travels/{travelId}/info", 1L))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("여행 멤버가 아닌 사용자가 여행 메타 정보 조회 시 404를 반환한다.")
+    void 여행_멤버가_아닌_사용자_여행_메타_정보_조회_404() throws Exception {
+        User outsider = userJpaRepository.save(createUserWithProviderId("kakao-outsider"));
+        User leader = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "제주도 여행",
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                group, "설명", 1, false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
+
+        mockMvc.perform(get("/travels/{travelId}/info", travelItinerary.getId())
+                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid()))
+                .andExpect(status().isNotFound());
+    }
+
     private User createUser() {
         return User.builder()
                 .provider(OauthProvider.KAKAO)

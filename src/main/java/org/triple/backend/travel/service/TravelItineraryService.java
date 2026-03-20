@@ -17,6 +17,7 @@ import org.triple.backend.travel.exception.TravelItineraryErrorCode;
 import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
 import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
+import org.triple.backend.travel.dto.response.TravelItineraryInfoResponseDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
@@ -229,6 +230,19 @@ public class TravelItineraryService {
 
     private int normalizePageSize(int size) {
         return Math.min(Math.max(size, MIN_PAGE_SIZE), MAX_PAGE_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public TravelItineraryInfoResponseDto getTravelInfo(final Long travelItineraryId, final Long userId) {
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.findByIdAndIsDeletedFalse(travelItineraryId)
+                .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
+
+        if (!userTravelItineraryJpaRepository.existsByUserIdAndTravelItineraryId(userId, travelItineraryId)) {
+            throw new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
+        }
+
+        List<UserTravelItinerary> members = userTravelItineraryJpaRepository.findAllByTravelItineraryId(travelItineraryId);
+        return TravelItineraryInfoResponseDto.of(travelItinerary, members);
     }
 
     @Transactional
