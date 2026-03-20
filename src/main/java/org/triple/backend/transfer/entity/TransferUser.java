@@ -57,4 +57,12 @@ public class TransferUser {
         }
         this.remainAmount = newRemainAmount;
     }
+
+    public boolean isSettled() {
+        return remainAmount.compareTo(BigDecimal.ZERO) == 0;
+    }
+
+    public void settle() {
+        this.remainAmount = BigDecimal.ZERO;
+    }
 }
