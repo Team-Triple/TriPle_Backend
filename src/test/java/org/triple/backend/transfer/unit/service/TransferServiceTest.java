@@ -976,6 +976,133 @@ class TransferServiceTest {
                 });
     }
 
+    @Test
+    @DisplayName("이체 완료 요청 시 해당 멤버의 remainAmount가 0이 된다.")
+    void 이체_완료_요청_성공() {
+        // given
+        User leader = saveUser("leader-complete");
+        User member = saveUser("member-complete");
+        Group group = saveGroup("이체 완료 테스트 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "이체 완료 테스트 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.CONFIRM, "이체 완료 청구서");
+        TransferUser transferUser = transferUserJpaRepository.save(TransferUser.create(transfer, member, new BigDecimal("10000")));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        transferService.completeMyTransfer(member.getId(), transfer.getId());
+
+        // then
+        TransferUser updated = transferUserJpaRepository.findById(transferUser.getId()).orElseThrow();
+        assertThat(updated.getRemainAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        Transfer updatedTransfer = transferRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(updatedTransfer.getTransferStatus()).isEqualTo(TransferStatus.DONE);
+    }
+
+    @Test
+    @DisplayName("일부 멤버만 이체 완료 시 Transfer 상태는 CONFIRM을 유지한다.")
+    void 일부_멤버만_이체_완료_시_CONFIRM_유지() {
+        // given
+        User leader = saveUser("leader-partial-complete");
+        User member1 = saveUser("member1-partial-complete");
+        User member2 = saveUser("member2-partial-complete");
+        Group group = saveGroup("부분 완료 테스트 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        saveUserGroup(member1, group, Role.MEMBER);
+        saveUserGroup(member2, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "부분 완료 테스트 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
+        saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.CONFIRM, "부분 완료 청구서");
+        transferUserJpaRepository.save(TransferUser.create(transfer, member1, new BigDecimal("10000")));
+        transferUserJpaRepository.save(TransferUser.create(transfer, member2, new BigDecimal("20000")));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        transferService.completeMyTransfer(member1.getId(), transfer.getId());
+
+        // then
+        Transfer updatedTransfer = transferRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(updatedTransfer.getTransferStatus()).isEqualTo(TransferStatus.CONFIRM);
+    }
+
+    @Test
+    @DisplayName("CONFIRM 상태가 아닌 청구서에 이체 완료 요청 시 예외를 던진다.")
+    void CONFIRM_상태가_아닌_청구서에_이체_완료_요청_시_예외() {
+        // given
+        User leader = saveUser("leader-done-status");
+        User member = saveUser("member-done-status");
+        Group group = saveGroup("상태 검증 테스트 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "상태 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.UNCONFIRM, "상태 검증 청구서");
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, new BigDecimal("10000")));
+
+        // when & then
+        assertThatThrownBy(() -> transferService.completeMyTransfer(member.getId(), transfer.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(TransferErrorCode.INVOICE_DONE_NOT_ALLOWED_STATUS));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 청구서에 이체 완료 요청 시 예외를 던진다.")
+    void 존재하지_않는_청구서에_이체_완료_요청_시_예외() {
+        // when & then
+        assertThatThrownBy(() -> transferService.completeMyTransfer(1L, 999L))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(TransferErrorCode.NOT_FOUND_INVOICE));
+    }
+
+    @Test
+    @DisplayName("청구서 멤버가 아닌 사용자가 이체 완료 요청 시 예외를 던진다.")
+    void 청구서_멤버가_아닌_사용자가_이체_완료_요청_시_예외() {
+        // given
+        User leader = saveUser("leader-not-member");
+        User outsider = saveUser("outsider-not-member");
+        Group group = saveGroup("멤버 검증 테스트 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "멤버 검증 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.CONFIRM, "멤버 검증 청구서");
+
+        // when & then
+        assertThatThrownBy(() -> transferService.completeMyTransfer(outsider.getId(), transfer.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(TransferErrorCode.TRANSFER_USER_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("이미 이체 완료된 멤버가 중복 요청 시 예외를 던진다.")
+    void 이미_이체_완료된_멤버가_중복_요청_시_예외() {
+        // given
+        User leader = saveUser("leader-already-transferred");
+        User member = saveUser("member-already-transferred");
+        Group group = saveGroup("중복 이체 테스트 그룹");
+        saveUserGroup(leader, group, Role.OWNER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "중복 이체 테스트 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        Transfer transfer = saveTransfer(group, leader, travelItinerary, TransferStatus.CONFIRM, "중복 이체 청구서");
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, BigDecimal.ZERO));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when & then
+        assertThatThrownBy(() -> transferService.completeMyTransfer(member.getId(), transfer.getId()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(TransferErrorCode.ALREADY_TRANSFERRED));
+    }
+
     private User saveUser(final String providerId) {
         return userJpaRepository.saveAndFlush(
                 User.builder()

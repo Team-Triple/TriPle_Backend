@@ -67,4 +67,10 @@ public class TransferController {
     public void check(@LoginUser final Long userId, @PathVariable final Long transferId) {
         transferService.check(userId, transferId);
     }
+
+    @LoginRequired
+    @PatchMapping("/{transferId}/users/me/done")
+    public void completeMyTransfer(@LoginUser final Long userId, @PathVariable final Long transferId) {
+        transferService.completeMyTransfer(userId, transferId);
+    }
 }
