@@ -773,6 +773,125 @@ class TransferIntegrationTest {
         );
     }
 
+    @Test
+    @DisplayName("이체 완료 요청 성공 시 해당 멤버의 remainAmount가 0이 된다.")
+    void 이체_완료_요청_성공() throws Exception {
+        // given
+        User leader = saveUser("leader-complete-integration");
+        User member = saveUser("member-complete-integration");
+        Group group = saveGroup("이체 완료 통합 테스트 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "이체 완료 통합 테스트 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Transfer transfer = saveTransfer(leader, group, travelItinerary, TransferStatus.CONFIRM);
+        TransferUser transferUser = transferUserJpaRepository.save(
+                TransferUser.create(transfer, member, new BigDecimal("10000"))
+        );
+
+        // when & then
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        TransferUser updated = transferUserJpaRepository.findById(transferUser.getId()).orElseThrow();
+        assertThat(updated.getRemainAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+        Transfer updatedTransfer = transferJpaRepository.findById(transfer.getId()).orElseThrow();
+        assertThat(updatedTransfer.getTransferStatus()).isEqualTo(TransferStatus.DONE);
+    }
+
+    @Test
+    @DisplayName("모든 멤버 이체 완료 시 Transfer 상태가 DONE으로 변경된다.")
+    void 모든_멤버_이체_완료_시_DONE으로_변경() throws Exception {
+        // given
+        User leader = saveUser("leader-all-complete");
+        User member1 = saveUser("member1-all-complete");
+        User member2 = saveUser("member2-all-complete");
+        Group group = saveGroup("전체 완료 통합 테스트 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member1, group, Role.MEMBER);
+        saveMembership(member2, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "전체 완료 통합 테스트 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member1, travelItinerary, UserRole.MEMBER);
+        saveTravelMembership(member2, travelItinerary, UserRole.MEMBER);
+        Transfer transfer = saveTransfer(leader, group, travelItinerary, TransferStatus.CONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(transfer, member1, new BigDecimal("10000")));
+        transferUserJpaRepository.save(TransferUser.create(transfer, member2, new BigDecimal("20000")));
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
+                        .sessionAttr(USER_SESSION_KEY, member1.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        assertThat(transferJpaRepository.findById(transfer.getId()).orElseThrow().getTransferStatus())
+                .isEqualTo(TransferStatus.CONFIRM);
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
+                        .sessionAttr(USER_SESSION_KEY, member2.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isOk());
+
+        assertThat(transferJpaRepository.findById(transfer.getId()).orElseThrow().getTransferStatus())
+                .isEqualTo(TransferStatus.DONE);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 이체 완료 요청 시 401을 반환한다.")
+    void 비로그인_사용자가_이체_완료_요청_시_401() throws Exception {
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", 1L))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("CONFIRM 상태가 아닌 청구서에 이체 완료 요청 시 409를 반환한다.")
+    void CONFIRM_상태가_아닌_청구서에_이체_완료_요청_시_409() throws Exception {
+        // given
+        User leader = saveUser("leader-invalid-status-integration");
+        User member = saveUser("member-invalid-status-integration");
+        Group group = saveGroup("상태 검증 통합 테스트 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "상태 검증 통합 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Transfer transfer = saveTransfer(leader, group, travelItinerary, TransferStatus.UNCONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, new BigDecimal("10000")));
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("이미 이체 완료된 멤버의 중복 요청 시 409를 반환한다.")
+    void 이미_이체_완료된_멤버_중복_요청_시_409() throws Exception {
+        // given
+        User leader = saveUser("leader-already-transferred-integration");
+        User member = saveUser("member-already-transferred-integration");
+        Group group = saveGroup("중복 이체 통합 테스트 그룹");
+        saveMembership(leader, group, Role.OWNER);
+        saveMembership(member, group, Role.MEMBER);
+        TravelItinerary travelItinerary = saveTravelItinerary(group, "중복 이체 통합 여행");
+        saveTravelMembership(leader, travelItinerary, UserRole.LEADER);
+        saveTravelMembership(member, travelItinerary, UserRole.MEMBER);
+        Transfer transfer = saveTransfer(leader, group, travelItinerary, TransferStatus.CONFIRM);
+        transferUserJpaRepository.save(TransferUser.create(transfer, member, BigDecimal.ZERO));
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
+                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
+                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
+                        .header(CSRF_HEADER, CSRF_TOKEN))
+                .andExpect(status().isConflict());
+    }
+
     private String encryptedUserId(final User user) {
         return uuidCrypto.encrypt(user.getPublicUuid());
     }

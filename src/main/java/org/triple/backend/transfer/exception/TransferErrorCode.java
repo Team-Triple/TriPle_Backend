@@ -17,7 +17,10 @@ public enum TransferErrorCode implements ErrorCode {
     INVOICE_CHECK_NOT_ALLOWED_STATUS(HttpStatus.CONFLICT, "청구서를 확인할 수 없습니다."),
     CONCURRENT_INVOICE_UPDATE(HttpStatus.CONFLICT, "동시에 청구서가 수정되었습니다. 다시 시도해주세요."),
     DELETE_UNAUTHORIZED(HttpStatus.FORBIDDEN, "청구서 생성자만 삭제할 수 있습니다."),
-    DELETE_FORBIDDEN_STATUS(HttpStatus.CONFLICT, "현재 상태에서는 청구서를 삭제할 수 없습니다.");
+    DELETE_FORBIDDEN_STATUS(HttpStatus.CONFLICT, "현재 상태에서는 청구서를 삭제할 수 없습니다."),
+    INVOICE_DONE_NOT_ALLOWED_STATUS(HttpStatus.CONFLICT, "확정된 청구서만 완료 처리할 수 있습니다."),
+    TRANSFER_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 청구서의 멤버가 아닙니다."),
+    ALREADY_TRANSFERRED(HttpStatus.CONFLICT, "이미 이체 완료된 멤버입니다.");
 
     private final HttpStatus status;
     private final String message;

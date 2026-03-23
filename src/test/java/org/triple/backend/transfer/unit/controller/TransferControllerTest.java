@@ -1464,6 +1464,142 @@ class TransferControllerTest extends ControllerTest {
         verify(transferService, times(1)).delete(1L, transferId);
     }
 
+    @Test
+    @DisplayName("이체 완료 요청 성공 시 200을 반환한다.")
+    void 이체_완료_요청_성공() throws Exception {
+        Long transferId = 1L;
+        mockCsrfValid();
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transferId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isOk())
+                .andDo(document("transfers/complete-my-transfer",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("transferId").description("이체 완료 처리할 청구서 ID")
+                        )
+                ));
+
+        verify(transferService, times(1)).completeMyTransfer(1L, transferId);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 이체 완료 요청 시 401을 반환한다.")
+    void 비로그인_사용자가_이체_완료_요청_시_401을_반환한다() throws Exception {
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", 1L))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("transfers/complete-my-transfer-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("transferId").description("이체 완료 처리할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+
+        verify(transferService, never()).completeMyTransfer(anyLong(), anyLong());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 청구서에 이체 완료 요청 시 404를 반환한다.")
+    void 존재하지_않는_청구서에_이체_완료_요청_시_404를_반환한다() throws Exception {
+        Long transferId = 999L;
+        mockCsrfValid();
+        willThrow(new BusinessException(TransferErrorCode.NOT_FOUND_INVOICE))
+                .given(transferService).completeMyTransfer(eq(1L), eq(transferId));
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transferId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("존재하지 않는 청구서 입니다."))
+                .andDo(document("transfers/complete-my-transfer-fail-not-found",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("transferId").description("이체 완료 처리할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("CONFIRM 상태가 아닌 청구서에 이체 완료 요청 시 409를 반환한다.")
+    void CONFIRM_상태가_아닌_청구서에_이체_완료_요청_시_409를_반환한다() throws Exception {
+        Long transferId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(TransferErrorCode.INVOICE_DONE_NOT_ALLOWED_STATUS))
+                .given(transferService).completeMyTransfer(eq(1L), eq(transferId));
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transferId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("확정된 청구서만 완료 처리할 수 있습니다."))
+                .andDo(document("transfers/complete-my-transfer-fail-invalid-status",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("transferId").description("이체 완료 처리할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("청구서 멤버가 아닌 사용자의 이체 완료 요청 시 404를 반환한다.")
+    void 청구서_멤버가_아닌_사용자의_이체_완료_요청_시_404를_반환한다() throws Exception {
+        Long transferId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(TransferErrorCode.TRANSFER_USER_NOT_FOUND))
+                .given(transferService).completeMyTransfer(eq(1L), eq(transferId));
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transferId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("해당 청구서의 멤버가 아닙니다."))
+                .andDo(document("transfers/complete-my-transfer-fail-not-member",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("transferId").description("이체 완료 처리할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
+    @Test
+    @DisplayName("이미 이체 완료된 멤버의 중복 요청 시 409를 반환한다.")
+    void 이미_이체_완료된_멤버의_중복_요청_시_409를_반환한다() throws Exception {
+        Long transferId = 1L;
+        mockCsrfValid();
+        willThrow(new BusinessException(TransferErrorCode.ALREADY_TRANSFERRED))
+                .given(transferService).completeMyTransfer(eq(1L), eq(transferId));
+
+        mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transferId)
+                        .with(loginSessionAndCsrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("이미 이체 완료된 멤버입니다."))
+                .andDo(document("transfers/complete-my-transfer-fail-already-transferred",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint()),
+                        pathParameters(
+                                parameterWithName("transferId").description("이체 완료 처리할 청구서 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("에러 메시지")
+                        )
+                ));
+    }
+
     private String validUpdateInfoBody() {
         return """
                 {

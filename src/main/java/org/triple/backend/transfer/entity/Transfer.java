@@ -148,4 +148,17 @@ public class Transfer extends BaseEntity {
 
         this.transferStatus = TransferStatus.CONFIRM;
     }
+
+    public void markDone() {
+        if (transferStatus != TransferStatus.CONFIRM) {
+            throw new IllegalStateException("확정된 청구서만 완료 처리할 수 있습니다.");
+        }
+
+        this.transferStatus = TransferStatus.DONE;
+    }
+
+    public boolean isAllPaid() {
+        return transferUsers.stream()
+                .allMatch(TransferUser::isSettled);
+    }
 }

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.triple.backend.travel.entity.UserTravelItinerary;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UserTravelItineraryJpaRepository extends JpaRepository<UserTravelItinerary, Long> {
@@ -19,6 +20,14 @@ public interface UserTravelItineraryJpaRepository extends JpaRepository<UserTrav
     Optional<UserTravelItinerary> findByUserIdAndTravelItineraryId(
             @Param("userId") Long userId, @Param("travelItineraryId") Long travelItineraryId
     );
+
+    @Query("""
+            SELECT ut
+            FROM UserTravelItinerary ut
+            JOIN FETCH ut.user u
+            WHERE ut.travelItinerary.id = :travelItineraryId
+            """)
+    List<UserTravelItinerary> findAllByTravelItineraryId(@Param("travelItineraryId") Long travelItineraryId);
 
     boolean existsByUserIdAndTravelItineraryId(Long userId, Long travelItineraryId);
 }
