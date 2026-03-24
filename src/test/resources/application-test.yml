@@ -58,8 +58,15 @@ rest-client:
   read-timeout: 2
 
 security:
+  jwt:
+    secret: test-jwt-secret-value-at-least-32-characters
+    access-token-expire-seconds: 3600
   uuid:
     secret: test-uuid-crypto-secret
+
+auth:
+  jwt:
+    legacy-session-fallback-enabled: true
 
 app:
   aws:

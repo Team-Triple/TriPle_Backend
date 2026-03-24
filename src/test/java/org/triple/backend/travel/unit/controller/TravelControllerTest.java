@@ -5,9 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.auth.exception.AuthErrorCode;
-import org.triple.backend.auth.session.CsrfTokenManager;
-import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.travel.controller.TravelItineraryController;
@@ -72,7 +71,7 @@ class TravelControllerTest extends ControllerTest {
 
         //when, then
         mockMvc.perform(post("/travels")
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -137,26 +136,10 @@ class TravelControllerTest extends ControllerTest {
         );
 
         mockMvc.perform(post("/travels")
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
-                .andDo(document("travels/create-fail-invalid-csrf-token",
-                        requestFields(
-                                fieldWithPath("title").description("여행 제목 (필수)"),
-                                fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm 형식, 필수)"),
-                                fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm 형식, 필수)"),
-                                fieldWithPath("groupId").description("그룹 ID (필수)"),
-                                fieldWithPath("description").description("여행 설명 (100글자)").optional(),
-                                fieldWithPath("memberUuids").description("member UUID list (optional)").optional()
-                        ),
-                        responseFields(
-                                fieldWithPath("message").description("오류 메시지")
-                        )
-                ));
-
-        verify(travelItineraryService, never()).saveTravels(any(TravelItinerarySaveRequestDto.class), any());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -170,7 +153,7 @@ class TravelControllerTest extends ControllerTest {
         );
 
         mockMvc.perform(post("/travels")
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidBody))
                 .andExpect(status().isBadRequest())
@@ -205,7 +188,7 @@ class TravelControllerTest extends ControllerTest {
         );
 
         mockMvc.perform(post("/travels")
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isForbidden())
@@ -239,7 +222,7 @@ class TravelControllerTest extends ControllerTest {
         //when, then
         mockMvc.perform(
                 post("/travels")
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody)
         ).andExpect(status().isBadRequest());
@@ -259,7 +242,7 @@ class TravelControllerTest extends ControllerTest {
         //when, then
         mockMvc.perform(
                 post("/travels")
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody)
         ).andExpect(status().isBadRequest());
@@ -283,7 +266,7 @@ class TravelControllerTest extends ControllerTest {
 
         // when, then
         mockMvc.perform(patch("/travels/{travelId}", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -342,25 +325,10 @@ class TravelControllerTest extends ControllerTest {
         );
 
         mockMvc.perform(patch("/travels/{travelId}", 1L)
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value("CSRF 토큰이 유효하지 않습니다."))
-                .andDo(document("travels/update-fail-invalid-csrf-token",
-                        pathParameters(
-                                parameterWithName("travelId").description("수정할 여행 일정 ID")
-                        ),
-                        requestFields(
-                                fieldWithPath("title").description("여행 제목").optional(),
-                                fieldWithPath("startAt").description("시작 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
-                                fieldWithPath("endAt").description("종료 일시 (yyyy-MM-dd'T'HH:mm)").optional(),
-                                fieldWithPath("description").description("여행 설명 (최대 100자)").optional()
-                        ),
-                        responseFields(
-                                fieldWithPath("message").description("오류 메시지")
-                        )
-                ));
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -375,7 +343,7 @@ class TravelControllerTest extends ControllerTest {
         );
 
         mockMvc.perform(patch("/travels/{travelId}", 1L)
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
@@ -412,7 +380,7 @@ class TravelControllerTest extends ControllerTest {
         );
 
         mockMvc.perform(patch("/travels/{travelId}", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isUnauthorized())
@@ -443,7 +411,7 @@ class TravelControllerTest extends ControllerTest {
         doNothing().when(travelItineraryService).deleteTravel(travelId, 1L);
 
         mockMvc.perform(delete("/travels/{travelId}", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                         .andExpect(status().isOk())
                         .andDo(document("travels/delete",
                                 pathParameters(
@@ -483,7 +451,7 @@ class TravelControllerTest extends ControllerTest {
                 .when(travelItineraryService).deleteTravel(travelId, 1L);
 
         mockMvc.perform(delete("/travels/{travelId}", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("LEADER만 삭제할 수 있습니다."))
                 .andDo(document("travels/delete-fail-delete-unauthorized",
@@ -506,7 +474,7 @@ class TravelControllerTest extends ControllerTest {
         doNothing().when(travelItineraryService).leaveTravel(travelId, 1L);
 
         mockMvc.perform(delete("/travels/{travelId}/users/me", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                 .andExpect(status().isOk())
                 .andDo(document("travels/leave",
                         pathParameters(
@@ -544,7 +512,7 @@ class TravelControllerTest extends ControllerTest {
                 .when(travelItineraryService).leaveTravel(travelId, 1L);
 
         mockMvc.perform(delete("/travels/{travelId}/users/me", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("LEADER는 여행에서 탈퇴할 수 없습니다."))
                 .andDo(document("travels/leave-fail-leave-unauthorized",
@@ -567,7 +535,7 @@ class TravelControllerTest extends ControllerTest {
         doNothing().when(travelItineraryService).joinTravel(travelId, 1L);
 
         mockMvc.perform(post("/travels/{travelId}/users/me", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                 .andExpect(status().isOk())
                 .andDo(document("travels/join",
                         pathParameters(
@@ -609,7 +577,7 @@ class TravelControllerTest extends ControllerTest {
                 .when(travelItineraryService).joinTravel(travelId, 1L);
 
         mockMvc.perform(post("/travels/{travelId}/users/me", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("이미 참가한 여행입니다."))
                 .andDo(document("travels/join-fail-already-joined-travel",
@@ -646,7 +614,7 @@ class TravelControllerTest extends ControllerTest {
         );
 
         mockMvc.perform(get("/travels/{groupId}", 10L)
-                        .requestAttr("LOGIN_USER_ID", 1L)
+                        .with(loginJwt())
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
@@ -724,6 +692,7 @@ class TravelControllerTest extends ControllerTest {
                 .willReturn(TravelItineraryCursorResponseDto.countOnly(3L));
 
         mockMvc.perform(get("/travels/{groupId}", 10L)
+                        .with(loginJwt())
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
@@ -768,7 +737,7 @@ class TravelControllerTest extends ControllerTest {
         );
 
         mockMvc.perform(get("/travels/{travelId}/info", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("제주도 뚜벅코 탐험"))
                 .andExpect(jsonPath("$.startAt").value("2026-03-01T00:00:00"))
@@ -826,7 +795,7 @@ class TravelControllerTest extends ControllerTest {
                 .willThrow(new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
 
         mockMvc.perform(get("/travels/{travelId}/info", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("해당 여행이 존재하지 않습니다."))
                 .andDo(document("travels/info-fail-not-found",
@@ -848,7 +817,7 @@ class TravelControllerTest extends ControllerTest {
                 .willThrow(new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND));
 
         mockMvc.perform(get("/travels/{travelId}/info", travelId)
-                        .requestAttr("LOGIN_USER_ID", 1L))
+                        .with(loginJwt()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("여행 내 해당 유저를 찾을 수 없습니다."))
                 .andDo(document("travels/info-fail-member-not-found",
@@ -907,5 +876,22 @@ class TravelControllerTest extends ControllerTest {
                   "description": "%s"
                 }
                 """.formatted(title, startAt, endAt, description);
+    }
+
+    private RequestPostProcessor loginJwt() {
+        return request -> {
+            request.addHeader("Authorization", "Bearer test-token");
+            return request;
+        };
+    }
+
+    interface SessionManager {
+        Long getUserId(Object request);
+
+        Long getUserIdOrThrow(Object request);
+    }
+
+    interface CsrfTokenManager {
+        boolean isValid(Object request, Object response);
     }
 }

@@ -5,7 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.triple.backend.auth.session.UuidCrypto;
+import org.triple.backend.auth.crypto.UuidCrypto;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.dto.request.UpdateUserInfoReq;
