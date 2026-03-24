@@ -1,5 +1,7 @@
 = API 문서
 
+NOTE: 인증이 필요한 API는 `Authorization: Bearer <accessToken>` 헤더가 필요합니다.
+
 * xref:auth.adoc[Auth API]
 * xref:user.adoc[User API]
 * xref:group.adoc[Group API]

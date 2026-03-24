@@ -5,6 +5,9 @@
 :toc: left
 :toclevels: 3
 
+== Authentication
+For authenticated endpoints, include `Authorization: Bearer <accessToken>` in request headers.
+
 == 청구서 생성
 include::{snippets}/transfers/create/http-request.adoc[]
 include::{snippets}/transfers/create/request-fields.adoc[]
