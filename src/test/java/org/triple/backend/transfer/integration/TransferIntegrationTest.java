@@ -6,7 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.triple.backend.auth.session.UuidCrypto;
+import org.triple.backend.auth.crypto.UuidCrypto;
+import org.triple.backend.auth.jwt.JwtManager;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.group.entity.group.Group;
@@ -39,15 +40,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_HEADER;
-import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_TOKEN_KEY;
 
 @IntegrationTest
 class TransferIntegrationTest {
-
-    private static final String USER_SESSION_KEY = "USER_ID";
-    private static final String CSRF_TOKEN = "test-token";
-
     @Autowired
     private MockMvc mockMvc;
 
@@ -78,6 +73,9 @@ class TransferIntegrationTest {
     @Autowired
     private UuidCrypto uuidCrypto;
 
+    @Autowired
+    private JwtManager jwtManager;
+
     @BeforeEach
     void setUp() {
         dbCleaner.clean();
@@ -100,9 +98,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers")
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(leader))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -138,9 +134,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers")
-                        .sessionAttr(USER_SESSION_KEY, leaderMember.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(leaderMember))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -180,9 +174,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers")
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(member))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden());
@@ -204,18 +196,14 @@ class TransferIntegrationTest {
         String body = createBody(group.getId(), travelItinerary.getId(), encryptedUserId(member), 30000, 30000);
 
         mockMvc.perform(post("/transfers")
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(leader))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk());
 
         // when & then
         mockMvc.perform(post("/transfers")
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(leader))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isConflict())
@@ -249,9 +237,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers")
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(leader))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -277,9 +263,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/transfers/{transferId}", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(leader))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -313,9 +297,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/transfers/{transferId}", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(member))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden())
@@ -353,7 +335,7 @@ class TransferIntegrationTest {
         transferUserJpaRepository.save(TransferUser.create(청구서, 멤버2, new BigDecimal("3000")));
 
         mockMvc.perform(get("/transfers/travels/{travelItineraryId}", 여행일정.getId())
-                        .sessionAttr(USER_SESSION_KEY, 멤버1.getPublicUuid()))
+                                                .header("Authorization", authorization(멤버1)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountNumber").value("999999-00-999999"))
                 .andExpect(jsonPath("$.bankName").value("KB국민"))
@@ -377,7 +359,7 @@ class TransferIntegrationTest {
         transferUserJpaRepository.save(TransferUser.create(청구서, 멤버, new BigDecimal("10000")));
 
         mockMvc.perform(get("/transfers/travels/{travelItineraryId}", 여행일정.getId())
-                        .sessionAttr(USER_SESSION_KEY, 외부인.getPublicUuid()))
+                                                .header("Authorization", authorization(외부인)))
                 .andExpect(status().isNotFound());
     }
 
@@ -411,9 +393,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(put("/transfers/{transferId}", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(leader))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -453,9 +433,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(put("/transfers/{transferId}", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(member))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden());
@@ -492,9 +470,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(put("/transfers/{transferId}", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN)
+                                                .header("Authorization", authorization(leader))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -514,9 +490,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(leader)))
                 .andExpect(status().isOk());
 
         Transfer confirmedTransfer = transferJpaRepository.findById(transfer.getId()).orElseThrow();
@@ -544,9 +518,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(outsider)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
     }
@@ -566,9 +538,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, groupMemberWithoutTravel.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(groupMemberWithoutTravel)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("여행 내 해당 유저를 찾을 수 없습니다."));
     }
@@ -589,9 +559,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(member)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("여행장 권한이 필요합니다."));
     }
@@ -604,9 +572,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers/{transferId}/check", 999L)
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(leader)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("존재하지 않는 청구서 입니다."));
     }
@@ -624,9 +590,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(post("/transfers/{transferId}/check", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, leader.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(leader)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("청구서를 확인할 수 없습니다."));
     }
@@ -642,9 +606,7 @@ class TransferIntegrationTest {
         transferUserJpaRepository.save(TransferUser.create(transfer, member, new java.math.BigDecimal("10000")));
 
         mockMvc.perform(delete("/transfers/{transferId}", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(creator)))
                 .andExpect(status().isOk());
 
         Transfer deletedTransfer = transferJpaRepository.findById(transfer.getId()).orElseThrow();
@@ -664,9 +626,7 @@ class TransferIntegrationTest {
         Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.UNCONFIRM);
 
         mockMvc.perform(delete("/transfers/{transferId}", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, other.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(other)))
                 .andExpect(status().isForbidden());
     }
 
@@ -679,9 +639,7 @@ class TransferIntegrationTest {
         Transfer transfer = saveTransfer(creator, group, travelItinerary, TransferStatus.CONFIRM);
 
         mockMvc.perform(delete("/transfers/{transferId}", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, creator.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(creator)))
                 .andExpect(status().isConflict());
     }
 
@@ -792,9 +750,7 @@ class TransferIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(member)))
                 .andExpect(status().isOk());
 
         TransferUser updated = transferUserJpaRepository.findById(transferUser.getId()).orElseThrow();
@@ -823,18 +779,14 @@ class TransferIntegrationTest {
         transferUserJpaRepository.save(TransferUser.create(transfer, member2, new BigDecimal("20000")));
 
         mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, member1.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(member1)))
                 .andExpect(status().isOk());
 
         assertThat(transferJpaRepository.findById(transfer.getId()).orElseThrow().getTransferStatus())
                 .isEqualTo(TransferStatus.CONFIRM);
 
         mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, member2.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(member2)))
                 .andExpect(status().isOk());
 
         assertThat(transferJpaRepository.findById(transfer.getId()).orElseThrow().getTransferStatus())
@@ -864,9 +816,7 @@ class TransferIntegrationTest {
         transferUserJpaRepository.save(TransferUser.create(transfer, member, new BigDecimal("10000")));
 
         mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(member)))
                 .andExpect(status().isConflict());
     }
 
@@ -886,10 +836,12 @@ class TransferIntegrationTest {
         transferUserJpaRepository.save(TransferUser.create(transfer, member, BigDecimal.ZERO));
 
         mockMvc.perform(patch("/transfers/{transferId}/users/me/done", transfer.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CSRF_HEADER, CSRF_TOKEN))
+                                                .header("Authorization", authorization(member)))
                 .andExpect(status().isConflict());
+    }
+
+    private String authorization(final User user) {
+        return "Bearer " + jwtManager.createAccessToken(user.getId());
     }
 
     private String encryptedUserId(final User user) {

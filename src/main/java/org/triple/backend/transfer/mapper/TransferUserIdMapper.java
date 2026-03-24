@@ -2,7 +2,7 @@ package org.triple.backend.transfer.mapper;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.triple.backend.auth.session.PublicUuidCodec;
+import org.triple.backend.auth.crypto.PublicUuidCodec;
 import org.triple.backend.transfer.dto.request.TransferAdjustRequestDto;
 import org.triple.backend.transfer.dto.request.TransferCreateRequestDto;
 import org.triple.backend.transfer.dto.response.TransferAdjustResponseDto;

@@ -1,6 +1,5 @@
 package org.triple.backend.user.unit.controller;
 
-import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -8,8 +7,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.triple.backend.auth.exception.AuthErrorCode;
-import org.triple.backend.auth.session.CsrfTokenManager;
-import org.triple.backend.auth.session.SessionManager;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.controller.UserController;
@@ -18,6 +15,8 @@ import org.triple.backend.user.dto.response.UserInfoResponseDto;
 import org.triple.backend.user.entity.Gender;
 import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.service.UserService;
+
+import java.time.LocalDate;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,9 +35,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
-import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN_KEY;
-import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 @WebMvcTest(UserController.class)
 class UserControllerTest extends ControllerTest {
@@ -46,14 +42,8 @@ class UserControllerTest extends ControllerTest {
     @MockitoBean
     private UserService userService;
 
-    @MockitoBean
-    private CsrfTokenManager csrfTokenManager;
-
-    @MockitoBean
-    private SessionManager sessionManager;
-
     @Test
-    @DisplayName("사용자 정보 조회를 하면 사용자 정보와 상태코드 200을 반환한다.")
+    @DisplayName("user info returns 200")
     void userInfoReturnsUserInfo() throws Exception {
         Long userId = 1L;
         String encryptedPublicUuid = "encrypted-public-uuid-3";
@@ -67,67 +57,61 @@ class UserControllerTest extends ControllerTest {
                         .description("hi")
                         .profileUrl("https://example.com/profile.png")
                         .build());
-        when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
-        when(csrfTokenManager.isValid(any(), any())).thenReturn(true);
 
-        mockMvc.perform(get("/users/me")
-                        .sessionAttr(USER_SESSION_KEY, userId))
+        mockMvc.perform(get("/users/me").with(loginJwt()))
                 .andDo(document("users/me",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         responseFields(
-                                fieldWithPath("publicUuid").description("암호화된 사용자 UUID"),
-                                fieldWithPath("nickname").description("닉네임"),
-                                fieldWithPath("gender").description("성별"),
-                                fieldWithPath("birth").description("생일").optional(),
-                                fieldWithPath("description").description("소개").optional(),
-                                fieldWithPath("profileUrl").description("프로필 이미지 URL").optional()
+                                fieldWithPath("publicUuid").description("encrypted user uuid"),
+                                fieldWithPath("nickname").description("nickname"),
+                                fieldWithPath("gender").description("gender"),
+                                fieldWithPath("birth").description("birth date").optional(),
+                                fieldWithPath("description").description("description").optional(),
+                                fieldWithPath("profileUrl").description("profile image URL").optional()
                         )))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.publicUuid").value(encryptedPublicUuid));
+
+        verify(userService).userInfo(userId);
     }
 
     @Test
-    @DisplayName("비로그인 사용자가 사용자 정보 조회 요청 시 401을 반환한다.")
+    @DisplayName("user info without login returns 401")
     void userInfoReturnsUnauthorizedWithoutLogin() throws Exception {
-        when(sessionManager.getUserIdOrThrow(any()))
-                .thenThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
-
         mockMvc.perform(get("/users/me"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andExpect(jsonPath("$.message").value(AuthErrorCode.UNAUTHORIZED.getMessage()))
                 .andDo(document("users/me-fail-unauthorized",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         responseFields(
-                                fieldWithPath("message").description("오류 메시지")
+                                fieldWithPath("message").description("error message")
                         )));
 
         verify(userService, never()).userInfo(any());
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자 유저정보 조회 요청 시 404를 반환한다.")
+    @DisplayName("user info missing user returns 404")
     void userInfoReturnsNotFoundWhenUserMissing() throws Exception {
         Long userId = 1L;
-        when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
         when(userService.userInfo(userId))
                 .thenThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        mockMvc.perform(get("/users/me")
-                        .sessionAttr(USER_SESSION_KEY, userId))
+        mockMvc.perform(get("/users/me").with(loginJwt()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(UserErrorCode.USER_NOT_FOUND.getMessage()))
                 .andDo(document("users/me-fail-user-not-found",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         responseFields(
-                                fieldWithPath("message").description("오류 메시지")
+                                fieldWithPath("message").description("error message")
                         )));
     }
 
     @Test
-    @DisplayName("사용자 정보 수정 요청 시 200을 반환한다.")
+    @DisplayName("update user info returns 200")
     void updateUserInfoReturnsOk() throws Exception {
         Long userId = 1L;
         UpdateUserInfoReq request = new UpdateUserInfoReq(
@@ -137,9 +121,6 @@ class UserControllerTest extends ControllerTest {
                 "hi",
                 "https://example.com/profile.png"
         );
-
-        when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
-        when(csrfTokenManager.isValid(any(), any())).thenReturn(true);
 
         mockMvc.perform(patch("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -152,28 +133,26 @@ class UserControllerTest extends ControllerTest {
                                   "profileUrl": "https://example.com/profile.png"
                                 }
                                 """)
-                        .with(loginSessionAndCsrf()))
+                        .with(loginJwt()))
                 .andExpect(status().isOk())
                 .andDo(document("users/update",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         requestFields(
-                                fieldWithPath("nickname").description("닉네임").optional(),
-                                fieldWithPath("gender").description("성별").optional(),
-                                fieldWithPath("birth").description("생일").optional(),
-                                fieldWithPath("description").description("소개").optional(),
-                                fieldWithPath("profileUrl").description("프로필 이미지 URL").optional()
+                                fieldWithPath("nickname").description("nickname").optional(),
+                                fieldWithPath("gender").description("gender").optional(),
+                                fieldWithPath("birth").description("birth date").optional(),
+                                fieldWithPath("description").description("description").optional(),
+                                fieldWithPath("profileUrl").description("profile image URL").optional()
                         )));
 
         verify(userService).updateUserInfo(eq(userId), eq(request));
     }
 
     @Test
-    @DisplayName("존재하지 않는 사용자 정보 수정 요청 시 404를 반환한다.")
+    @DisplayName("update user info missing user returns 404")
     void updateUserInfoReturnsNotFoundWhenUserMissing() throws Exception {
         Long userId = 1L;
-        when(sessionManager.getUserIdOrThrow(any())).thenReturn(userId);
-        when(csrfTokenManager.isValid(any(), any())).thenReturn(true);
         doThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND))
                 .when(userService)
                 .updateUserInfo(eq(userId), any(UpdateUserInfoReq.class));
@@ -185,22 +164,20 @@ class UserControllerTest extends ControllerTest {
                                   "nickname": "sangyun"
                                 }
                                 """)
-                        .with(loginSessionAndCsrf()))
+                        .with(loginJwt()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value(UserErrorCode.USER_NOT_FOUND.getMessage()))
                 .andDo(document("users/update-fail-user-not-found",
                         preprocessRequest(prettyPrint()),
                         preprocessResponse(prettyPrint()),
                         responseFields(
-                                fieldWithPath("message").description("오류 메시지")
+                                fieldWithPath("message").description("error message")
                         )));
     }
 
-    private RequestPostProcessor loginSessionAndCsrf() {
+    private RequestPostProcessor loginJwt() {
         return request -> {
-            request.getSession(true).setAttribute(USER_SESSION_KEY, 1L);
-            request.getSession().setAttribute(CSRF_TOKEN_KEY, CSRF_TOKEN);
-            request.addHeader(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN);
+            request.addHeader("Authorization", "Bearer test-token");
             return request;
         };
     }

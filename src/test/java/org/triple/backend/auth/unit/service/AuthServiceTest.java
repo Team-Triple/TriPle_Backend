@@ -1,55 +1,57 @@
 package org.triple.backend.auth.unit.service;
 
-import jakarta.servlet.http.HttpSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.triple.backend.auth.config.property.JwtProperties;
+import org.triple.backend.auth.crypto.UuidToUserIdCache;
 import org.triple.backend.auth.dto.request.AuthLoginRequestDto;
 import org.triple.backend.auth.dto.response.AuthLoginResponseDto;
 import org.triple.backend.auth.exception.AuthErrorCode;
+import org.triple.backend.auth.jwt.JwtManager;
 import org.triple.backend.auth.oauth.OauthClient;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.auth.oauth.OauthUser;
 import org.triple.backend.auth.service.AuthService;
-import org.triple.backend.auth.session.SessionManager;
-import org.triple.backend.auth.session.UserIdentityResolver;
-import org.triple.backend.auth.session.UuidCrypto;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.entity.User;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.util.Map;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
+import static org.mockito.Mockito.verify;
 
-
-@Import({AuthService.class, SessionManager.class, UserIdentityResolver.class, UuidCrypto.class})
 @ServiceTest
-public class AuthServiceTest {
+@Import({AuthService.class, JwtManager.class, AuthServiceTest.JwtTestConfig.class})
+class AuthServiceTest {
 
     @Autowired
     private AuthService authService;
 
     @Autowired
-    private UuidCrypto uuidCrypto;
+    private JwtManager jwtManager;
 
     @Autowired
     private UserJpaRepository userJpaRepository;
 
     @MockitoBean
+    private UuidToUserIdCache uuidToUserIdCache;
+
+    @MockitoBean
     private Map<OauthProvider, OauthClient> clients;
 
     @MockitoBean
-    OauthClient kakaoClient;
+    private OauthClient kakaoClient;
 
     @BeforeEach
     void setUp() {
@@ -57,27 +59,21 @@ public class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("지원하지 않는 provider면 UNSUPPORTED_OAUTH_PROVIDER 예외")
-    void 지원하지_않는_provider면_UNSUPPORTED_OAUTH_PROVIDER_에외() {
-        // given
-        AuthLoginRequestDto req = new AuthLoginRequestDto("code", OauthProvider.KAKAO);
+    @DisplayName("unsupported provider returns UNSUPPORTED_OAUTH_PROVIDER")
+    void unsupportedProvider() {
+        AuthLoginRequestDto request = new AuthLoginRequestDto("code", OauthProvider.KAKAO);
         given(clients.get(OauthProvider.KAKAO)).willReturn(null);
 
-        MockHttpServletRequest servletRequest = new MockHttpServletRequest();
-
-        // when & then
-        assertThatThrownBy(() -> authService.login(req, servletRequest))
+        assertThatThrownBy(() -> authService.authenticate(request))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(AuthErrorCode.UNSUPPORTED_OAUTH_PROVIDER);
     }
 
     @Test
-    @DisplayName("미가입 유저면 회원가입 후 userId 반환과 세션에 USER_ID 저장")
-    void 미가입_유저면_회원가입_후_userId_반환과_세션에_USER_ID_저장() {
-        // given
-        AuthLoginRequestDto req = new AuthLoginRequestDto("code", OauthProvider.KAKAO);
-
+    @DisplayName("authenticate fetches oauth user from client")
+    void authenticateSuccess() {
+        AuthLoginRequestDto request = new AuthLoginRequestDto("code", OauthProvider.KAKAO);
         OauthUser oauthUser = new OauthUser(
                 OauthProvider.KAKAO,
                 "kakao-999",
@@ -85,38 +81,51 @@ public class AuthServiceTest {
                 "newbie",
                 "http://img"
         );
-
         given(clients.get(OauthProvider.KAKAO)).willReturn(kakaoClient);
         given(kakaoClient.fetchUser("code")).willReturn(oauthUser);
 
-        MockHttpServletRequest servletRequest = new MockHttpServletRequest();
+        OauthUser result = authService.authenticate(request);
 
-        // when
-        authService.login(req, servletRequest);
-
-        // then
-        assertThat(userJpaRepository.findByProviderAndProviderId(OauthProvider.KAKAO, "kakao-999"))
-                .isPresent();
-
-        // then
-        HttpSession session = servletRequest.getSession(false);
-        assertThat(session).isNotNull();
+        assertThat(result).isEqualTo(oauthUser);
     }
 
     @Test
-    @DisplayName("이미 가입된 유저면 신규 저장 없이 기존 userId 반환과 세션에 USER_ID 저장")
-    void 이미_가입된_유저면_신규_저장_없이_기존_userId_반환과_세션에_USER_ID_저장() {
-        // given
-        User existing = User.builder()
+    @DisplayName("findOrCreate creates user and sets authorization header")
+    void findOrCreateCreatesUserAndSetsJwtHeader() {
+        OauthUser oauthUser = new OauthUser(
+                OauthProvider.KAKAO,
+                "kakao-999",
+                "new@test.com",
+                "newbie",
+                "http://img"
+        );
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        AuthLoginResponseDto result = authService.findOrCreate(oauthUser, response);
+
+        User saved = userJpaRepository.findByProviderAndProviderId(OauthProvider.KAKAO, "kakao-999")
+                .orElseThrow();
+        String authorizationHeader = response.getHeader("Authorization");
+
+        assertThat(result.nickname()).isEqualTo("newbie");
+        assertThat(result.email()).isEqualTo("new@test.com");
+        assertThat(result.profileUrl()).isEqualTo("http://img");
+        assertThat(authorizationHeader).startsWith("Bearer ");
+        assertThat(jwtManager.resolveUserId(authorizationHeader)).isEqualTo(saved.getId());
+        assertThat(userJpaRepository.count()).isEqualTo(1);
+        verify(uuidToUserIdCache).save(saved.getPublicUuid(), saved.getId());
+    }
+
+    @Test
+    @DisplayName("findOrCreate reuses existing user and does not duplicate")
+    void findOrCreateExistingUser() {
+        User existing = userJpaRepository.save(User.builder()
                 .provider(OauthProvider.KAKAO)
                 .providerId("kakao-123")
                 .email("test@test.com")
                 .nickname("nick")
                 .profileUrl("http://img")
-                .build();
-        User saved = userJpaRepository.save(existing);
-
-        AuthLoginRequestDto req = new AuthLoginRequestDto("code", OauthProvider.KAKAO);
+                .build());
 
         OauthUser oauthUser = new OauthUser(
                 OauthProvider.KAKAO,
@@ -125,39 +134,27 @@ public class AuthServiceTest {
                 "nick",
                 "http://img"
         );
+        MockHttpServletResponse response = new MockHttpServletResponse();
 
-        given(clients.get(OauthProvider.KAKAO)).willReturn(kakaoClient);
+        AuthLoginResponseDto result = authService.findOrCreate(oauthUser, response);
 
-        given(kakaoClient.fetchUser("code")).willReturn(oauthUser);
+        User found = userJpaRepository.findByProviderAndProviderId(OauthProvider.KAKAO, "kakao-123")
+                .orElseThrow();
+        String authorizationHeader = response.getHeader("Authorization");
 
-        MockHttpServletRequest servletRequest = new MockHttpServletRequest();
-
-        // when
-        AuthLoginResponseDto res = authService.login(req, servletRequest);
-
-        // then
         assertThat(userJpaRepository.count()).isEqualTo(1);
-        assertThat(uuidCrypto.decryptToUuid(res.publicUuid())).isEqualTo(saved.getPublicUuid());
-        assertThat(res.nickname()).isEqualTo("nick");
-
-        // then
-        HttpSession session = servletRequest.getSession(false);
-        Object sessionPrincipal = session.getAttribute(USER_SESSION_KEY);
-        assertThat(sessionPrincipal).isInstanceOf(String.class);
-        assertThat(uuidCrypto.decryptToUuid(sessionPrincipal)).isEqualTo(saved.getPublicUuid());
+        assertThat(found.getId()).isEqualTo(existing.getId());
+        assertThat(result.nickname()).isEqualTo(existing.getNickname());
+        assertThat(authorizationHeader).startsWith("Bearer ");
+        assertThat(jwtManager.resolveUserId(authorizationHeader)).isEqualTo(existing.getId());
+        verify(uuidToUserIdCache).save(found.getPublicUuid(), existing.getId());
     }
 
-    @Test
-    @DisplayName("로그아웃 시 세션이 무효화된다")
-    void 로그아웃_시_세션이_무효화된다() {
-        // given
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.getSession(true).setAttribute(USER_SESSION_KEY, UUID.randomUUID());
-
-        // when
-        authService.logout(request);
-
-        // then
-        assertThat(request.getSession(false)).isNull();
+    @TestConfiguration
+    static class JwtTestConfig {
+        @Bean
+        JwtProperties jwtProperties() {
+            return new JwtProperties("test-jwt-secret-value-at-least-32-characters", 3600);
+        }
     }
 }

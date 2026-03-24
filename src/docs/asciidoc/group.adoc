@@ -5,6 +5,9 @@
 :toc: left
 :toclevels: 3
 
+== Authentication
+For authenticated endpoints, include `Authorization: Bearer <accessToken>` in request headers.
+
 == 그룹 생성
 include::{snippets}/groups/create/http-request.adoc[]
 include::{snippets}/groups/create/http-response.adoc[]

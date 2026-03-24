@@ -5,6 +5,8 @@
 :toc: left
 :toclevels: 3
 
+NOTE: 사용자 API는 `Authorization: Bearer <accessToken>` 헤더가 필요합니다.
+
 == 내 정보 조회
 include::{snippets}/users/me/http-request.adoc[]
 include::{snippets}/users/me/http-response.adoc[]

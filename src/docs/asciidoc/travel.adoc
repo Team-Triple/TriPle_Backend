@@ -1,9 +1,11 @@
-﻿= Travel API Document
+= Travel API Document
 :doctype: book
 :icons: font
 :source-highlighter: highlightjs
 :toc: left
 :toclevels: 3
+
+NOTE: 인증이 필요한 여행 API는 `Authorization: Bearer <accessToken>` 헤더가 필요합니다.
 
 == 여행 일정 생성
 include::{snippets}/travels/create/http-request.adoc[]
@@ -13,9 +15,6 @@ include::{snippets}/travels/create/response-fields.adoc[]
 
 === 실패: 비로그인 사용자(401)
 include::{snippets}/travels/create-fail-unauthorized/http-response.adoc[]
-
-=== 실패: CSRF 토큰 불일치(403)
-include::{snippets}/travels/create-fail-invalid-csrf-token/http-response.adoc[]
 
 === 실패: 잘못된 요청 값(400)
 include::{snippets}/travels/create-fail-bad-request/http-response.adoc[]
@@ -31,9 +30,6 @@ include::{snippets}/travels/update/http-response.adoc[]
 
 === 실패: 비로그인 사용자(401)
 include::{snippets}/travels/update-fail-unauthorized/http-response.adoc[]
-
-=== 실패: CSRF 토큰 불일치(403)
-include::{snippets}/travels/update-fail-invalid-csrf-token/http-response.adoc[]
 
 === 실패: 잘못된 요청 값(400)
 include::{snippets}/travels/update-fail-bad-request/http-response.adoc[]

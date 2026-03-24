@@ -1,4 +1,4 @@
-package org.triple.backend.auth.session;
+package org.triple.backend.auth.crypto;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

@@ -103,5 +103,5 @@
 - User confirmation status: {확인 완료 여부}
 - Rollback executed: {롤백 여부 / 범위}
 - Re-merge condition: {재병합 전 필수 테스트/검증}
-- DRAFT 삭제 상태(병합 후): {대기/완료}
+- DRAFT 삭제 상태(마지막 TASK 병합 후): {대기/완료}
 - PLAN 삭제 조건 확인 상태(커밋 후): {대기/완료}

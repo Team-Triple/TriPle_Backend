@@ -7,8 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
-import org.triple.backend.auth.session.CsrfTokenManager;
-import org.triple.backend.auth.session.UuidCrypto;
+import org.triple.backend.auth.crypto.UuidCrypto;
+import org.triple.backend.auth.jwt.JwtManager;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
 import org.triple.backend.group.dto.response.GroupCursorResponseDto;
@@ -40,9 +40,6 @@ import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
-import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN_KEY;
-import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 import static org.triple.backend.group.fixture.GroupFixtures.privateGroup;
 import static org.triple.backend.group.fixture.GroupFixtures.publicGroup;
 
@@ -82,6 +79,9 @@ public class GroupIntegrationTest {
     @Autowired
     private UuidCrypto uuidCrypto;
 
+    @Autowired
+    private JwtManager jwtManager;
+
     @BeforeEach
     void setUp() {
         dbCleaner.clean();
@@ -112,9 +112,7 @@ public class GroupIntegrationTest {
 
         // when
         var result = mockMvc.perform(post("/groups")
-                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN)
+                        .header("Authorization", authorization(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -228,7 +226,7 @@ public class GroupIntegrationTest {
         // when & then
         mockMvc.perform(get("/groups/me")
                         .param("size", "10")
-                        .sessionAttr(USER_SESSION_KEY, me.getPublicUuid()))
+                        .header("Authorization", authorization(me)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(10)))
                 .andExpect(jsonPath("$.hasNext").value(true))
@@ -262,7 +260,7 @@ public class GroupIntegrationTest {
         // when
         String json = mockMvc.perform(get("/groups/me")
                         .param("size", "10")
-                        .sessionAttr(USER_SESSION_KEY, me.getPublicUuid()))
+                        .header("Authorization", authorization(me)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(2)))
                 .andExpect(jsonPath("$.items[*].name", containsInAnyOrder("public-my-group", "private-my-group")))
@@ -300,7 +298,7 @@ public class GroupIntegrationTest {
         // when
         String firstJson = mockMvc.perform(get("/groups/me")
                         .param("size", "5")
-                        .sessionAttr(USER_SESSION_KEY, me.getPublicUuid()))
+                        .header("Authorization", authorization(me)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(5)))
                 .andExpect(jsonPath("$.hasNext").value(true))
@@ -315,7 +313,7 @@ public class GroupIntegrationTest {
         String secondJson = mockMvc.perform(get("/groups/me")
                         .param("cursor", String.valueOf(firstNextCursor))
                         .param("size", "5")
-                        .sessionAttr(USER_SESSION_KEY, me.getPublicUuid()))
+                        .header("Authorization", authorization(me)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items", hasSize(5)))
                 .andExpect(jsonPath("$.hasNext").value(true))
@@ -396,7 +394,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(get("/groups/{groupId}/menu", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
+                        .header("Authorization", authorization(member)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("비공개모임"))
                 .andExpect(jsonPath("$.currentMemberCount").value(2))
@@ -506,7 +504,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(get("/groups/{groupId}/users", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
+                        .header("Authorization", authorization(member)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("PRIVATE 그룹 멤버 목록은 조회할 수 없습니다."));
     }
@@ -628,7 +626,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
+                        .header("Authorization", authorization(member)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("비공개모임"))
                 .andExpect(jsonPath("$.groupKind").value("PRIVATE"))
@@ -724,7 +722,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(get("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid()))
+                        .header("Authorization", authorization(member)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.travelCount").value(1))
                 .andExpect(jsonPath("$.recentTravels", hasSize(1)))
@@ -782,9 +780,7 @@ public class GroupIntegrationTest {
 
         // when
         mockMvc.perform(delete("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(owner)))
                 .andExpect(status().isOk());
 
         // then
@@ -823,9 +819,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(delete("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(owner)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("그룹에 다른 멤버가 있어 삭제할 수 없습니다."));
 
@@ -867,9 +861,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(member)))
                 .andExpect(status().isOk());
 
         UserGroup leftUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), member.getId()).orElseThrow();
@@ -900,9 +892,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(owner)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("그룹 주인은 탈퇴할 수 없습니다."));
     }
@@ -936,16 +926,12 @@ public class GroupIntegrationTest {
         Group savedGroup = groupJpaRepository.saveAndFlush(group);
 
         mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(member)))
                 .andExpect(status().isOk());
 
         // when & then
         mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(member)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("이미 탈퇴한 그룹입니다."));
     }
@@ -978,9 +964,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(delete("/groups/{groupId}/users/me", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(outsider)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
     }
@@ -1014,9 +998,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN)
+                        .header("Authorization", authorization(owner))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -1063,9 +1045,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), encryptedUserId(target))
-                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(owner)))
                 .andExpect(status().isOk());
 
         UserGroup ownerUserGroup = userGroupJpaRepository.findByGroupIdAndUserId(savedGroup.getId(), owner.getId()).orElseThrow();
@@ -1096,9 +1076,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), encryptedUserId(owner))
-                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(owner)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("그룹 주인은 스스로를 강등시킬 수 없습니다."));
     }
@@ -1140,9 +1118,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), encryptedUserId(target))
-                        .sessionAttr(USER_SESSION_KEY, member.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(member)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("그룹 수정/삭제 권한이 없습니다."));
     }
@@ -1174,9 +1150,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/groups/{groupId}/owner/{targetUserId}", savedGroup.getId(), encryptedUserId(outsider))
-                        .sessionAttr(USER_SESSION_KEY, owner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN))
+                        .header("Authorization", authorization(owner)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.message").value("해당 그룹을 조회할 권한이 없습니다."));
     }
@@ -1219,9 +1193,7 @@ public class GroupIntegrationTest {
 
         // when & then
         mockMvc.perform(patch("/groups/{groupId}", savedGroup.getId())
-                        .sessionAttr(USER_SESSION_KEY, otherUser.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, CSRF_TOKEN)
-                        .header(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN)
+                        .header("Authorization", authorization(otherUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden());
@@ -1243,6 +1215,10 @@ public class GroupIntegrationTest {
         ReflectionTestUtils.setField(travelReviewImage, "travelReview", review);
         ReflectionTestUtils.setField(travelReviewImage, "reviewImageUrl", imageUrl);
         return travelReviewImage;
+    }
+
+    private String authorization(final User user) {
+        return "Bearer " + jwtManager.createAccessToken(user.getId());
     }
 
     private String encryptedUserId(final User user) {

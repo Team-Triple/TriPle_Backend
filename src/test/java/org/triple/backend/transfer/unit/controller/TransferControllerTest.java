@@ -1,6 +1,5 @@
 package org.triple.backend.transfer.unit.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,8 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.FieldDescriptor;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.triple.backend.auth.session.CsrfTokenManager;
-import org.triple.backend.auth.session.UserIdentityResolver;
+import org.triple.backend.auth.crypto.UserIdentityResolver;
 import org.triple.backend.common.ControllerTest;
 import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.transfer.controller.TransferController;
@@ -57,18 +55,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN;
-import static org.triple.backend.global.constants.AuthConstants.CSRF_TOKEN_KEY;
-import static org.triple.backend.global.constants.AuthConstants.USER_SESSION_KEY;
 
 @WebMvcTest(TransferController.class)
 class TransferControllerTest extends ControllerTest {
 
     @MockitoBean
     private TransferService transferService;
-
-    @MockitoBean
-    private CsrfTokenManager csrfTokenManager;
 
     @MockitoBean
     private UserIdentityResolver userIdentityResolver;
@@ -1679,14 +1671,12 @@ class TransferControllerTest extends ControllerTest {
     }
 
     private void mockCsrfValid() {
-        when(csrfTokenManager.isValid(any(HttpServletRequest.class), any(String.class))).thenReturn(true);
+        // no-op in JWT-based test auth
     }
 
     private RequestPostProcessor loginSessionAndCsrf() {
         return request -> {
-            request.getSession(true).setAttribute(USER_SESSION_KEY, 1L);
-            request.getSession().setAttribute(CSRF_TOKEN_KEY, CSRF_TOKEN);
-            request.addHeader(CsrfTokenManager.CSRF_HEADER, CSRF_TOKEN);
+            request.addHeader("Authorization", "Bearer test-token");
             return request;
         };
     }

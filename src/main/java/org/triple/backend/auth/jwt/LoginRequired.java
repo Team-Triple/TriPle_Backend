@@ -1,4 +1,4 @@
-package org.triple.backend.auth.session;
+package org.triple.backend.auth.jwt;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

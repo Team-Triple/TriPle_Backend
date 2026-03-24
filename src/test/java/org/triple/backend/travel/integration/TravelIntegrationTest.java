@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.triple.backend.auth.jwt.JwtManager;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.common.DbCleaner;
 import org.triple.backend.common.annotation.IntegrationTest;
@@ -30,13 +31,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_HEADER;
-import static org.triple.backend.auth.session.CsrfTokenManager.CSRF_TOKEN_KEY;
 
 @IntegrationTest
 class TravelIntegrationTest {
-
-    private static final String USER_SESSION_KEY = "USER_ID";
 
     @Autowired
     private MockMvc mockMvc;
@@ -58,6 +55,9 @@ class TravelIntegrationTest {
 
     @Autowired
     private DbCleaner dbCleaner;
+
+    @Autowired
+    private JwtManager jwtManager;
 
     @BeforeEach
     void setUp() {
@@ -83,9 +83,7 @@ class TravelIntegrationTest {
                 """.formatted(group.getId());
 
         mockMvc.perform(post("/travels")
-                        .sessionAttr(USER_SESSION_KEY, user.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
-                        .header(CSRF_HEADER, "test-token")
+                        .header("Authorization", authorization(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
@@ -131,7 +129,7 @@ class TravelIntegrationTest {
                 """.formatted(group.getId());
 
         mockMvc.perform(post("/travels")
-                        .sessionAttr(USER_SESSION_KEY, user.getPublicUuid())
+                        .header("Authorization", authorization(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isForbidden());
@@ -155,9 +153,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
 
         mockMvc.perform(delete("/travels/{travelId}", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, user.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
-                        .header(CSRF_HEADER, "test-token"))
+                        .header("Authorization", authorization(user)))
                 .andExpect(status().isOk());
 
         TravelItinerary deleted = travelItineraryJpaRepository.findById(travelItinerary.getId()).orElseThrow();
@@ -182,7 +178,7 @@ class TravelIntegrationTest {
         ));
 
         mockMvc.perform(get("/travels/{groupId}", group.getId())
-                        .sessionAttr(USER_SESSION_KEY, user.getPublicUuid())
+                        .header("Authorization", authorization(user))
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
@@ -235,7 +231,7 @@ class TravelIntegrationTest {
         ));
 
         mockMvc.perform(get("/travels/{groupId}", group.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
+                        .header("Authorization", authorization(outsider))
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(0))
@@ -261,9 +257,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.MEMBER));
 
         mockMvc.perform(delete("/travels/{travelId}/users/me", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, user.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
-                        .header(CSRF_HEADER, "test-token"))
+                        .header("Authorization", authorization(user)))
                 .andExpect(status().isOk());
 
         assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(user.getId(), travelItinerary.getId()))
@@ -288,9 +282,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
 
         mockMvc.perform(delete("/travels/{travelId}/users/me", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, user.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
-                        .header(CSRF_HEADER, "test-token"))
+                        .header("Authorization", authorization(user)))
                 .andExpect(status().isUnauthorized());
 
         assertThat(userTravelItineraryJpaRepository.findByUserIdAndTravelItineraryId(user.getId(), travelItinerary.getId()))
@@ -318,9 +310,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
 
         mockMvc.perform(post("/travels/{travelId}/users/me", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, joiner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
-                        .header(CSRF_HEADER, "test-token"))
+                        .header("Authorization", authorization(joiner)))
                 .andExpect(status().isOk());
 
         TravelItinerary updated = travelItineraryJpaRepository.findById(travelItinerary.getId()).orElseThrow();
@@ -351,9 +341,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(joiner, travelItinerary, UserRole.MEMBER));
 
         mockMvc.perform(post("/travels/{travelId}/users/me", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, joiner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
-                        .header(CSRF_HEADER, "test-token"))
+                        .header("Authorization", authorization(joiner)))
                 .andExpect(status().isConflict());
     }
 
@@ -377,9 +365,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
 
         mockMvc.perform(post("/travels/{travelId}/users/me", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
-                        .header(CSRF_HEADER, "test-token"))
+                        .header("Authorization", authorization(outsider)))
                 .andExpect(status().isForbidden());
     }
 
@@ -404,9 +390,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
 
         mockMvc.perform(post("/travels/{travelId}/users/me", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, joiner.getPublicUuid())
-                        .sessionAttr(CSRF_TOKEN_KEY, "test-token")
-                        .header(CSRF_HEADER, "test-token"))
+                        .header("Authorization", authorization(joiner)))
                 .andExpect(status().isOk());
     }
 
@@ -425,7 +409,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
 
         mockMvc.perform(get("/travels/{travelId}/info", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, user.getPublicUuid()))
+                        .header("Authorization", authorization(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("제주도 여행"))
                 .andExpect(jsonPath("$.startAt").value("2026-03-01T00:00:00"))
@@ -458,7 +442,7 @@ class TravelIntegrationTest {
         userTravelItineraryJpaRepository.save(UserTravelItinerary.of(leader, travelItinerary, UserRole.LEADER));
 
         mockMvc.perform(get("/travels/{travelId}/info", travelItinerary.getId())
-                        .sessionAttr(USER_SESSION_KEY, outsider.getPublicUuid()))
+                        .header("Authorization", authorization(outsider)))
                 .andExpect(status().isNotFound());
     }
 
@@ -500,6 +484,10 @@ class TravelIntegrationTest {
                 .joinStatus(JoinStatus.JOINED)
                 .joinedAt(LocalDateTime.now())
                 .build();
+    }
+
+    private String authorization(User user) {
+        return "Bearer " + jwtManager.createAccessToken(user.getId());
     }
 }
 

@@ -55,9 +55,9 @@
 
 ## DRAFT Lifecycle Rule
 
-- TASK 병합이 완료되면 해당 TASK의 DRAFT 파일은 즉시 삭제한다. (무조건, 예외 없음)
-- 여러 TASK를 순차 병합하는 경우, 병합 완료된 TASK의 DRAFT만 먼저 삭제한다.
-- 병합 중 이슈 대응으로 신규 TASK가 생기면 이슈 대응 DRAFT는 해당 TASK 병합 완료 시점까지 유지한다.
+- 해당 JOB의 마지막 TASK 병합이 완료될 때까지 DRAFT 파일은 삭제하지 않고 유지한다. (무조건, 예외 없음)
+- 해당 JOB의 마지막 TASK 병합이 완료되면 그 JOB의 DRAFT 파일들을 일괄 삭제한다. (무조건, 예외 없음)
+- 병합 중 이슈 대응으로 신규 TASK가 생기면 이슈 대응 DRAFT도 마지막 TASK 병합 완료 시점까지 함께 유지한다.
 
 ## PLAN Lifecycle Rule
 

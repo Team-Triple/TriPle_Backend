@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.triple.backend.auth.session.SessionManager;
+import org.triple.backend.auth.crypto.UserIdentityResolver;
 import org.triple.backend.auth.oauth.OauthProvider;
 import org.triple.backend.common.annotation.ServiceTest;
 import org.triple.backend.global.error.BusinessException;
@@ -71,7 +71,7 @@ class TravelItineraryServiceTest {
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
 
     @MockitoBean
-    private SessionManager sessionManager;
+    private UserIdentityResolver userIdentityResolver;
 
     @Test
     @DisplayName("여행 저장 시 유저를 찾을 수 없으면 예외를 던진다.")
@@ -688,7 +688,7 @@ class TravelItineraryServiceTest {
         userGroupJpaRepository.save(createUserGroup(member, group));
 
         UUID memberUuid = member.getPublicUuid();
-        given(sessionManager.resolveUserId(memberUuid.toString())).willReturn(member.getId());
+        given(userIdentityResolver.resolve(memberUuid.toString())).willReturn(member.getId());
 
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "title",
@@ -717,7 +717,7 @@ class TravelItineraryServiceTest {
         userGroupJpaRepository.save(createUserGroup(leader, group));
 
         UUID unknownMemberUuid = UUID.randomUUID();
-        given(sessionManager.resolveUserId(unknownMemberUuid.toString())).willReturn(null);
+        given(userIdentityResolver.resolve(unknownMemberUuid.toString())).willReturn(null);
 
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "title",
@@ -743,7 +743,7 @@ class TravelItineraryServiceTest {
         userGroupJpaRepository.save(createUserGroup(leader, group));
 
         UUID outsiderUuid = outsider.getPublicUuid();
-        given(sessionManager.resolveUserId(outsiderUuid.toString())).willReturn(outsider.getId());
+        given(userIdentityResolver.resolve(outsiderUuid.toString())).willReturn(outsider.getId());
 
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "title",
@@ -771,8 +771,8 @@ class TravelItineraryServiceTest {
 
         UUID leaderUuid = leader.getPublicUuid();
         UUID memberUuid = member.getPublicUuid();
-        given(sessionManager.resolveUserId(leaderUuid.toString())).willReturn(leader.getId());
-        given(sessionManager.resolveUserId(memberUuid.toString())).willReturn(member.getId());
+        given(userIdentityResolver.resolve(leaderUuid.toString())).willReturn(leader.getId());
+        given(userIdentityResolver.resolve(memberUuid.toString())).willReturn(member.getId());
 
         TravelItinerarySaveRequestDto request = new TravelItinerarySaveRequestDto(
                 "title",
