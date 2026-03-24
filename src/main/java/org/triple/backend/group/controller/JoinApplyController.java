@@ -2,8 +2,8 @@ package org.triple.backend.group.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import org.triple.backend.auth.session.LoginRequired;
-import org.triple.backend.auth.session.LoginUser;
+import org.triple.backend.auth.jwt.LoginRequired;
+import org.triple.backend.auth.jwt.LoginUser;
 import org.triple.backend.group.dto.response.JoinApplyUserResponseDto;
 import org.triple.backend.group.entity.joinApply.JoinApplyStatus;
 import org.triple.backend.group.service.JoinApplyService;

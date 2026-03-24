@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
-import org.triple.backend.auth.config.property.CookieProperties;
+import org.triple.backend.auth.config.property.JwtProperties;
 import org.triple.backend.auth.config.property.KakaoOauthProperties;
 import org.triple.backend.auth.config.property.RestClientProperties;
 import org.triple.backend.auth.oauth.OauthClient;
@@ -20,7 +20,11 @@ import java.util.stream.Collectors;
 
 @Configuration
 @RequiredArgsConstructor
-@EnableConfigurationProperties({KakaoOauthProperties.class, CookieProperties.class, RestClientProperties.class})
+@EnableConfigurationProperties({
+        KakaoOauthProperties.class,
+        RestClientProperties.class,
+        JwtProperties.class
+})
 public class OauthConfig {
 
     private final RestClientProperties restClientProperties;

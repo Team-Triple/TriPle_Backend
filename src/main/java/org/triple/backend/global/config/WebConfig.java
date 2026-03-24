@@ -7,9 +7,8 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import org.triple.backend.auth.session.CsrfInterceptor;
-import org.triple.backend.auth.session.LoginInterceptor;
-import org.triple.backend.auth.session.LoginUserArgumentResolver;
+import org.triple.backend.auth.jwt.JwtAuthenticationInterceptor;
+import org.triple.backend.auth.jwt.JwtUserArgumentResolver;
 import org.triple.backend.global.config.property.CorsProperties;
 
 import java.util.List;
@@ -19,9 +18,8 @@ import java.util.List;
 @EnableConfigurationProperties(CorsProperties.class)
 public class WebConfig implements WebMvcConfigurer {
     private final CorsProperties corsProperties;
-    private final LoginUserArgumentResolver loginArgumentResolver;
-    private final LoginInterceptor loginInterceptor;
-    private final CsrfInterceptor csrfInterceptor;
+    private final JwtUserArgumentResolver jwtUserArgumentResolver;
+    private final JwtAuthenticationInterceptor jwtAuthenticationInterceptor;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
@@ -35,14 +33,12 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-        resolvers.add(loginArgumentResolver);
+        resolvers.add(jwtUserArgumentResolver);
     }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(loginInterceptor)
-                .addPathPatterns("/**");
-        registry.addInterceptor(csrfInterceptor)
+        registry.addInterceptor(jwtAuthenticationInterceptor)
                 .addPathPatterns("/**");
     }
 }

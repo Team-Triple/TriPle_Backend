@@ -10,29 +10,29 @@
     </appender>
 
     <!-- 디버깅 로그 -->
-    <appender name="DEBUG" class="ch.qos.logback.core.ConsoleAppender" additivity="false">
+    <appender name="DEBUG" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
             <level>DEBUG</level>
             <onMatch>ACCEPT</onMatch>
             <onMismatch>DENY</onMismatch>
         </filter>
         <encoder>
-            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level %X{traceId} user=%X{userUuid:-anonymous} session=%X{sessionId:-none} method = %X{method:none} path=%X{path:none} msg="%msg" "latency"="%X{latency:progressing}"%n%ex</pattern>
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level %X{traceId} method = %X{method:none} path=%X{path:none} msg="%msg" "latency"="%X{latency:progressing}"%n%ex</pattern>
         </encoder>
     </appender>
 
     <!-- 어플리케이션 로그 -->
-    <appender name="APPLICATION" class="ch.qos.logback.core.ConsoleAppender" additivity="false">
+    <appender name="APPLICATION" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>
-                {"traceId":"%X{traceId:-}", "timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}", "level":"%-5level", "user":"%X{userUuid:-anonymous}", "session":"%X{sessionId:-none}", "method":"%X{method:none}", "path":"%X{path:none}", "msg":"%msg", "latency":"%X{latency:progressing}", "exception":"%ex"}%n
+                {"traceId":"%X{traceId:-}", "timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}", "level":"%-5level", "method":"%X{method:none}", "path":"%X{path:none}", "msg":"%msg", "latency":"%X{latency:progressing}", "exception":"%ex"}%n
             </pattern>
         </encoder>
     </appender>
 
     <!-- 개발 서버 로그 설정 -->
     <springProfile name="dev">
-        <logger name="org.triple.backend" level="DEBUG" additivity="true">
+        <logger name="org.triple.backend" level="DEBUG" additivity="false">
             <appender-ref ref="DEBUG"/>
             <appender-ref ref="APPLICATION"/>
         </logger>
@@ -65,7 +65,7 @@
         </root>
     </springProfile>
 
-    <springProfile name="!dev &amp; !prod">
+    <springProfile name="!dev &amp; !prod &amp; !local">
         <root level="INFO">
             <appender-ref ref="ROOT"/>
         </root>

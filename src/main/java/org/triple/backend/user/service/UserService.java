@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.triple.backend.auth.session.UuidCrypto;
+import org.triple.backend.auth.crypto.UuidCrypto;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.user.dto.response.UpdateUserInfoRes;
 import org.triple.backend.user.dto.request.UpdateUserInfoReq;

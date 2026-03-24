@@ -6,7 +6,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.triple.backend.auth.session.SessionManager;
+import org.triple.backend.auth.crypto.UserIdentityResolver;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.group.entity.group.Group;
 import org.triple.backend.group.entity.userGroup.JoinStatus;
@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +45,7 @@ public class TravelItineraryService {
     private final TravelItineraryJpaRepository travelItineraryJpaRepository;
     private final GroupJpaRepository groupJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
-    private final SessionManager sessionManager;
+    private final UserIdentityResolver userIdentityResolver;
 
     @Transactional
     public TravelItinerarySaveResponseDto saveTravels(final TravelItinerarySaveRequestDto travelsRequestDto, final Long userId) {
@@ -90,7 +89,7 @@ public class TravelItineraryService {
         List<Long> memberUserIds = new ArrayList<>();
 
         for (String memberUuid : memberUuids) {
-            Long memberUserId = sessionManager.resolveUserId(memberUuid);
+            Long memberUserId = userIdentityResolver.resolve(memberUuid);
             if (memberUserId == null) {
                 throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
             }

@@ -1,4 +1,4 @@
-package org.triple.backend.auth.session;
+package org.triple.backend.auth.crypto;
 
 import jakarta.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Value;

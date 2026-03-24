@@ -14,16 +14,6 @@ spring:
         format_sql: true
         show_sql: false
 
-# 쿠키
-server:
-  servlet:
-    session:
-      cookie:
-        path: /
-        same-site: None
-        secure: true
-        http-only: true
-
 #CORS
 cors:
   app-mapping: "/**"
@@ -40,8 +30,8 @@ cors:
   allowed-headers:
     - "*"
   allow-credentials: true
-  exposed-headers:
-    - X-CSRF-Token
+  exposed-headers: 
+    - Authorization
 
 # 인증
 oauth:
@@ -58,6 +48,9 @@ rest-client:
 
 # 보안
 security:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expire-seconds: ${JWT_ACCESS_TOKEN_EXPIRE_SECONDS:86400}
   uuid:
     secret: ${UUID_CRYPTO_SECRET}
 
