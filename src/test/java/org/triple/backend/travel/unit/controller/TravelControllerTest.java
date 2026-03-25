@@ -11,6 +11,7 @@ import org.triple.backend.common.ControllerTest;
 import org.triple.backend.global.error.BusinessException;
 import org.triple.backend.travel.controller.TravelItineraryController;
 import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
+import org.triple.backend.travel.dto.response.TravelDocInitialStateResponseDto;
 import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
 import org.triple.backend.travel.dto.response.TravelItineraryInfoResponseDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
@@ -828,6 +829,56 @@ class TravelControllerTest extends ControllerTest {
                                 fieldWithPath("message").description("오류 메시지")
                         )
                 ));
+    }
+
+    @Test
+    @DisplayName("여행 문서 초기값 조회 성공 시 200을 반환한다.")
+    void 여행_문서_초기값_조회_성공() throws Exception {
+        Long travelId = 1L;
+        given(sessionManager.getUserId(any())).willReturn(1L);
+        given(sessionManager.getUserIdOrThrow(any())).willReturn(1L);
+        given(travelItineraryService.getTravelDocInitialState(travelId, 1L))
+                .willReturn(new TravelDocInitialStateResponseDto(travelId, "AAECAw==", true));
+
+        mockMvc.perform(get("/travels/{travelId}/doc", travelId)
+                        .with(loginJwt()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.travelItineraryId").value(1L))
+                .andExpect(jsonPath("$.state").value("AAECAw=="))
+                .andExpect(jsonPath("$.initialized").value(true))
+                .andDo(document("travels/doc",
+                        pathParameters(
+                                parameterWithName("travelId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("travelItineraryId").description("여행 일정 ID"),
+                                fieldWithPath("state").description("초기 문서 상태(Base64)"),
+                                fieldWithPath("initialized").description("문서 초기화 여부")
+                        )
+                ));
+
+        verify(travelItineraryService, times(1)).getTravelDocInitialState(travelId, 1L);
+    }
+
+    @Test
+    @DisplayName("비로그인 사용자가 여행 문서 초기값 조회 시 401을 반환한다.")
+    void 비로그인_사용자_문서_초기값_조회_실패() throws Exception {
+        given(sessionManager.getUserIdOrThrow(any()))
+                .willThrow(new BusinessException(AuthErrorCode.UNAUTHORIZED));
+
+        mockMvc.perform(get("/travels/{travelId}/doc", 1L))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증정보가 없거나 만료되었습니다."))
+                .andDo(document("travels/doc-fail-unauthorized",
+                        pathParameters(
+                                parameterWithName("travelId").description("조회할 여행 일정 ID")
+                        ),
+                        responseFields(
+                                fieldWithPath("message").description("오류 메시지")
+                        )
+                ));
+
+        verify(travelItineraryService, never()).getTravelDocInitialState(any(), any());
     }
 
     private String buildTravelSaveRequestBody(

@@ -21,8 +21,10 @@ import org.triple.backend.group.exception.GroupErrorCode;
 import org.triple.backend.group.repository.GroupJpaRepository;
 import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
+import org.triple.backend.travel.dto.response.TravelDocInitialStateResponseDto;
 import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
 import org.triple.backend.travel.dto.response.TravelItineraryInfoResponseDto;
+import org.triple.backend.travel.entity.TravelDoc;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
@@ -30,6 +32,7 @@ import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
+import org.triple.backend.travel.repository.TravelDocJpaRepository;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.travel.service.TravelItineraryService;
@@ -38,6 +41,7 @@ import org.triple.backend.user.exception.UserErrorCode;
 import org.triple.backend.user.repository.UserJpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -66,6 +70,9 @@ class TravelItineraryServiceTest {
 
     @Autowired
     private TravelItineraryJpaRepository travelItineraryJpaRepository;
+
+    @Autowired
+    private TravelDocJpaRepository travelDocJpaRepository;
 
     @Autowired
     private UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
@@ -848,6 +855,77 @@ class TravelItineraryServiceTest {
 
         // when & then
         Assertions.assertThatThrownBy(() -> travelItineraryService.getTravelInfo(travelItinerary.getId(), user.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("여행 문서 초기값 조회 시 문서가 있으면 initialized=true를 반환한다.")
+    void 여행_문서_초기값_조회_문서있음() {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "제주도 여행",
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                group, "설명", 1, false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
+
+        byte[] state = new byte[]{0, 1, 2, 3};
+        travelDocJpaRepository.save(TravelDoc.of(travelItinerary.getId(), state));
+
+        TravelDocInitialStateResponseDto response = travelItineraryService.getTravelDocInitialState(
+                travelItinerary.getId(),
+                user.getId()
+        );
+
+        String encodedState = Base64.getEncoder().encodeToString(state);
+        Assertions.assertThat(response.travelItineraryId()).isEqualTo(travelItinerary.getId());
+        Assertions.assertThat(response.initialized()).isTrue();
+        Assertions.assertThat(response.state()).isEqualTo(encodedState);
+    }
+
+    @Test
+    @DisplayName("여행 문서 초기값 조회 시 문서가 없으면 initialized=false를 반환한다.")
+    void 여행_문서_초기값_조회_문서없음() {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "제주도 여행",
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                group, "설명", 1, false
+        ));
+        userTravelItineraryJpaRepository.save(UserTravelItinerary.of(user, travelItinerary, UserRole.LEADER));
+
+        TravelDocInitialStateResponseDto response = travelItineraryService.getTravelDocInitialState(
+                travelItinerary.getId(),
+                user.getId()
+        );
+
+        Assertions.assertThat(response.travelItineraryId()).isEqualTo(travelItinerary.getId());
+        Assertions.assertThat(response.initialized()).isFalse();
+        Assertions.assertThat(response.state()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("여행 문서 초기값 조회 시 여행 멤버가 아니면 예외를 던진다.")
+    void 여행_문서_초기값_조회_멤버아님_예외() {
+        User user = userJpaRepository.save(createUser());
+        Group group = groupJpaRepository.save(createGroup());
+        TravelItinerary travelItinerary = travelItineraryJpaRepository.save(new TravelItinerary(
+                "제주도 여행",
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                group, "설명", 1, false
+        ));
+
+        Assertions.assertThatThrownBy(() -> travelItineraryService.getTravelDocInitialState(
+                        travelItinerary.getId(),
+                        user.getId()
+                ))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
