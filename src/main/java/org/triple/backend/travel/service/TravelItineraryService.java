@@ -16,13 +16,16 @@ import org.triple.backend.group.repository.UserGroupJpaRepository;
 import org.triple.backend.travel.exception.TravelItineraryErrorCode;
 import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
+import org.triple.backend.travel.dto.response.TravelDocInitialStateResponseDto;
 import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
 import org.triple.backend.travel.dto.response.TravelItineraryInfoResponseDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
+import org.triple.backend.travel.entity.TravelDoc;
 import org.triple.backend.travel.entity.TravelItinerary;
 import org.triple.backend.travel.entity.UserRole;
 import org.triple.backend.travel.entity.UserTravelItinerary;
 import org.triple.backend.travel.exception.UserTravelItineraryErrorCode;
+import org.triple.backend.travel.repository.TravelDocJpaRepository;
 import org.triple.backend.travel.repository.TravelItineraryJpaRepository;
 import org.triple.backend.travel.repository.UserTravelItineraryJpaRepository;
 import org.triple.backend.user.entity.User;
@@ -43,6 +46,7 @@ public class TravelItineraryService {
     private final UserJpaRepository userJpaRepository;
     private final UserTravelItineraryJpaRepository userTravelItineraryJpaRepository;
     private final TravelItineraryJpaRepository travelItineraryJpaRepository;
+    private final TravelDocJpaRepository travelDocJpaRepository;
     private final GroupJpaRepository groupJpaRepository;
     private final UserGroupJpaRepository userGroupJpaRepository;
     private final UserIdentityResolver userIdentityResolver;
@@ -242,6 +246,24 @@ public class TravelItineraryService {
 
         List<UserTravelItinerary> members = userTravelItineraryJpaRepository.findAllByTravelItineraryId(travelItineraryId);
         return TravelItineraryInfoResponseDto.of(travelItinerary, members);
+    }
+
+    @Transactional(readOnly = true)
+    public TravelDocInitialStateResponseDto getTravelDocInitialState(final Long travelItineraryId, final Long userId) {
+        travelItineraryJpaRepository.findByIdAndIsDeletedFalse(travelItineraryId)
+                .orElseThrow(() -> new BusinessException(TravelItineraryErrorCode.TRAVEL_NOT_FOUND));
+
+        boolean isMember = userTravelItineraryJpaRepository.existsByUserIdAndTravelItineraryId(userId, travelItineraryId);
+        if (!isMember) {
+            throw new BusinessException(UserTravelItineraryErrorCode.USER_TRAVEL_ITINERARY_NOT_FOUND);
+        }
+
+        TravelDoc travelDoc = travelDocJpaRepository.findByTravelItineraryId(travelItineraryId)
+                .orElse(null);
+        if (travelDoc == null) {
+            return TravelDocInitialStateResponseDto.empty(travelItineraryId);
+        }
+        return TravelDocInitialStateResponseDto.initialized(travelItineraryId, travelDoc.getState());
     }
 
     @Transactional

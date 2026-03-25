@@ -7,6 +7,7 @@ import org.triple.backend.auth.jwt.LoginRequired;
 import org.triple.backend.auth.jwt.LoginUser;
 import org.triple.backend.travel.dto.request.TravelItinerarySaveRequestDto;
 import org.triple.backend.travel.dto.request.TravelItineraryUpdateRequestDto;
+import org.triple.backend.travel.dto.response.TravelDocInitialStateResponseDto;
 import org.triple.backend.travel.dto.response.TravelItineraryCursorResponseDto;
 import org.triple.backend.travel.dto.response.TravelItineraryInfoResponseDto;
 import org.triple.backend.travel.dto.response.TravelItinerarySaveResponseDto;
@@ -81,5 +82,14 @@ public class TravelItineraryController {
             @LoginUser Long userId
     ) {
         return travelItineraryService.getTravelInfo(travelId, userId);
+    }
+
+    @LoginRequired
+    @GetMapping("/{travelId}/doc")
+    public TravelDocInitialStateResponseDto getTravelDocInitialState(
+            @PathVariable Long travelId,
+            @LoginUser Long userId
+    ) {
+        return travelItineraryService.getTravelDocInitialState(travelId, userId);
     }
 }
