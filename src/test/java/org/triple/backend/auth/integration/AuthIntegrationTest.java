@@ -1,5 +1,6 @@
 package org.triple.backend.auth.integration;
 
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import org.triple.backend.user.repository.UserJpaRepository;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -49,7 +51,7 @@ class AuthIntegrationTest {
     }
 
     @Test
-    @DisplayName("kakao login success returns authorization header and profile")
+    @DisplayName("kakao login success returns authorization header, refresh cookie and profile")
     void loginSuccess() throws Exception {
         given(kakaoOauthClient.fetchUser(anyString()))
                 .willReturn(new OauthUser(
@@ -67,6 +69,7 @@ class AuthIntegrationTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Authorization", startsWith("Bearer ")))
+                .andExpect(header().string("Set-Cookie", containsString("refresh_token=")))
                 .andExpect(jsonPath("$.profileUrl").value("http://img"))
                 .andExpect(jsonPath("$.nickname").value("test"))
                 .andExpect(jsonPath("$.email").value("test@test.com"))
@@ -75,11 +78,82 @@ class AuthIntegrationTest {
         User saved = userJpaRepository.findByProviderAndProviderId(OauthProvider.KAKAO, "kakao-1234")
                 .orElseThrow();
         String authorizationHeader = result.getResponse().getHeader("Authorization");
+        String setCookie = result.getResponse().getHeader("Set-Cookie");
 
         assertThat(authorizationHeader).startsWith("Bearer ");
         assertThat(authorizationHeader).isNotBlank();
+        assertThat(setCookie).contains("refresh_token=");
         assertThat(saved.getId()).isNotNull();
         assertThat(userJpaRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("refresh success returns new authorization header and rotated refresh cookie")
+    void refreshSuccess() throws Exception {
+        given(kakaoOauthClient.fetchUser(anyString()))
+                .willReturn(new OauthUser(
+                        OauthProvider.KAKAO,
+                        "kakao-5678",
+                        "refresh@test.com",
+                        "refresh-user",
+                        "http://img"
+                ));
+
+        MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"test-code","provider":"KAKAO"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Cookie refreshCookie = toRefreshCookie(loginResult.getResponse().getHeader("Set-Cookie"));
+
+        mockMvc.perform(post("/auth/refresh")
+                        .cookie(refreshCookie))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Authorization", startsWith("Bearer ")))
+                .andExpect(header().string("Set-Cookie", containsString("refresh_token=")));
+    }
+
+    @Test
+    @DisplayName("refresh without cookie returns unauthorized")
+    void refreshWithoutCookie() throws Exception {
+        mockMvc.perform(post("/auth/refresh"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("refresh with stale cookie returns unauthorized")
+    void refreshWithStaleCookie() throws Exception {
+        given(kakaoOauthClient.fetchUser(anyString()))
+                .willReturn(new OauthUser(
+                        OauthProvider.KAKAO,
+                        "kakao-9999",
+                        "stale@test.com",
+                        "stale-user",
+                        "http://img"
+                ));
+
+        MvcResult firstLogin = mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"test-code","provider":"KAKAO"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        Cookie staleCookie = toRefreshCookie(firstLogin.getResponse().getHeader("Set-Cookie"));
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"test-code","provider":"KAKAO"}
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/auth/refresh")
+                        .cookie(staleCookie))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -93,5 +167,11 @@ class AuthIntegrationTest {
                 .andExpect(status().is4xxClientError());
 
         assertThat(userJpaRepository.count()).isEqualTo(0);
+    }
+
+    private Cookie toRefreshCookie(String setCookieHeader) {
+        String firstSection = setCookieHeader.split(";", 2)[0];
+        String[] cookieParts = firstSection.split("=", 2);
+        return new Cookie(cookieParts[0], cookieParts[1]);
     }
 }
