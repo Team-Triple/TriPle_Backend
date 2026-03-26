@@ -61,6 +61,11 @@ security:
   jwt:
     secret: test-jwt-secret-value-at-least-32-characters
     access-token-expire-seconds: 3600
+    refresh-token-expire-seconds: 1209600
+    refresh-cookie-name: refresh_token
+    refresh-cookie-path: /auth
+    refresh-cookie-secure: false
+    refresh-cookie-same-site: Lax
   uuid:
     secret: test-uuid-crypto-secret
 

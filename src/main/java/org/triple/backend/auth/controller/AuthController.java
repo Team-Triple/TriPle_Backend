@@ -1,5 +1,6 @@
 package org.triple.backend.auth.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,13 @@ public class AuthController {
     @PostMapping("/login")
     public AuthLoginResponseDto login(@Valid @RequestBody final AuthLoginRequestDto authLoginRequestDto,
                                       HttpServletResponse response) {
-        log.debug("login 시작");
+        log.debug("login start");
         return authServiceFacade.login(authLoginRequestDto, response);
+    }
+
+    @PostMapping("/refresh")
+    public void refresh(HttpServletRequest request, HttpServletResponse response) {
+        log.debug("refresh start");
+        authServiceFacade.refresh(request, response);
     }
 }

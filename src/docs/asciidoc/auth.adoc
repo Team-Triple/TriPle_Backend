@@ -5,23 +5,32 @@
 :toc: left
 :toclevels: 3
 
-== OAuth2 로그인
+== OAuth2 Login
 include::{snippets}/auth/login/http-request.adoc[]
 include::{snippets}/auth/login/http-response.adoc[]
 
-=== 실패: 잘못된 요청 값(400)
+=== Failure: Bad Request (400)
 include::{snippets}/auth/login-fail-bad-request/http-response.adoc[]
 
-=== 실패: 지원하지 않는 OAuth Provider (401)
+=== Failure: Unsupported OAuth Provider (401)
 include::{snippets}/auth/login-fail-unsupported-provider/http-response.adoc[]
 
-=== 실패: 카카오 인증 토큰 발급 실패 (401)
+=== Failure: Kakao Access Token Issue Failed (401)
 include::{snippets}/auth/login-fail-issue-kakao-access-token/http-response.adoc[]
 
-=== 실패: 카카오 사용자 정보 조회 실패 (401)
+=== Failure: Kakao User Info Lookup Failed (401)
 include::{snippets}/auth/login-fail-find-kakao-user-info/http-response.adoc[]
 
-== 인증 토큰 사용
+== Access Token Reissue (Refresh Token)
+include::{snippets}/auth/refresh/http-request.adoc[]
+include::{snippets}/auth/refresh/http-response.adoc[]
 
-- 로그인 성공 시 응답 헤더 `Authorization`으로 `Bearer <accessToken>`이 내려갑니다.
-- 인증이 필요한 API는 동일 헤더를 요청에 포함해야 합니다.
+=== Failure: Missing Or Invalid Refresh Cookie (401)
+include::{snippets}/auth/refresh-fail-unauthorized/http-response.adoc[]
+
+== Token Usage
+
+- On login success, server returns `Authorization: Bearer <accessToken>` header.
+- Server also returns `Set-Cookie: refresh_token=<token>` with `HttpOnly` option.
+- Use the access token in `Authorization` header for authenticated APIs.
+- Call `/auth/refresh` with refresh cookie to reissue access token and rotate refresh token.

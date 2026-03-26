@@ -1,5 +1,6 @@
 package org.triple.backend.auth.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,7 +15,10 @@ public class AuthServiceFacade {
 
     public AuthLoginResponseDto login(final AuthLoginRequestDto authLoginRequestDto, HttpServletResponse response) {
         OauthUser oauthUser = authService.authenticate(authLoginRequestDto);
-
         return authService.findOrCreate(oauthUser, response);
+    }
+
+    public void refresh(HttpServletRequest request, HttpServletResponse response) {
+        authService.reissueAccessToken(request, response);
     }
 }
