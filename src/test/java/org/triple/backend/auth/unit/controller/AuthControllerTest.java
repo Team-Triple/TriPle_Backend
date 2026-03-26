@@ -23,6 +23,10 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -50,6 +54,9 @@ class AuthControllerTest extends ControllerTest {
                         .content("""
                                 {"code":"test-code","provider":"KAKAO"}
                                 """))
+                .andDo(document("auth/login",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint())))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Authorization", startsWith("Bearer ")))
                 .andExpect(header().string("Set-Cookie", startsWith("refresh_token=")))
@@ -68,6 +75,9 @@ class AuthControllerTest extends ControllerTest {
                         .content("""
                                 {"code":"","provider":null}
                                 """))
+                .andDo(document("auth/login-fail-bad-request",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
 
@@ -85,7 +95,46 @@ class AuthControllerTest extends ControllerTest {
                         .content("""
                                 {"code":"test-code","provider":"GOOGLE"}
                                 """))
+                .andDo(document("auth/login-fail-unsupported-provider",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint())))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("kakao access token issue failure returns unauthorized")
+    void loginFailIssueKakaoAccessToken() throws Exception {
+        given(authServiceFacade.login(any(AuthLoginRequestDto.class), any(HttpServletResponse.class)))
+                .willThrow(new BusinessException(AuthErrorCode.FAILED_ISSUE_KAKAO_ACCESS_TOKEN));
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"test-code","provider":"KAKAO"}
+                                """))
+                .andDo(document("auth/login-fail-issue-kakao-access-token",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint())))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value(AuthErrorCode.FAILED_ISSUE_KAKAO_ACCESS_TOKEN.getMessage()));
+    }
+
+    @Test
+    @DisplayName("kakao user info fetch failure returns unauthorized")
+    void loginFailFindKakaoUserInfo() throws Exception {
+        given(authServiceFacade.login(any(AuthLoginRequestDto.class), any(HttpServletResponse.class)))
+                .willThrow(new BusinessException(AuthErrorCode.FAILED_FIND_KAKAO_USER_INFO));
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"test-code","provider":"KAKAO"}
+                                """))
+                .andDo(document("auth/login-fail-find-kakao-user-info",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint())))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value(AuthErrorCode.FAILED_FIND_KAKAO_USER_INFO.getMessage()));
     }
 
     @Test
@@ -102,6 +151,9 @@ class AuthControllerTest extends ControllerTest {
 
         mockMvc.perform(post("/auth/refresh")
                         .cookie(new Cookie("refresh_token", "old-refresh-token")))
+                .andDo(document("auth/refresh",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint())))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Authorization", startsWith("Bearer ")))
                 .andExpect(header().string("Set-Cookie", startsWith("refresh_token=")));
@@ -117,6 +169,9 @@ class AuthControllerTest extends ControllerTest {
                 .refresh(any(HttpServletRequest.class), any(HttpServletResponse.class));
 
         mockMvc.perform(post("/auth/refresh"))
+                .andDo(document("auth/refresh-fail-unauthorized",
+                        preprocessRequest(prettyPrint()),
+                        preprocessResponse(prettyPrint())))
                 .andExpect(status().isUnauthorized());
     }
 }
